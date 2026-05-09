@@ -2,7 +2,7 @@
 
 Apps Script per la gestione di orario didattico, tabella aule e Web Calendar pubblico, con strumenti pensati per essere riusati come scaffolding per altri Google Sheet ad uso amministrativo.
 
-Documentazione tecnica completa: [`docs/Orario CdS - Guida tecnica completa.docx`](docs/Orario%20CdS%20-%20Guida%20tecnica%20completa.docx).
+Documentazione tecnica completa: [`docs/guida-tecnica-completa.md`](docs/guida-tecnica-completa.md).
 
 ## Caratteristiche
 
@@ -91,7 +91,7 @@ I valori vengono scritti in `config/local.json` e `.clasp.json` (entrambi gitign
 │   └── index.html             UI web app
 └── docs/
     ├── Orario CdS - Documentazione tecnica.docx
-    └── Orario CdS - Guida tecnica completa.docx
+    └── guida-tecnica-completa.md
 ```
 
 ## Workflow operativo (utente del foglio)
