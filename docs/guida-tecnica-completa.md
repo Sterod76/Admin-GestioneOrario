@@ -32,7 +32,7 @@ Il codice Apps Script (file `.gs`) è gestito con **clasp** e versionato come co
 
 clasp (Command Line Apps Script) è il tool ufficiale di Google per gestire progetti Apps Script da una macchina locale. Sostituisce l'editor web (script.google.com) con un workflow basato su file system + Git, e permette di pushare/scaricare il codice del progetto, gestire i deployment e leggere i log da terminale.
 
-**Due modi per installarlo**:
+**Due modi per installarlo, in ordine di preferenza:**
 
 > **Cos'è Node.js.** **Node.js** è un *runtime JavaScript*: un programma che esegue codice JavaScript fuori dal browser. JS è nato negli anni '90 per girare nelle pagine web (Chrome, Firefox, ecc.); Node.js (2009) ha tirato fuori il motore V8 di Chrome e l'ha trasformato in un eseguibile da terminale, dando a JS l'accesso a file system, rete, processi — cose che il browser per sicurezza nasconde.
 >
@@ -57,60 +57,63 @@ clasp (Command Line Apps Script) è il tool ufficiale di Google per gestire prog
 > ```
 > Se il comando "non è riconosciuto": Node non è in PATH. Reinstalla con l'installer ufficiale (di solito sistema il PATH automaticamente) e riapri il terminale.
 
-> **Cos'è npm.** **npm** = "node package manager" (in pratica: il gestore dei pacchetti di Node.js). Viene installato automaticamente insieme a Node.js e si occupa di leggere `package.json` per scaricare le librerie indicate dentro `node_modules/`. Il file `package.json` di questo repo elenca le sue dipendenze (clasp) e definisce gli script accessori (`npm run push` ecc.). Niente `package.json` = niente concetto di "progetto npm" e quindi nessun `npm install` possibile. Se digiti solo `npm` da terminale e non risponde, non hai Node.js installato (o non è in PATH); installa Node prima.
+> **Cos'è npm.** **npm** = "node package manager" (in pratica: il gestore dei pacchetti di Node.js). Viene installato automaticamente insieme a Node.js e si occupa di leggere `package.json` per scaricare le librerie indicate dentro `node_modules/` e per definire gli script accessori (`npm run push` ecc.). In questo repo `package.json` non dichiara dipendenze runtime (vedi metodo A: clasp è installato globalmente), serve solo come contenitore degli script. Se digiti solo `npm` da terminale e non risponde, non hai Node.js installato (o non è in PATH); installa Node prima.
 
-#### A. Install locale al progetto (consigliato in questo repo)
-
-Questo repository dichiara `@google/clasp` come `devDependency` in `package.json`. Quindi un solo comando dopo aver clonato:
-
-```bash
-npm install
-```
-
-Questo crea `node_modules/` con clasp dentro. Da quel momento:
-- `npm run push`, `npm run deploy`, `npm run pull`, `npm run status`, `npm run open`, `npm run logs` funzionano sempre (npm prepende automaticamente `node_modules/.bin/` al PATH dello script che lancia).
-- Per chiamare `clasp` ad-hoc fuori dagli script: `npx clasp <comando>`.
-
-**Vantaggio**: nessuna dipendenza dal PATH di sistema. Funziona uguale su qualsiasi terminale (cmd, PowerShell, Git Bash, terminale integrato di VS Code) anche se clasp non è installato globalmente.
-
-> ⚠️ **Attenzione su Google Drive condiviso.** Se la cartella del progetto vive su un drive Google sincronizzato (es. `H:\Drive condivisi\…`), `npm install` può fallire con flotte di errori `npm warn tar TAR_ENTRY_ERROR UNKNOWN: unknown error, write`. Causa: Drive non regge bene la creazione simultanea di migliaia di file piccoli (un `node_modules/` tipico ne contiene 10000+). Tre soluzioni:
-> 1. **Install globale di clasp** (vedi B sotto): nessun `node_modules/` locale, niente conflitti con Drive.
-> 2. **Clona il repo su disco locale** (`C:\Users\…\projects\…`), lavora lì, sincronizza su Drive solo via git push se serve.
-> 3. **Junction Windows**: con `mklink /J` da cmd amministratore, sposti il path fisico di `node_modules` su disco locale tenendo il riferimento dentro Drive. Più hacky, ma se sei costretto a stare su Drive funziona.
-
-#### B. Install globale di sistema
-
-Alternativa, vecchia maniera:
+#### A. Install globale (consigliato — sempre)
 
 ```bash
 npm install -g @google/clasp
 ```
 
-Va aggiunto al PATH il global bin di npm (`%APPDATA%\npm` su Windows, `/usr/local/bin` o simili su Mac/Linux). Su Windows potresti dover **chiudere e riaprire il terminale** dopo l'install perché il PATH non si aggiorna nelle shell già aperte.
+Mette `clasp` in `%APPDATA%\npm\` (Windows) o `/usr/local/bin/` (Mac/Linux), automaticamente in PATH. Su Windows **chiudi e riapri il terminale** dopo l'install perché PowerShell/cmd non aggiornano il PATH nelle shell già aperte.
 
-Verifica con:
+Verifica:
 ```bash
-clasp --version       # se in PATH
-where clasp           # Windows: deve stampare il percorso
-clasp show-authorized-user
+clasp --version       # → 3.3.0 (o successivo)
+where clasp           # Windows: stampa C:\Users\…\AppData\Roaming\npm\clasp.cmd
 ```
 
-Se `clasp` non viene trovato ma l'install globale è andato a buon fine, è un problema di PATH della tua shell. Soluzioni temporanee:
-- **PowerShell**: `$env:PATH = "C:\Users\rodda\AppData\Roaming\npm;" + $env:PATH`
-- **cmd**: `set PATH=%APPDATA%\npm;%PATH%`
-- **bash**: `export PATH="$APPDATA/npm:$PATH"`
+**Errori comuni durante l'install:**
 
-Su Windows il path tipico è `C:\Users\<utente>\AppData\Roaming\npm` e dentro trovi `clasp.cmd`.
+- **Cache npm corrotta** (flotte di warning `npm warn tar TAR_BAD_ARCHIVE` o `tarball cached data … seems to be corrupted. Refreshing cache.`): npm la rifa da solo. L'output finale "added N packages in Xs" indica successo nonostante i warning. Per pulire preventivamente:
+  ```
+  npm cache clean --force
+  ```
+- **`clasp` non trovato dopo l'install** (errore "non è riconosciuto"): è un problema di PATH della shell aperta. Soluzioni temporanee:
+  - **PowerShell**: `$env:PATH = "$env:APPDATA\npm;$env:PATH"`
+  - **cmd**: `set PATH=%APPDATA%\npm;%PATH%`
+  - **bash**: `export PATH="$APPDATA/npm:$PATH"`
+  - Permanente: chiudi/riapri il terminale, oppure controlla che `%APPDATA%\npm` sia nelle Variabili d'ambiente Utente di Windows.
+
+#### B. Install locale al progetto (alternativa per disco locale)
+
+Aggiungi `@google/clasp` ai `devDependencies` del `package.json` (al momento questo repo **non** lo dichiara) e fai:
+
+```bash
+npm install
+```
+
+Da quel momento `npm run push`, `npm run deploy`, ecc. usano clasp da `node_modules/.bin/`. Per ad-hoc: `npx clasp <comando>`.
+
+**Vantaggio**: nessuna dipendenza dal PATH globale.
+**Svantaggio**: crea ~200 MB in `node_modules/` con 10000+ file.
+
+> ⚠️ **NON usare l'install locale su Google Drive condiviso.** Drive non regge il sync di migliaia di file piccoli simultanei e `npm install` fallisce con flotte di errori a cascata `npm warn tar TAR_ENTRY_ERROR UNKNOWN: unknown error, write`. Quindi:
+> - Se il progetto è in `H:\Drive condivisi\…` o cartelle simili → **usa solo l'install globale (metodo A)**.
+> - Per usare il metodo B: clona il repo su disco locale (es. `C:\Users\…\projects\Orario`) e lavora lì. Sincronizzi col team via git, non via Drive.
+> - Hack alternativo: junction Windows. Da cmd amministratore: `mklink /J "<progetto>\node_modules" C:\node_modules_locale` — il filesystem fisico di `node_modules/` finisce su disco locale, ma il riferimento sta dentro Drive. Più fragile, da usare solo se sei costretto.
+
+Per questo motivo questo repository assume per default il metodo **A** (globale): gli script `npm run *` chiamano `clasp` direttamente trovandolo in PATH.
 
 #### Login (una tantum, OAuth)
 
 Indipendentemente dall'install scelto:
 
 ```bash
-clasp login          # oppure: npx clasp login
+clasp login          # oppure: npx clasp login se installato in locale
 ```
 
-Apre il browser per autorizzare. Le credenziali sono salvate in `~/.clasprc.json`. Da quel momento `clasp` opera come quell'account Google.
+Apre il browser per autorizzare. Le credenziali sono salvate in `~/.clasprc.json` (= `%USERPROFILE%\.clasprc.json` su Windows). Da quel momento `clasp` opera come quell'account Google.
 
 Per cambiare account: `clasp logout` e poi `clasp login` con l'altro account.
 

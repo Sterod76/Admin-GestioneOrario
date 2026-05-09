@@ -23,18 +23,22 @@ Questo è un repository contenente il codice per fare funzionare l'applicativo d
 
 ## Prerequisiti
 
-- **Node.js >= 18** ([download](https://nodejs.org/)).
+- **Node.js >= 18** ([download](https://nodejs.org/)). Verifica con `node --version`.
+- **clasp** installato globalmente:
+  ```
+  npm install -g @google/clasp
+  ```
+  Verifica con `clasp --version`.
 - Account Google con accesso allo Spreadsheet bersaglio.
 
-`clasp` viene installato automaticamente come dev dependency del progetto (vedi `package.json`). Non serve installarlo globalmente, ma se preferisci puoi farlo: `npm install -g @google/clasp`.
+> ⚠️ **Se la cartella del progetto è su Google Drive condiviso** (es. `H:\Drive condivisi\…`): installa clasp **solo globalmente** come sopra. Non eseguire `npm install` locale dentro la cartella Drive — fallisce con errori `tar TAR_ENTRY_ERROR / TAR_BAD_ARCHIVE` perché Drive non regge il sync di migliaia di file simultanei. Vedi [`docs/guida-tecnica-completa.md`](docs/guida-tecnica-completa.md) § 2.1 per dettagli e workaround.
 
 ## Quick start su un'installazione esistente
 
 ```bash
 git clone https://codeberg.org/<utente>/<repo>.git
 cd <repo>
-npm install        # installa clasp e dipendenze in node_modules/
-npx clasp login    # una tantum: autorizza l'account Google
+clasp login        # una tantum: autorizza l'account Google (usa quello del Sheet)
 npm run setup      # interattivo: chiede gli ID
 npm run pull       # opzionale: scarica codice attuale di quel progetto
 npm run push       # invia src/ ad Apps Script

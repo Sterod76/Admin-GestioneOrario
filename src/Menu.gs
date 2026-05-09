@@ -1,6 +1,6 @@
 function onOpen() {
   SpreadsheetApp.getUi()
-    .createMenu('🕒 GestioneOrario')
+    .createMenu('🕒 Orario')
     .addItem('🎯 Assegna vincolo da PdS', 'assegnaVincoliDaPds')
     .addItem('🏛️ Genera tabella aule', 'tabellaAule')
     .addItem('📅 Aggiorna Web Calendar', 'aggiornaWebApp')
