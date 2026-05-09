@@ -1,0 +1,57 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Push (clasp)",
+      "type": "shell",
+      "command": "npm run push",
+      "group": { "kind": "build", "isDefault": true },
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Deploy (push + redeploy webapp)",
+      "type": "shell",
+      "command": "npm run deploy",
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Pull (clasp)",
+      "type": "shell",
+      "command": "npm run pull",
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Setup IDs",
+      "type": "shell",
+      "command": "npm run setup",
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "List deployments",
+      "type": "shell",
+      "command": "npm run deployments",
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": false },
+      "problemMatcher": []
+    },
+    {
+      "label": "Open Apps Script editor",
+      "type": "shell",
+      "command": "npm run open",
+      "presentation": { "reveal": "silent", "panel": "dedicated" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Tail logs",
+      "type": "shell",
+      "command": "npm run logs",
+      "isBackground": true,
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    }
+  ]
+}

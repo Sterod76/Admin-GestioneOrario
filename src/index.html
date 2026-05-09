@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<base target="_top">
+<link rel="icon" href="https://www.df.unipi.it/wp-content/uploads/2025/03/cropped-favf-192x192.png">
+<title id="pageTitle">Bozza Orario</title>
+<style>
+  :root {
+    --bg: #f8f9fa;
+    --panel: #fff;
+    --border: #e0e0e0;
+    --grid: #ececec;
+    --text: #222;
+    --muted: #666;
+    --accent: #1a73e8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+  }
+  .header-row {
+    padding: 8px 16px;
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  }
+  .header-row.top h1 { margin: 0; font-size: 18px; font-weight: 600; }
+  .header-row .filters { display: flex; flex-wrap: wrap; gap: 8px; flex: 1; }
+  .header-row input, .header-row select {
+    padding: 6px 8px; border: 1px solid var(--border); border-radius: 4px;
+    font-size: 13px; background: #fff;
+  }
+  .header-row input[type="text"] { min-width: 220px; }
+  .header-row button {
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.2;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: #fff;
+    color: inherit;
+    cursor: pointer;
+    margin: 0;
+    box-sizing: border-box;
+  }
+  .header-row button:hover { background: #f0f0f0; }
+  .header-row.aule {
+    border-top: 1px solid var(--border);
+    background: #fafbfc;
+    align-items: flex-start;
+  }
+  .header-row.aule .label,
+  .room-checks .sub-label {
+    font-weight: 600;
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.2;
+    align-self: center;
+    margin-right: 6px;
+    white-space: nowrap;
+  }
+  .room-checks {
+    display: flex; flex-wrap: wrap; gap: 4px 12px; flex: 1;
+    align-items: center;
+  }
+  .vsep {
+    display: inline-block;
+    width: 1px;
+    background: var(--border);
+    align-self: stretch;
+    margin: 4px 4px;
+  }
+  .room-checks .sub-group {
+    display: inline-flex; align-items: stretch; margin-right: 16px;
+  }
+  .room-toggle {
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.2;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 0;
+    background: #fff;
+    color: inherit;
+    cursor: pointer;
+    margin: 0;
+    box-sizing: border-box;
+    font-weight: normal;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+  .room-toggle[data-on="1"] {
+    background: #e8f0fe;
+    border-color: #1a73e8;
+    color: #1a73e8;
+    font-weight: 600;
+    z-index: 1;
+    position: relative;
+  }
+  .room-toggle:not(:first-child) { margin-left: -1px; }
+  .room-toggle:first-child { border-top-left-radius: 4px; border-bottom-left-radius: 4px; }
+  .room-toggle:last-child { border-top-right-radius: 4px; border-bottom-right-radius: 4px; }
+  .room-toggle:hover { background: #f3f6fb; }
+  .room-toggle[data-on="1"]:hover { background: #d6e4fc; }
+
+  #grid {
+    display: grid;
+    grid-template-columns: 60px repeat(6, 1fr);
+    gap: 0;
+    padding: 12px;
+    min-width: 800px;
+  }
+  .day-header {
+    background: #e8f0fe;
+    border: 1px solid var(--grid);
+    padding: 6px 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    text-align: center;
+  }
+  .time-label {
+    font-size: 11px;
+    color: var(--muted);
+    padding-right: 6px;
+    text-align: right;
+    background: transparent;
+    border: none;
+    white-space: nowrap;
+  }
+  .day-col {
+    position: relative;
+    border: 1px solid var(--grid);
+    background: var(--panel);
+  }
+  .slot-line {
+    position: absolute; left: 0; right: 0;
+    border-top: 1px dotted #f0f0f0;
+  }
+  .session {
+    position: absolute;
+    left: 2px; right: 2px;
+    border-radius: 4px;
+    padding: 4px 6px;
+    font-size: 11px;
+    line-height: 1.25;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+    border-left: 4px solid;
+    cursor: default;
+  }
+  .session .code { font-weight: 700; }
+  .session .meta { color: var(--muted); font-size: 10px; }
+  .session.hidden { display: none; }
+  .legend {
+    display: flex; gap: 12px; padding: 8px 16px; font-size: 12px; color: var(--muted);
+    background: var(--panel); border-bottom: 1px solid var(--border);
+  }
+  .legend .dot {
+    display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+    margin-right: 4px; vertical-align: middle;
+  }
+  .footer {
+    text-align: center; color: var(--muted); font-size: 11px; padding: 12px;
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="header-row top">
+    <h1 id="pageH1">📅 Bozza Orario</h1>
+    <div class="filters">
+      <input type="text" id="q" placeholder="Cerca codice / nome / docente..."
+        title="Sintassi:&#10;• una parola → match singolo&#10;• &quot;frase con spazi&quot; → token unico (puoi usare le virgolette)&#10;• A B → A or B (default)&#10;• A or B → A or B&#10;• A and B → A e B insieme&#10;Esempi:&#10;• fisica → corsi con &quot;fisica&quot;&#10;• cei mannella → docenti Cei o Mannella&#10;• &quot;analisi matematica&quot; → solo corsi col nome esatto&#10;• &quot;analisi matematica&quot; and lab → labs di Analisi Matematica&#10;Oltre 2 token / 3 con operatore: ignorato.">
+      <select id="fPds" title="Filtra per piano di studio (PdS)">
+        <option value="">Tutti i corsi</option>
+        <option value="LT">Tutta LT</option>
+        <option value="LM">Tutta LM</option>
+      </select>
+      <select id="fSheet"><option value="">Tutti i fogli</option></select>
+      <select id="fGruppo"><option value="">Tutti i gruppi</option></select>
+      <select id="fAnno">
+        <option value="">Tutti gli anni</option>
+        <option value="1">Anno 1</option>
+        <option value="2">Anno 2</option>
+        <option value="3">Anno 3</option>
+      </select>
+      <button id="btnReset">Reset</button>
+    </div>
+  </div>
+  <div class="header-row aule">
+    <span class="label">Aule/Labs:</span>
+    <button id="btnAllRooms">Tutte</button>
+    <button id="btnNoRooms">Nessuna</button>
+    <span class="vsep"></span>
+    <div class="room-checks" id="roomChecks">
+      <span class="sub-label">Aule:</span>
+      <span id="roomChecksAule" class="sub-group"></span>
+      <span class="sub-label">Labs:</span>
+      <span id="roomChecksLab" class="sub-group"></span>
+    </div>
+  </div>
+</header>
+<div class="legend" id="legend"></div>
+<div id="grid"></div>
+<div class="footer" id="footer"></div>
+
+<script>
+var BOOTSTRAP = <?!= bootstrap ?>;
+
+(function(){
+  const data = BOOTSTRAP;
+  const days = data.days;
+  // Titolo dinamico in base al semestre (S1/S2)
+  const semLabel = 'Bozza Orario ' + (data.semester || 'S1');
+  document.getElementById('pageTitle').textContent = semLabel;
+  document.getElementById('pageH1').textContent = '📅 ' + semLabel;
+  document.title = semLabel;
+  const slotStart = data.slotStartMin;
+  const slotEnd = data.slotEndMin;
+  const PX_PER_MIN = 0.7;
+  const HEADER_H = 32;
+
+  const grid = document.getElementById('grid');
+  const totalMinutes = slotEnd - slotStart;
+  const colHeight = totalMinutes * PX_PER_MIN;
+
+  grid.innerHTML = '';
+  const corner = document.createElement('div');
+  corner.className = 'day-header';
+  corner.style.height = HEADER_H + 'px';
+  grid.appendChild(corner);
+  days.forEach(d => {
+    const h = document.createElement('div');
+    h.className = 'day-header';
+    h.textContent = d;
+    h.style.height = HEADER_H + 'px';
+    grid.appendChild(h);
+  });
+
+  const tcol = document.createElement('div');
+  tcol.style.position = 'relative';
+  tcol.style.height = colHeight + 'px';
+  tcol.style.gridColumn = '1';
+  tcol.style.gridRow = '2';
+  // Etichette ora: una per riga tratteggiata (ogni 60 min), allineate alla riga
+  for (let m = slotStart; m <= slotEnd; m += 60) {
+    const lab = document.createElement('div');
+    lab.className = 'time-label';
+    lab.textContent = fmt(m);
+    lab.style.position = 'absolute';
+    lab.style.top = ((m - slotStart) * PX_PER_MIN) + 'px';
+    lab.style.left = '0';
+    lab.style.right = '0';
+    lab.style.transform = 'translateY(-50%)';
+    tcol.appendChild(lab);
+  }
+  grid.appendChild(tcol);
+
+  const dayColEls = [];
+  for (let d = 0; d < days.length; d++) {
+    const c = document.createElement('div');
+    c.className = 'day-col';
+    c.style.position = 'relative';
+    c.style.height = colHeight + 'px';
+    c.style.gridColumn = (d + 2) + '';
+    c.style.gridRow = '2';
+    for (let m = slotStart; m <= slotEnd; m += 60) {
+      const ln = document.createElement('div');
+      ln.className = 'slot-line';
+      ln.style.top = ((m - slotStart) * PX_PER_MIN) + 'px';
+      ln.style.borderTopColor = '#e0e0e0';
+      c.appendChild(ln);
+    }
+    grid.appendChild(c);
+    dayColEls.push(c);
+  }
+
+  // Layout overlap-aware: ricalcolato a ogni applyFilters sulla base dei visibili
+  function relayoutVisible() {
+    const perDay = [];
+    for (let i = 0; i < days.length; i++) perDay.push([]);
+    sessionEls.forEach(el => {
+      if (el.classList.contains('hidden')) return;
+      perDay[parseInt(el.dataset.day, 10)].push(el);
+    });
+    perDay.forEach(items => {
+      items.sort((a, b) => {
+        const sa = +a.dataset.start, sb = +b.dataset.start;
+        if (sa !== sb) return sa - sb;
+        return (+b.dataset.end) - (+a.dataset.end);
+      });
+      const clusters = [];
+      let cluster = [];
+      let clusterEnd = -Infinity;
+      items.forEach(el => {
+        const s = +el.dataset.start, e = +el.dataset.end;
+        if (s >= clusterEnd && cluster.length) {
+          clusters.push(cluster);
+          cluster = [];
+          clusterEnd = -Infinity;
+        }
+        cluster.push(el);
+        clusterEnd = Math.max(clusterEnd, e);
+      });
+      if (cluster.length) clusters.push(cluster);
+      clusters.forEach(cl => {
+        const lanes = [];
+        cl.forEach(el => {
+          const s = +el.dataset.start, e = +el.dataset.end;
+          let lane = -1;
+          for (let i = 0; i < lanes.length; i++) {
+            if (lanes[i] <= s) { lane = i; break; }
+          }
+          if (lane === -1) lane = lanes.length;
+          lanes[lane] = e;
+          el._lane = lane;
+        });
+        const lanesCount = lanes.length;
+        cl.forEach(el => {
+          const widthPct = 100 / lanesCount;
+          el.style.left = 'calc(' + (el._lane * widthPct) + '% + 2px)';
+          el.style.width = 'calc(' + widthPct + '% - 4px)';
+          el.style.zIndex = String(10 + el._lane);
+        });
+      });
+    });
+  }
+
+  // Sessioni (NON DISPONIBILE escluse: data.unavail ignorato)
+  const sessionEls = [];
+  data.sessions.forEach(s => {
+    const top = (s.start - slotStart) * PX_PER_MIN;
+    const h = (s.end - s.start) * PX_PER_MIN;
+    const el = document.createElement('div');
+    el.className = 'session';
+    el.style.top = top + 'px';
+    el.style.height = (h - 2) + 'px';
+    el.style.right = 'auto';
+    el.style.background = s.vincoloColor || '#fff';
+    el.style.borderLeftColor = s.sheetColor || '#888';
+    el.dataset.day = String(s.day);
+    el.dataset.start = String(s.start);
+    el.dataset.end = String(s.end);
+    el.dataset.code = (s.code || '').toLowerCase();
+    el.dataset.name = (s.name || '').toLowerCase();
+    el.dataset.titolare = (s.titolare || '').toLowerCase();
+    el.dataset.sheet = s.sheet;
+    el.dataset.room = s.room;
+    el.dataset.gruppo = s.group;
+    el.dataset.anno = s.anno || '';
+    const tag = s.group ? (s.code + ' [' + s.group + ']') : s.code;
+    const groupLine = 'Gruppo: ' + (s.group || 'N/A');
+    el.innerHTML =
+      '<div class="code" style="color:' + (s.sheetColor || 'inherit') + '">' + esc(tag) +
+        (s.periodo ? ' <span style="color:var(--muted);font-weight:400">[' + esc(s.periodo) + ']</span>' : '') +
+      '</div>' +
+      '<div>' + esc(s.name) + '</div>' +
+      '<div class="meta">' + fmt(s.start) + '-' + fmt(s.end) + ' · ' + esc(s.room) + '</div>' +
+      (s.titolare ? '<div class="meta">' + esc(s.titolare) + '</div>' : '') +
+      '<div class="meta">' + (s.tipoLabel || s.tipo || '') + (s.tipo ? ' · ' : '') + esc(groupLine) + '</div>' +
+      (s.mutuanti ? '<div class="meta" style="opacity:.8">↺ ' + esc(s.mutuanti) + '</div>' : '');
+    el.title =
+      tag + (s.name ? ' — ' + s.name : '') + '\n' +
+      fmt(s.start) + '-' + fmt(s.end) + ' ' + s.room + '\n' +
+      (s.titolare ? 'Titolare: ' + s.titolare + '\n' : '') +
+      (s.tipo ? 'Tipo: ' + (s.tipoLabel || s.tipo) + '\n' : '') +
+      'Gruppo: ' + (s.group || 'N/A') +
+      (s.periodo ? '\nPeriodo: ' + s.periodo : '') +
+      (s.mutuanti ? '\nMutuazione: ' + s.mutuanti : '');
+    dayColEls[s.day].appendChild(el);
+    sessionEls.push(el);
+  });
+
+  // Filtri
+  function fillSelect(id, items) {
+    const sel = document.getElementById(id);
+    items.forEach(v => {
+      const o = document.createElement('option');
+      o.value = v; o.textContent = v;
+      sel.appendChild(o);
+    });
+  }
+  fillSelect('fSheet', data.sheets.map(s => s.name));
+  fillSelect('fGruppo', data.gruppi);
+
+  // Popola PdS dopo le opzioni statiche
+  const fPdsSel = document.getElementById('fPds');
+  if (data.pds && data.pds.length) {
+    const sep = document.createElement('option');
+    sep.disabled = true;
+    sep.textContent = '──────';
+    fPdsSel.appendChild(sep);
+    data.pds.forEach(p => {
+      const o = document.createElement('option');
+      o.value = 'PDS:' + p.name;
+      o.textContent = p.name;
+      fPdsSel.appendChild(o);
+    });
+  }
+
+  // Aule come <button> toggle (stesso elemento di Tutte/Nessuna → stessa resa).
+  // Display: rimuove prefisso "Aula"/"Lab".
+  const roomChecksDiv = document.getElementById('roomChecks');
+  const auleContainer = document.getElementById('roomChecksAule');
+  const labsContainer = document.getElementById('roomChecksLab');
+  function shortRoomLabel(r) {
+    const stripped = String(r).replace(/^\s*(aula|lab)\s+/i, '').trim();
+    return stripped || r;
+  }
+  data.rooms.forEach(r => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'room-toggle';
+    btn.dataset.room = r;
+    btn.dataset.on = '1';
+    btn.title = r;
+    btn.textContent = shortRoomLabel(r);
+    btn.addEventListener('click', () => {
+      btn.dataset.on = btn.dataset.on === '1' ? '0' : '1';
+      applyFilters();
+    });
+    if (/^lab\b/i.test(r)) labsContainer.appendChild(btn);
+    else auleContainer.appendChild(btn);
+  });
+  function getCheckedRooms() {
+    const out = {};
+    roomChecksDiv.querySelectorAll('button.room-toggle').forEach(b => {
+      if (b.dataset.on === '1') out[b.dataset.room] = true;
+    });
+    return out;
+  }
+  function setAllRooms(val) {
+    roomChecksDiv.querySelectorAll('button.room-toggle').forEach(b => {
+      b.dataset.on = val ? '1' : '0';
+    });
+    applyFilters();
+  }
+  document.getElementById('btnAllRooms').addEventListener('click', () => setAllRooms(true));
+  document.getElementById('btnNoRooms').addEventListener('click', () => setAllRooms(false));
+
+  function applyFilters() {
+    const q = (document.getElementById('q').value || '').toLowerCase().trim();
+    const parsedQ = parseQuery(q);
+    const qTerms = parsedQ.terms;
+    const qOp = parsedQ.op;
+    const fSheet = document.getElementById('fSheet').value;
+    const fGruppo = document.getElementById('fGruppo').value;
+    const fAnno = document.getElementById('fAnno').value;
+    const fPds = document.getElementById('fPds').value;
+    let allowedCodes = null;
+    if (fPds === 'LT') allowedCodes = new Set((data.codesLT || []).map(c => c.toLowerCase()));
+    else if (fPds === 'LM') allowedCodes = new Set((data.codesLM || []).map(c => c.toLowerCase()));
+    else if (fPds.indexOf('PDS:') === 0) {
+      const name = fPds.substring(4);
+      const p = (data.pds || []).find(x => x.name === name);
+      if (p) allowedCodes = new Set(p.codes.map(c => c.toLowerCase()));
+    }
+    const checkedRooms = getCheckedRooms();
+    sessionEls.forEach(el => {
+      let ok = true;
+      if (allowedCodes && !allowedCodes.has(el.dataset.code)) ok = false;
+      if (!checkedRooms[el.dataset.room]) ok = false;
+      if (fSheet && el.dataset.sheet !== fSheet) ok = false;
+      if (fGruppo && el.dataset.gruppo) {
+        const g = el.dataset.gruppo;
+        // Match: gruppo session è prefisso del filtro (genitore) o filtro è prefisso del gruppo (figlio)
+        const isCompat = g.indexOf(fGruppo) === 0 || fGruppo.indexOf(g) === 0;
+        if (!isCompat) ok = false;
+      }
+      if (fAnno && el.dataset.anno.indexOf(fAnno) === -1) ok = false;
+      if (qTerms.length) {
+        const hay = el.dataset.code + ' ' + el.dataset.name + ' ' + el.dataset.titolare;
+        const matches = qOp === 'and'
+          ? qTerms.every(t => hay.indexOf(t) !== -1)
+          : qTerms.some(t => hay.indexOf(t) !== -1);
+        if (!matches) ok = false;
+      }
+      el.classList.toggle('hidden', !ok);
+    });
+    relayoutVisible();
+  }
+  ['q','fSheet','fGruppo','fAnno','fPds'].forEach(id => {
+    document.getElementById(id).addEventListener('input', applyFilters);
+    document.getElementById(id).addEventListener('change', applyFilters);
+  });
+  document.getElementById('btnReset').addEventListener('click', () => {
+    ['q','fSheet','fGruppo','fAnno','fPds'].forEach(id => { document.getElementById(id).value = ''; });
+    setAllRooms(true);
+  });
+
+  // Legenda fogli (colori)
+  const leg = document.getElementById('legend');
+  data.sheets.forEach(sh => {
+    const span = document.createElement('span');
+    span.innerHTML = '<span class="dot" style="background:' + sh.color + '"></span>' + sh.name;
+    leg.appendChild(span);
+  });
+  document.getElementById('footer').textContent =
+    'Generato ' + new Date(data.generatedAt).toLocaleString('it-IT') +
+    ' · ' + data.sessions.length + ' sessioni';
+
+  // Layout iniziale (tutti visibili)
+  relayoutVisible();
+
+  // Query parser: tokenizza rispettando "stringhe quotate", poi applica binary op.
+  // A | A B | A or B | A and B. Oltre il binario, ignora.
+  function tokenizeQuery(q) {
+    const tokens = [];
+    let buf = '';
+    let inQuote = false;
+    for (let i = 0; i < q.length; i++) {
+      const c = q[i];
+      if (c === '"') {
+        if (inQuote) {
+          tokens.push(buf);
+          buf = '';
+          inQuote = false;
+        } else {
+          if (buf) { tokens.push(buf); buf = ''; }
+          inQuote = true;
+        }
+      } else if (!inQuote && /\s/.test(c)) {
+        if (buf) { tokens.push(buf); buf = ''; }
+      } else {
+        buf += c;
+      }
+    }
+    if (buf) tokens.push(buf);
+    return tokens.filter(t => t.length > 0);
+  }
+
+  function parseQuery(q) {
+    const raw = tokenizeQuery(q);
+    if (raw.length === 0) return { terms: [], op: 'or' };
+    if (raw.length >= 3 && (raw[1] === 'or' || raw[1] === 'and')) {
+      const op = raw[1];
+      const terms = [raw[0], raw[2]].filter(t => t !== 'or' && t !== 'and');
+      return { terms: terms, op: op };
+    }
+    const terms = raw.filter(t => t !== 'or' && t !== 'and').slice(0, 2);
+    return { terms: terms, op: 'or' };
+  }
+
+  function fmt(min) {
+    const h = Math.floor(min / 60), m = min % 60;
+    return (h < 10 ? '0' + h : h) + ':' + (m < 10 ? '0' + m : m);
+  }
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+})();
+</script>
+</body>
+</html>

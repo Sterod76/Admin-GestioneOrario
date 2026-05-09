@@ -1,0 +1,26 @@
+# Configurazione locale (ID specifici dell'installazione)
+.clasp.json
+config/local.json
+ID.txt
+
+# Node
+node_modules/
+package-lock.json
+npm-debug.log*
+
+# Build artifacts temporanei
+.tmp_*
+*.bak
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.claude/
+
+# .vscode/ è committato perché contiene tasks/settings condivisi del progetto.
+# I file utente personali stanno fuori (es. .vscode/launch.local.json):
+.vscode/launch.local.json
+.vscode/*.local.json

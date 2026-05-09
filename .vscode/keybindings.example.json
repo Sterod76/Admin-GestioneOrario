@@ -1,0 +1,15 @@
+// Esempio: copia il contenuto in File → Preferences → Keyboard Shortcuts (JSON)
+// per avere shortcut globali Push/Deploy.
+// (Le keybindings VS Code sono globali, non per-workspace, quindi vanno copiate manualmente.)
+[
+  {
+    "key": "ctrl+alt+p",
+    "command": "workbench.action.tasks.runTask",
+    "args": "Push (clasp)"
+  },
+  {
+    "key": "ctrl+alt+d",
+    "command": "workbench.action.tasks.runTask",
+    "args": "Deploy (push + redeploy webapp)"
+  }
+]

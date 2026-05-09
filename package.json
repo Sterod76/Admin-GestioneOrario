@@ -1,0 +1,20 @@
+{
+  "name": "orario-cds",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Apps Script per la gestione dell'orario didattico, tabella aule, web calendar.",
+  "scripts": {
+    "setup": "node scripts/setup.js",
+    "push": "clasp push -f",
+    "pull": "clasp pull",
+    "deploy": "node scripts/deploy.js",
+    "deployments": "clasp list-deployments",
+    "status": "clasp status",
+    "open": "clasp open-script",
+    "logs": "clasp logs",
+    "build:docs": "node scripts/build-docs.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
