@@ -28,14 +28,67 @@ Il codice Apps Script (file `.gs`) è gestito con **clasp** e versionato come co
 
 ## 2. clasp
 
-### 2.1 Cos'è
+### 2.1 Cos'è e come si installa
 
-clasp è il tool ufficiale di Google per gestire progetti Apps Script da una macchina locale. Sostituisce l'editor web (script.google.com) con un workflow basato su file system + Git.
+clasp (Command Line Apps Script) è il tool ufficiale di Google per gestire progetti Apps Script da una macchina locale. Sostituisce l'editor web (script.google.com) con un workflow basato su file system + Git, e permette di pushare/scaricare il codice del progetto, gestire i deployment e leggere i log da terminale.
+
+**Due modi per installarlo**:
+
+#### A. Install locale al progetto (consigliato in questo repo)
+
+Questo repository dichiara `@google/clasp` come `devDependency` in `package.json`. Quindi un solo comando dopo aver clonato:
+
+```bash
+npm install
+```
+
+Questo crea `node_modules/` con clasp dentro. Da quel momento:
+- `npm run push`, `npm run deploy`, `npm run pull`, `npm run status`, `npm run open`, `npm run logs` funzionano sempre (npm prepende automaticamente `node_modules/.bin/` al PATH dello script che lancia).
+- Per chiamare `clasp` ad-hoc fuori dagli script: `npx clasp <comando>`.
+
+**Vantaggio**: nessuna dipendenza dal PATH di sistema. Funziona uguale su qualsiasi terminale (cmd, PowerShell, Git Bash, terminale integrato di VS Code) anche se clasp non è installato globalmente.
+
+#### B. Install globale di sistema
+
+Alternativa, vecchia maniera:
+
+```bash
+npm install -g @google/clasp
+```
+
+Va aggiunto al PATH il global bin di npm (`%APPDATA%\npm` su Windows, `/usr/local/bin` o simili su Mac/Linux). Su Windows potresti dover **chiudere e riaprire il terminale** dopo l'install perché il PATH non si aggiorna nelle shell già aperte.
+
+Verifica con:
+```bash
+clasp --version       # se in PATH
+where clasp           # Windows: deve stampare il percorso
+clasp show-authorized-user
+```
+
+Se `clasp` non viene trovato ma l'install globale è andato a buon fine, è un problema di PATH della tua shell. Soluzioni temporanee:
+- **PowerShell**: `$env:PATH = "C:\Users\rodda\AppData\Roaming\npm;" + $env:PATH`
+- **cmd**: `set PATH=%APPDATA%\npm;%PATH%`
+- **bash**: `export PATH="$APPDATA/npm:$PATH"`
+
+Su Windows il path tipico è `C:\Users\<utente>\AppData\Roaming\npm` e dentro trovi `clasp.cmd`.
+
+#### Login (una tantum, OAuth)
+
+Indipendentemente dall'install scelto:
+
+```bash
+clasp login          # oppure: npx clasp login
+```
+
+Apre il browser per autorizzare. Le credenziali sono salvate in `~/.clasprc.json`. Da quel momento `clasp` opera come quell'account Google.
+
+Per cambiare account: `clasp logout` e poi `clasp login` con l'altro account.
 
 ### 2.2 File di configurazione
 
-- `.clasp.json` — contiene `scriptId` (l'ID del progetto Apps Script) e `rootDir` (cartella locale dei file). Esempio: `{"scriptId":"...","rootDir":"src"}`. **Gitignored**: ogni installazione lo genera localmente da `.clasp.json.example`.
+- `.clasp.json` — contiene `scriptId` (l'ID del progetto Apps Script) e `rootDir` (cartella locale dei file). Esempio: `{"scriptId":"...","rootDir":"src"}`. **Gitignored**: ogni installazione lo genera localmente da `.clasp.json.example` o tramite `npm run setup`.
 - `.claspignore` (opzionale, attualmente assente) — pattern di esclusione per il push.
+- `~/.clasprc.json` — credenziali OAuth dell'utente (creato da `clasp login`). Globale per la macchina, non legato al progetto.
 
 ### 2.3 Comandi
 

@@ -24,29 +24,21 @@ Questo è un repository contenente il codice per fare funzionare l'applicativo d
 ## Prerequisiti
 
 - **Node.js >= 18** ([download](https://nodejs.org/)).
-- **clasp** (CLI ufficiale di Google):
-  ```bash
-  npm install -g @google/clasp
-  ```
-- Login una tantum:
-  ```bash
-  clasp login
-  ```
 - Account Google con accesso allo Spreadsheet bersaglio.
-- (Opzionale, per rigenerare i .docx in `docs/`):
-  ```bash
-  npm install -g docx
-  ```
+
+`clasp` viene installato automaticamente come dev dependency del progetto (vedi `package.json`). Non serve installarlo globalmente, ma se preferisci puoi farlo: `npm install -g @google/clasp`.
 
 ## Quick start su un'installazione esistente
 
 ```bash
 git clone https://codeberg.org/<utente>/<repo>.git
 cd <repo>
-npm run setup    # interattivo: chiede gli ID
-npm run pull     # opzionale: scarica codice attuale di quel progetto
-npm run push     # invia src/ ad Apps Script
-npm run deploy   # aggiorna l'URL /exec del web app
+npm install        # installa clasp e dipendenze in node_modules/
+npx clasp login    # una tantum: autorizza l'account Google
+npm run setup      # interattivo: chiede gli ID
+npm run pull       # opzionale: scarica codice attuale di quel progetto
+npm run push       # invia src/ ad Apps Script
+npm run deploy     # aggiorna l'URL /exec del web app
 ```
 
 Il setup chiede:
