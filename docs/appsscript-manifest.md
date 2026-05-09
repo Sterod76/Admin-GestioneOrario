@@ -1,6 +1,8 @@
 # `src/appsscript.json` — guida ai campi del manifest
 
-Il file `appsscript.json` è il *manifest* del progetto Apps Script. Definisce timezone, runtime, scope OAuth, e le policy della web app. È **JSON strict** (non supporta commenti `//` o `/* */`), quindi questa guida sostituisce i commenti in-file.
+Il file `appsscript.json` è il *manifest* del progetto Apps Script. Definisce timezone, runtime, scope OAuth, e le policy della web app.
+
+> ⚠️ **Niente commenti consentiti.** Apps Script verifica il manifest con uno schema strict: rifiuta sia commenti `//` o `/* */` (errore "Comments are not allowed in the script manifest file(s).") sia campi sconosciuti come `_doc` o `_comment` (errore "Invalid manifest: unknown fields"). Per documentazione, fai riferimento sempre a questo file `.md`.
 
 Documentazione ufficiale: [developers.google.com/apps-script/manifest](https://developers.google.com/apps-script/manifest).
 
@@ -16,7 +18,7 @@ Documentazione ufficiale: [developers.google.com/apps-script/manifest](https://d
   "runtimeVersion": "V8",
   "webapp": {
     "executeAs": "USER_DEPLOYING",
-    "access": "ANYONE_ANONYMOUS"
+    "access": "ANYONE"
   }
 }
 ```
@@ -117,9 +119,9 @@ Chi può aprire l'URL `/exec` della web app.
 | `"ANYONE"` | Chiunque abbia un account Google | Sì, ma qualsiasi account |
 | `"ANYONE_ANONYMOUS"` | Chiunque, anche senza login | No |
 
-**Usato qui**: `ANYONE_ANONYMOUS` — il Web Calendar è pubblico, niente login richiesto.
+**Usato qui**: `ANYONE` — il Web Calendar è accessibile a chiunque abbia un account Google. Login richiesto, ma nessun vincolo di dominio.
 
-⚠️ **Su Workspace**: gli admin possono **bloccare** `ANYONE_ANONYMOUS` o `ANYONE` come policy globale. In quel caso il deployment viene creato ma l'URL `/exec` restituisce "Sorry, unable to open the file". Vedi `docs/deploy-webapp.md` per la diagnostica.
+⚠️ **Su Workspace**: la policy `ANYONE_ANONYMOUS` viene spesso silenziosamente downgradata dal Workspace policy admin (anche se il manifest lo richiede). Su `unipi.it` abbiamo riscontrato che `ANYONE_ANONYMOUS` settato via manifest produce 403 alla URL `/exec`. La policy `ANYONE` (login Google richiesto) di solito passa. Per uso completamente anonimo serve eventualmente intervento dell'admin Workspace, oppure crea il deployment manualmente dalla UI editor (Deploy → New deployment → Anyone) che a volte aggira il filtro.
 
 ---
 
@@ -169,7 +171,8 @@ Per cambiare policy di un deployment esistente:
 
 ## Regola pratica
 
-- Per la web app **pubblica** (Web Calendar, sola lettura, dati non sensibili): `USER_DEPLOYING` + `ANYONE_ANONYMOUS` (il default di questo repo).
+- Per la web app **pubblica con account Google** (Web Calendar, sola lettura, login leggero): `USER_DEPLOYING` + `ANYONE` (il default di questo repo).
+- Per la web app **completamente anonima** (no login): `USER_DEPLOYING` + `ANYONE_ANONYMOUS`. Su Workspace può non funzionare (vedi nota sopra).
 - Per una web app **interna** dipartimentale: `USER_DEPLOYING` + `DOMAIN`.
 - Per una web app **multi-utente con scrittura** (CRUD su dati privati): `USER_ACCESSING` + `ANYONE` (login forzato).
 - Per **debug personale**: `USER_DEPLOYING` + `MYSELF`.
