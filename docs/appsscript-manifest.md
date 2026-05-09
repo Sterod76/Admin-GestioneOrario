@@ -15,13 +15,11 @@ Documentazione ufficiale: [developers.google.com/apps-script/manifest](https://d
   "timeZone": "Europe/Rome",
   "dependencies": {},
   "exceptionLogging": "STACKDRIVER",
-  "runtimeVersion": "V8",
-  "webapp": {
-    "executeAs": "USER_DEPLOYING",
-    "access": "ANYONE"
-  }
+  "runtimeVersion": "V8"
 }
 ```
+
+> Nota: la sezione **`webapp`** (`executeAs` + `access`) **non è presente** nel manifest di questo repo. Il primo deployment di una nuova istanza viene creato dall'editor Apps Script (Deploy → New deployment) dove le policy sono scelte via UI; gli aggiornamenti successivi sono `npm run deploy -i <id>` che NON modifica le policy. La sezione `webapp` resta documentata sotto come riferimento per chi volesse usare `clasp deploy` senza `-i` (sconsigliato su Workspace).
 
 ---
 

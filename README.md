@@ -49,22 +49,16 @@ npm run deploy     # aggiorna l'URL /exec del web app (o lo crea al primo run)
 
 ## Primo deploy su un nuovo gsheet
 
-Se hai duplicato il gsheet (o creato un progetto Apps Script nuovo) e non hai ancora alcun deployment Web app:
+Se hai duplicato il gsheet o creato un nuovo progetto Apps Script, **il primo deployment va creato manualmente dall'editor** (UI più affidabile delle policy via clasp). Sintesi:
 
-1. Apri il nuovo Sheet → Estensioni → Apps Script. Project Settings → copia lo **Script ID**.
-2. Nel repo locale (cartella su disco non-Drive, o stessa cartella Drive se preferisci):
-   ```
-   npm run setup
-   ```
-   Incolla lo Script ID. **Lascia vuoto** `deploymentId` e `webappUrl`.
-3. ```
-   npm run deploy
-   ```
-   Lo script rileva che `deploymentId` è vuoto, crea un nuovo deployment usando le policy in `src/appsscript.json` (sezione `webapp`: di default `Anyone anonymous`, `Execute as Me`), e salva il nuovo `deploymentId` in `config/local.json`.
-4. Apri editor Apps Script (`npm run open`) → **Deploy → Manage deployments** → click sul deployment appena creato → copia il **Web app URL**.
-5. Incolla l'URL in `config/local.json` → `webappUrl`. Da quel momento `npm run deploy` te lo stampa a video dopo ogni deploy.
+1. Sul nuovo Sheet → **Estensioni → Apps Script**.
+2. Editor Apps Script → **Deploy → New deployment** → Type: **Web app** → Who has access: **Anyone with Google account** → Deploy.
+3. Copia **Deployment ID** + **Web app URL**.
+4. Anche **Project Settings → IDs → Script ID**, copialo.
+5. Da terminale nella cartella locale del repo: `npm run setup` → incolla `scriptId`, `deploymentId`, `webappUrl`.
+6. Da ora in poi `npm run deploy` aggiorna il deployment (stesso URL).
 
-Per dettagli su policy di accesso, primo deploy, e scenari avanzati: [`docs/deploy-webapp.md`](docs/deploy-webapp.md).
+Procedura completa passo-passo: [`docs/duplicare-gsheet.md`](docs/duplicare-gsheet.md).
 
 Il setup chiede:
 - **Apps Script ID** (`scriptId`) — visibile da Apps Script editor → Project settings.
