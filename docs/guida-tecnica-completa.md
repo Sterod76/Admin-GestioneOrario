@@ -34,6 +34,8 @@ clasp (Command Line Apps Script) è il tool ufficiale di Google per gestire prog
 
 **Due modi per installarlo**:
 
+> **Cos'è npm.** **npm** = "node package manager" (in pratica: il gestore dei pacchetti di Node.js). Viene installato automaticamente quando installi [Node.js](https://nodejs.org/) e si occupa di leggere `package.json` per scaricare le librerie indicate dentro `node_modules/`. Il file `package.json` di questo repo elenca le sue dipendenze (clasp) e definisce gli script accessoriI (`npm run push` ecc.). Niente `package.json` = niente concetto di "progetto npm" e quindi nessun `npm install` possibile. Se digiti solo `npm` da terminale e non risponde, non hai Node.js installato (o non è in PATH); installa Node prima.
+
 #### A. Install locale al progetto (consigliato in questo repo)
 
 Questo repository dichiara `@google/clasp` come `devDependency` in `package.json`. Quindi un solo comando dopo aver clonato:
@@ -508,3 +510,91 @@ Limiti: 9 KB per singolo valore, 500 KB per file. La chunkatura del JSON tiene s
 | `WebApp.gs` | `doGet`, `getOrarioData`, snapshot persistente, `aggiornaWebApp`. |
 | `index.html` | Template HtmlService della web app pubblica con CSS+JS embedded. |
 | `appsscript.json` | Manifest del progetto (timezone, runtime). |
+
+---
+
+## 14. Glossario degli acronimi
+
+I sigle più frequenti nel codice e in questa documentazione, raggruppate.
+
+### Strumenti / tecnologie
+
+| Sigla | Significato esteso | Note |
+|---|---|---|
+| **npm** | (originariamente) Node Package Manager | Il gestore dei pacchetti di Node.js. Si installa insieme a Node.js. Legge `package.json` e scarica le librerie in `node_modules/`. |
+| **Node.js** | (non è un acronimo) JavaScript runtime su V8 | Permette di eseguire JavaScript fuori dal browser. Necessario per far girare clasp e gli script in `scripts/`. |
+| **clasp** | Command Line Apps Script | CLI ufficiale Google per Apps Script. Vedi §2. |
+| **CLI** | Command Line Interface | Programma da terminale (in contrapposizione a GUI = Graphical UI). |
+| **API** | Application Programming Interface | Insieme di funzioni esposte da un servizio. Es. "Spreadsheet API". |
+| **OAuth** | Open Authorization | Standard di autorizzazione delegata. Lo usi quando dai a clasp il permesso di agire sui tuoi dati Google senza condividere la password. |
+| **HTTP / HTTPS** | HyperText Transfer Protocol (Secure) | Protocollo del web. La web app è esposta via HTTPS. |
+| **URL** | Uniform Resource Locator | L'indirizzo web (es. l'`/exec` della web app). |
+| **JSON** | JavaScript Object Notation | Formato di scambio dati testuale. Usato per snapshot e config. |
+| **HTML** | HyperText Markup Language | Linguaggio della pagina del Web Calendar. |
+| **CSS** | Cascading Style Sheets | Foglio di stile della pagina HTML. |
+| **JS** | JavaScript | Linguaggio dei file `.gs` (Apps Script V8) e dello script lato browser. |
+| **DOM** | Document Object Model | Albero degli elementi HTML, manipolato da JS lato browser. |
+| **SPA** | Single Page Application | Applicazione web in cui la navigazione cambia DOM senza ricaricare la pagina. |
+| **RPC** | Remote Procedure Call | Invocare una funzione server da client (es. `google.script.run` da web app). |
+| **TTL** | Time To Live | Durata massima di un dato cacheato (CacheService di Apps Script: 6 h). |
+| **IDE** | Integrated Development Environment | Editor con debug/intellisense (VS Code). |
+
+### Apps Script / Web App
+
+| Sigla | Significato | Note |
+|---|---|---|
+| **HEAD** | (terminologia git/clasp) | Lo stato corrente del codice, non ancora versionato. Vedi `docs/deploy-webapp.md`. |
+| **doGet / doPost** | (nomi funzione) | Funzioni Apps Script chiamate alle richieste HTTP GET/POST. |
+| **`/exec`** | endpoint pubblico versioned | URL servito dal deployment numerato. |
+| **`/dev`** | endpoint privato HEAD | URL legato a HEAD, solo proprietario. |
+
+### Universitarie (specifiche del progetto)
+
+| Sigla | Significato esteso |
+|---|---|
+| **CdS** | Corso di Studio |
+| **LT** | Laurea Triennale |
+| **LM** | Laurea Magistrale |
+| **PdS** | Piano di Studio |
+| **CFU** | Crediti Formativi Universitari |
+| **SSD** | Settore Scientifico Disciplinare |
+| **DF** | Dipartimento di Fisica (UniPi) |
+
+### Tipi corso (col F nei fogli sorgente)
+
+| Sigla | Significato |
+|---|---|
+| **LEZ** | Lezione |
+| **ES** | Esercitazione |
+| **LEZ/ES** | Lezione / Esercitazione (entrambe) |
+| **LAB** | Laboratorio |
+
+### Vincolo (col G nei fogli sorgente / colore in S1AULE)
+
+| Sigla | Significato |
+|---|---|
+| **OBB** | Obbligatorio |
+| **FOR** | Forchetta (gruppo di scelta tra più corsi) |
+| **OPZ** | Opzionale (a libera scelta dello studente) |
+| **OPT** | (col G del foglio PdS) Opzionali listati nel piano di studio |
+
+### Giorni (header colonne K..P)
+
+| Sigla | Significato |
+|---|---|
+| **LUN** | Lunedì |
+| **MAR** | Martedì |
+| **MER** | Mercoledì |
+| **GIO** | Giovedì |
+| **VEN** | Venerdì |
+| **SAB** | Sabato |
+
+### Altre sigle del codice
+
+| Sigla | Significato |
+|---|---|
+| **N/A** | Not Applicable / Not Available — usato per "Gruppo: N/A" quando il corso è senza gruppo specifico. |
+| **px** | pixel (unità CSS / larghezza colonne). |
+| **min** | minuti (slot da 30 min). |
+| **bg / fg** | background / foreground (colori). |
+| **CDS / CdS** | Corso di Studio (variazione casing nei nomi dei tab e nei riferimenti). |
