@@ -1,8 +1,10 @@
-# Orario CdS
+# GestioneOrario 
 
-Apps Script per la gestione di orario didattico, tabella aule e Web Calendar pubblico, con strumenti pensati per essere riusati come scaffolding per altri Google Sheet ad uso amministrativo.
+Questo è un repository contenente il codice per fare funzionare l'applicativo di composizione e gestione dell'orario del CdS in Fisica del Dipartimento di Fisica. Componenti:
 
-Documentazione tecnica completa: [`docs/guida-tecnica-completa.md`](docs/guida-tecnica-completa.md).
+* un gsheet in cui possono essere inserite manualmente le singole entries di un dato semestre
+* una serie di codici AppScript che possono generare l'occupazione delle aulee e generare una webapp che permette di consultare la bozza del calendario
+* una webapp di consultazione
 
 ## Caratteristiche
 
@@ -12,6 +14,12 @@ Documentazione tecnica completa: [`docs/guida-tecnica-completa.md`](docs/guida-t
 - Gestione mutuazioni e periodi diversi nello stesso slot.
 - Web Calendar pubblico con filtri (PdS, foglio, gruppo gerarchico, anno, aule/labs).
 - Assegnazione automatica del vincolo (OBB/FOR/OPZ) dai Piani di Studio.
+
+## Documentazione
+
+- [`docs/guida-tecnica-completa.md`](docs/guida-tecnica-completa.md) — guida tecnica completa: architettura, struttura dello Spreadsheet, file Apps Script uno per uno, mutuazioni, vincoli, conflict detection.
+- [`docs/deploy-webapp.md`](docs/deploy-webapp.md) — deploy della web app: HEAD vs versioned deployments, URL `/exec` e `/dev`, cosa fa `clasp deploy`, ruolo di `index.html`, come pubblicare più pagine HTML.
+- [`docs/Orario CdS - Documentazione tecnica.docx`](docs/Orario%20CdS%20-%20Documentazione%20tecnica.docx) — versione storica breve (panoramica iniziale del progetto).
 
 ## Prerequisiti
 
