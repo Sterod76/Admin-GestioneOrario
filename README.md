@@ -61,7 +61,6 @@ I valori vengono scritti in `config/local.json` e `.clasp.json` (entrambi gitign
 | `npm run status` | `clasp status` — mostra cosa verrebbe pushato. |
 | `npm run open` | Apre l'editor Apps Script nel browser. |
 | `npm run logs` | Stampa gli ultimi log d'esecuzione. |
-| `npm run build:docs` | Rigenera i file in `docs/` (richiede modulo `docx` globale). |
 
 ## Struttura del repository
 
@@ -76,8 +75,7 @@ I valori vengono scritti in `config/local.json` e `.clasp.json` (entrambi gitign
 │   └── (local.json)           gitignored, contiene gli ID della tua installazione
 ├── scripts/
 │   ├── setup.js               setup interattivo
-│   ├── deploy.js              push + deploy
-│   └── build-docs.js          rigenera docx
+│   └── deploy.js              push + deploy
 ├── src/
 │   ├── appsscript.json        manifest Apps Script
 │   ├── Config.gs              costanti + helper

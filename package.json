@@ -11,8 +11,7 @@
     "deployments": "clasp list-deployments",
     "status": "clasp status",
     "open": "clasp open-script",
-    "logs": "clasp logs",
-    "build:docs": "node scripts/build-docs.js"
+    "logs": "clasp logs"
   },
   "engines": {
     "node": ">=18"
