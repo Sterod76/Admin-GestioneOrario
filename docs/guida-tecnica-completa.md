@@ -34,7 +34,30 @@ clasp (Command Line Apps Script) è il tool ufficiale di Google per gestire prog
 
 **Due modi per installarlo**:
 
-> **Cos'è npm.** **npm** = "node package manager" (in pratica: il gestore dei pacchetti di Node.js). Viene installato automaticamente quando installi [Node.js](https://nodejs.org/) e si occupa di leggere `package.json` per scaricare le librerie indicate dentro `node_modules/`. Il file `package.json` di questo repo elenca le sue dipendenze (clasp) e definisce gli script accessoriI (`npm run push` ecc.). Niente `package.json` = niente concetto di "progetto npm" e quindi nessun `npm install` possibile. Se digiti solo `npm` da terminale e non risponde, non hai Node.js installato (o non è in PATH); installa Node prima.
+> **Cos'è Node.js.** **Node.js** è un *runtime JavaScript*: un programma che esegue codice JavaScript fuori dal browser. JS è nato negli anni '90 per girare nelle pagine web (Chrome, Firefox, ecc.); Node.js (2009) ha tirato fuori il motore V8 di Chrome e l'ha trasformato in un eseguibile da terminale, dando a JS l'accesso a file system, rete, processi — cose che il browser per sicurezza nasconde.
+>
+> Praticamente: con Node hai un comando `node` che lancia file `.js` come faresti con `python script.py` o `bash script.sh`.
+>
+> **In questo progetto Node serve a:**
+> - Eseguire `clasp` (che è scritto in JS).
+> - Far girare gli script di supporto in `scripts/` (`setup.js`, `deploy.js`).
+> - Far funzionare `npm`, che è un programma scritto a sua volta in JS e gira sopra Node.
+>
+> **Quando serve installarlo:**
+> - **Sì** se sviluppi/pubblichi codice (push su Apps Script, deploy della web app, modifiche al repo).
+> - **No** se sei un utente finale che usa solo il menu nello Spreadsheet o la web app pubblica (basta il browser).
+>
+> **Come installarlo:** scarica la versione **LTS** da [nodejs.org](https://nodejs.org/), doppio click sull'installer (Windows .msi / Mac .pkg), avanti-avanti-fine. L'installer mette Node + npm in PATH. Riavvia il terminale dopo.
+>
+> **Come verificarlo:**
+> ```
+> node --version    # deve stampare es. v24.14.1 — minimo richiesto: v18
+> npm --version     # es. 11.11.0
+> where node        # Windows: deve stampare il percorso (tipicamente C:\Program Files\nodejs\node.exe)
+> ```
+> Se il comando "non è riconosciuto": Node non è in PATH. Reinstalla con l'installer ufficiale (di solito sistema il PATH automaticamente) e riapri il terminale.
+
+> **Cos'è npm.** **npm** = "node package manager" (in pratica: il gestore dei pacchetti di Node.js). Viene installato automaticamente insieme a Node.js e si occupa di leggere `package.json` per scaricare le librerie indicate dentro `node_modules/`. Il file `package.json` di questo repo elenca le sue dipendenze (clasp) e definisce gli script accessori (`npm run push` ecc.). Niente `package.json` = niente concetto di "progetto npm" e quindi nessun `npm install` possibile. Se digiti solo `npm` da terminale e non risponde, non hai Node.js installato (o non è in PATH); installa Node prima.
 
 #### A. Install locale al progetto (consigliato in questo repo)
 
@@ -49,6 +72,11 @@ Questo crea `node_modules/` con clasp dentro. Da quel momento:
 - Per chiamare `clasp` ad-hoc fuori dagli script: `npx clasp <comando>`.
 
 **Vantaggio**: nessuna dipendenza dal PATH di sistema. Funziona uguale su qualsiasi terminale (cmd, PowerShell, Git Bash, terminale integrato di VS Code) anche se clasp non è installato globalmente.
+
+> ⚠️ **Attenzione su Google Drive condiviso.** Se la cartella del progetto vive su un drive Google sincronizzato (es. `H:\Drive condivisi\…`), `npm install` può fallire con flotte di errori `npm warn tar TAR_ENTRY_ERROR UNKNOWN: unknown error, write`. Causa: Drive non regge bene la creazione simultanea di migliaia di file piccoli (un `node_modules/` tipico ne contiene 10000+). Tre soluzioni:
+> 1. **Install globale di clasp** (vedi B sotto): nessun `node_modules/` locale, niente conflitti con Drive.
+> 2. **Clona il repo su disco locale** (`C:\Users\…\projects\…`), lavora lì, sincronizza su Drive solo via git push se serve.
+> 3. **Junction Windows**: con `mklink /J` da cmd amministratore, sposti il path fisico di `node_modules` su disco locale tenendo il riferimento dentro Drive. Più hacky, ma se sei costretto a stare su Drive funziona.
 
 #### B. Install globale di sistema
 
