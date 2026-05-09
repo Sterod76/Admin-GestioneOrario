@@ -108,13 +108,56 @@ Eseguito da `npm run deploy`. Cosa fa esattamente:
 
 ```
 1. Legge config/local.json
-2. Verifica che deploymentId sia impostato (errore altrimenti)
-3. Esegue: clasp push -f                                 → manda HEAD su Google
-4. Esegue: clasp deploy -i <deploymentId> -d "<descr>"   → nuova versione del
+2. Esegue: clasp push -f                                 → manda HEAD su Google
+3a. Se config.deploymentId E' impostato (deploy successivo):
+    clasp deploy -i <deploymentId> -d "<descr>"          → nuova versione del
                                                             deployment esistente
                                                             (stesso URL /exec)
-5. Stampa riepilogo: deploymentId, versione assegnata, descrizione, URL
+3b. Se config.deploymentId E' VUOTO (primo deploy):
+    clasp deploy -d "<descr>"                            → CREA un nuovo
+                                                            deployment con le
+                                                            policy lette da
+                                                            src/appsscript.json
+    → estrae il nuovo deploymentId dalla output
+    → lo salva automaticamente in config/local.json
+    → al prossimo npm run deploy aggiorna la versione di QUESTO deployment
+4. Stampa riepilogo: deploymentId, versione assegnata, descrizione, URL
 ```
+
+**Primo deploy su un progetto Apps Script vuoto:**
+
+Quando duplichi il gsheet o crei un nuovo progetto Apps Script, non hai ancora alcun deployment di tipo Web app. In quel caso:
+
+1. `npm run setup` → metti scriptId, lascia deploymentId VUOTO.
+2. `npm run deploy` → lo script rileva che config.deploymentId è vuoto, esegue `clasp deploy` (senza `-i`), e:
+   - Apps Script crea un NUOVO deployment usando le policy del manifest `src/appsscript.json` (sezione `webapp`).
+   - clasp ritorna il nuovo deploymentId.
+   - lo script lo salva in config/local.json automaticamente.
+3. Apri editor Apps Script (`npm run open`) → **Deploy → Manage deployments** → click sul nuovo deployment → copia il **Web app URL**.
+4. Incolla l'URL in `config/local.json` → `webappUrl`. (Lo script da quel momento te lo stampa a fine deploy.)
+5. Da ora in poi `npm run deploy` aggiornerà solo la versione (stesso URL).
+
+**Policy del nuovo deployment (`src/appsscript.json`)**
+
+Sezione `webapp`:
+```json
+"webapp": {
+  "executeAs": "USER_DEPLOYING",
+  "access": "ANYONE_ANONYMOUS"
+}
+```
+
+| Campo | Valori | Default usato in questo repo |
+|---|---|---|
+| `executeAs` | `USER_DEPLOYING` (script gira come l'utente che ha deployato) o `USER_ACCESSING` (gira come visitatore) | `USER_DEPLOYING` |
+| `access` | `ANYONE_ANONYMOUS` (chiunque, anche senza login), `ANYONE` (chiunque con account Google), `DOMAIN` (solo dominio Workspace), `MYSELF` (solo deployer) | `ANYONE_ANONYMOUS` |
+
+Per cambiare le policy in modo permanente: modifica `src/appsscript.json` PRIMA di fare il primo deploy. Se hai già fatto deploy con policy diverse, le modifiche al manifest **non si applicano** ai deployment esistenti — devi:
+- Cancellare il deployment esistente e ricrearlo (`clasp delete-deployment <id>` + svuota config + `npm run deploy`), OPPURE
+- Modificare le policy dall'editor (Deploy → Manage deployments → matita), OPPURE
+- Creare un secondo deployment dall'editor con le nuove policy.
+
+
 
 **Override della description da CLI:**
 

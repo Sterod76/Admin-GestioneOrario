@@ -42,8 +42,27 @@ clasp login        # una tantum: autorizza l'account Google (usa quello del Shee
 npm run setup      # interattivo: chiede gli ID
 npm run pull       # opzionale: scarica codice attuale di quel progetto
 npm run push       # invia src/ ad Apps Script
-npm run deploy     # aggiorna l'URL /exec del web app
+npm run deploy     # aggiorna l'URL /exec del web app (o lo crea al primo run)
 ```
+
+## Primo deploy su un nuovo gsheet
+
+Se hai duplicato il gsheet (o creato un progetto Apps Script nuovo) e non hai ancora alcun deployment Web app:
+
+1. Apri il nuovo Sheet → Estensioni → Apps Script. Project Settings → copia lo **Script ID**.
+2. Nel repo locale (cartella su disco non-Drive, o stessa cartella Drive se preferisci):
+   ```
+   npm run setup
+   ```
+   Incolla lo Script ID. **Lascia vuoto** `deploymentId` e `webappUrl`.
+3. ```
+   npm run deploy
+   ```
+   Lo script rileva che `deploymentId` è vuoto, crea un nuovo deployment usando le policy in `src/appsscript.json` (sezione `webapp`: di default `Anyone anonymous`, `Execute as Me`), e salva il nuovo `deploymentId` in `config/local.json`.
+4. Apri editor Apps Script (`npm run open`) → **Deploy → Manage deployments** → click sul deployment appena creato → copia il **Web app URL**.
+5. Incolla l'URL in `config/local.json` → `webappUrl`. Da quel momento `npm run deploy` te lo stampa a video dopo ogni deploy.
+
+Per dettagli su policy di accesso, primo deploy, e scenari avanzati: [`docs/deploy-webapp.md`](docs/deploy-webapp.md).
 
 Il setup chiede:
 - **Apps Script ID** (`scriptId`) — visibile da Apps Script editor → Project settings.
