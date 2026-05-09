@@ -46,6 +46,7 @@ function prompt(rl, q, def) {
   const scriptId = await prompt(rl, 'Apps Script ID', current.scriptId || claspCur.scriptId || example.scriptId);
   const deploymentId = await prompt(rl, 'Web app deployment ID (opzionale)', current.deploymentId || example.deploymentId);
   const deploymentDescription = await prompt(rl, 'Deployment description', current.deploymentDescription || example.deploymentDescription || 'BozzaOrario');
+  const webappUrl = await prompt(rl, 'Web app URL /exec (opzionale, solo per echo a fine deploy)', current.webappUrl || example.webappUrl);
   const spreadsheetId = await prompt(rl, 'Spreadsheet ID (opzionale)', current.spreadsheetId || example.spreadsheetId);
 
   rl.close();
@@ -60,6 +61,7 @@ function prompt(rl, q, def) {
     scriptId,
     deploymentId: deploymentId || '',
     deploymentDescription: deploymentDescription || 'BozzaOrario',
+    webappUrl: webappUrl && !/^</.test(webappUrl) ? webappUrl : '',
     spreadsheetId: spreadsheetId || ''
   });
 

@@ -90,29 +90,50 @@ Se lanci `clasp deploy` **senza** `-i`, ne crea uno **nuovo** (deployment ID div
 Setup interattivo. Prompts per:
 
 - `scriptId` (obbligatorio) — identifica il progetto Apps Script su cui pushare.
-- `deploymentId` (opzionale) — identifica il deployment di produzione da aggiornare con `npm run deploy`.
+- `deploymentId` (opzionale, può essere vuoto) — identifica il deployment di produzione da aggiornare con `npm run deploy`.
 - `deploymentDescription` — etichetta del deploy (default `BozzaOrario`).
+- `webappUrl` (opzionale) — URL `/exec` del web app, usato solo per echo a fine deploy.
 - `spreadsheetId` (opzionale) — solo se la web app deve aprire uno Spreadsheet via `openById` (caso non bound).
 
 Scrive due file gitignored:
 
 - `.clasp.json` — letto da `clasp` per sapere su quale progetto pushare.
-- `config/local.json` — letto dagli script Node del repo per `deploymentId`, ecc.
+- `config/local.json` — letto dagli script Node del repo per `deploymentId`, descrizione, URL ecc.
 
 Idempotente: rilanciandolo, i valori correnti diventano i default per i prompts.
 
 ### `scripts/deploy.js`
 
-Eseguito da `npm run deploy`. Logica:
+Eseguito da `npm run deploy`. Cosa fa esattamente:
 
 ```
 1. Legge config/local.json
 2. Verifica che deploymentId sia impostato (errore altrimenti)
-3. Esegue: clasp push -f      → manda HEAD su Google
-4. Esegue: clasp deploy -i <id> -d <descr>  → aggiorna versione
+3. Esegue: clasp push -f                                 → manda HEAD su Google
+4. Esegue: clasp deploy -i <deploymentId> -d "<descr>"   → nuova versione del
+                                                            deployment esistente
+                                                            (stesso URL /exec)
+5. Stampa riepilogo: deploymentId, versione assegnata, descrizione, URL
 ```
 
-Niente magia: è uno wrapper che evita di dover ricordare il `deploymentId` ogni volta. Se preferisci puoi sempre chiamare i comandi `clasp` direttamente.
+**Override della description da CLI:**
+
+```bash
+npm run deploy "Hotfix sfondo aule"
+```
+
+Il primo argomento posizionale dopo `deploy` viene usato come description (override del valore in `config/local.json`).
+
+**Cosa NON fa lo script:**
+
+- Non crea nuovi deployment (per quello: editor Apps Script → Deploy → New deployment).
+- Non modifica le policy di accesso (`Who has access`, `Execute as`). Quelle si fissano solo alla creazione del deployment.
+- Non gestisce versionNumber espliciti — lascia che clasp ne crei uno nuovo automaticamente ad ogni deploy.
+
+**Errori comuni:**
+
+- `Requested entity was not found` → il `deploymentId` salvato non esiste più sul progetto (cancellato). Crea un nuovo deployment dall'editor e rifai `npm run setup`.
+- `Permission denied` → l'account loggato in `clasp login` non è editor del progetto Apps Script. `clasp login` con un altro account oppure chiedi al proprietario di darti permesso edit.
 
 ### Niente altro
 
