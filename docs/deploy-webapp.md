@@ -152,6 +152,8 @@ Sezione `webapp`:
 | `executeAs` | `USER_DEPLOYING` (script gira come l'utente che ha deployato) o `USER_ACCESSING` (gira come visitatore) | `USER_DEPLOYING` |
 | `access` | `ANYONE_ANONYMOUS` (chiunque, anche senza login), `ANYONE` (chiunque con account Google), `DOMAIN` (solo dominio Workspace), `MYSELF` (solo deployer) | `ANYONE_ANONYMOUS` |
 
+Per il riferimento completo dei campi del manifest (timezone, runtime, scope, ecc.) vedi [`docs/appsscript-manifest.md`](appsscript-manifest.md).
+
 Per cambiare le policy in modo permanente: modifica `src/appsscript.json` PRIMA di fare il primo deploy. Se hai già fatto deploy con policy diverse, le modifiche al manifest **non si applicano** ai deployment esistenti — devi:
 - Cancellare il deployment esistente e ricrearlo (`clasp delete-deployment <id>` + svuota config + `npm run deploy`), OPPURE
 - Modificare le policy dall'editor (Deploy → Manage deployments → matita), OPPURE

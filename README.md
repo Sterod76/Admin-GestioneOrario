@@ -19,6 +19,7 @@ Questo è un repository contenente il codice per fare funzionare l'applicativo d
 
 - [`docs/guida-tecnica-completa.md`](docs/guida-tecnica-completa.md) — guida tecnica completa: architettura, struttura dello Spreadsheet, file Apps Script uno per uno, mutuazioni, vincoli, conflict detection.
 - [`docs/deploy-webapp.md`](docs/deploy-webapp.md) — deploy della web app: HEAD vs versioned deployments, URL `/exec` e `/dev`, cosa fa `clasp deploy`, ruolo di `index.html`, come pubblicare più pagine HTML.
+- [`docs/appsscript-manifest.md`](docs/appsscript-manifest.md) — riferimento ai campi di `src/appsscript.json` (timezone, runtime, `webapp.executeAs`, `webapp.access`, ecc.) con tutti i valori possibili e esempi.
 - [`docs/Orario CdS - Documentazione tecnica.docx`](docs/Orario%20CdS%20-%20Documentazione%20tecnica.docx) — versione storica breve (panoramica iniziale del progetto).
 
 ## Prerequisiti
