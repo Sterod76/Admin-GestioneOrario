@@ -96,6 +96,9 @@ function assegnaVincoliDaPds() {
       return [v];
     });
 
+    // Le note hanno una larghezza determinata dalla riga piu' lunga.
+    // Mettiamo un separatore lungo per evitare che i nomi PdS vadano a capo.
+    const NOTE_SEP = '─'.repeat(50);
     const newNotes = codes.map((r, i) => {
       const codeRaw = r[0];
       if (!codeRaw) return [''];
@@ -104,10 +107,23 @@ function assegnaVincoliDaPds() {
       const code = String(codeRaw).trim().toUpperCase();
       const classByPds = classByCodeByPds[code];
       if (!classByPds) return [''];
-      const lines = Object.keys(classByPds).sort().map(pdsName =>
-        `PdS ${pdsName}: ${classByPds[pdsName]}`
-      );
-      return [lines.join('\n')];
+
+      // Raggruppa i PdS per vincolo
+      const byVinc = { OBB: [], FOR: [], OPZ: [] };
+      Object.keys(classByPds).sort().forEach(pdsName => {
+        const cls = classByPds[pdsName];
+        if (byVinc[cls]) byVinc[cls].push(pdsName);
+      });
+
+      // Blocchi: HEADER \n ─── \n PdS <nome>...
+      const blocks = [];
+      ['OBB', 'FOR', 'OPZ'].forEach(vc => {
+        if (byVinc[vc].length === 0) return;
+        const lines = [vc, NOTE_SEP];
+        byVinc[vc].forEach(p => lines.push('PdS ' + p));
+        blocks.push(lines.join('\n'));
+      });
+      return [blocks.join('\n\n')];
     });
 
     sh.getRange(HEADER_ROWS + 1, COL_VINCOLO, codes.length, 1).setValues(newVinc);
