@@ -206,6 +206,15 @@
     background: var(--bg); color: var(--text); font-weight: 600;
     border-color: var(--border);
   }
+  .view-tab .edit-tag {
+    display: inline-block; margin-left: 6px;
+    padding: 1px 8px; border-radius: 10px;
+    background: #137333; color: #fff;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.3px;
+    vertical-align: middle;
+  }
+  .view-tab.edit-on { background: #e6f4ea; color: #137333; }
+  .view-tab.edit-on.active { background: #d4edda; color: #0b5828; border-color: #81c995; }
   .view { display: none; }
   .view.active { display: block; }
 
@@ -490,15 +499,20 @@ var USER_EMAIL = <?!= JSON.stringify(userEmail || '') ?>;
   }
 
   // Switch tra le viste (calendario / aule).
-  // Il tab "Aule" è visibile SOLO agli editor (EDIT_MODE === true).
+  // Il tab "Aule" è visibile SOLO agli editor (EDIT_MODE === true)
+  // e mostra un badge "EDIT" verde per indicare che drag/resize sono attivi.
+  const auleTab = document.querySelector('.view-tab[data-view="rooms"]');
   if (!EDIT_MODE) {
-    const auleTab = document.querySelector('.view-tab[data-view="rooms"]');
     if (auleTab) auleTab.style.display = 'none';
     const auleView = document.getElementById('viewRooms');
     if (auleView) auleView.style.display = 'none';
     // Nascondi anche la barra tab se rimane un solo tab visibile
     const tabsBar = document.querySelector('.view-tabs');
     if (tabsBar) tabsBar.style.display = 'none';
+  } else if (auleTab) {
+    auleTab.classList.add('edit-on');
+    auleTab.innerHTML = '🏛 Aule <span class="edit-tag">EDIT</span>';
+    auleTab.title = 'Modalità edit attiva: drag/resize degli slot orari abilitato per ' + (USER_EMAIL || 'utente loggato');
   }
   document.querySelectorAll('.view-tab').forEach(t => {
     t.addEventListener('click', () => {

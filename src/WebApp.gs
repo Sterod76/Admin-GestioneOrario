@@ -18,9 +18,11 @@ function getEditorEmails_() {
   } catch (e) { return []; }
 }
 
-function isEditor_(email) {
+function isEditor_(email, ownerEmail) {
   if (!email) return false;
   const e = String(email).trim().toLowerCase();
+  // L'owner dello Spreadsheet e' sempre editor (anche se non in EDIT_EMAILS).
+  if (ownerEmail && e === String(ownerEmail).trim().toLowerCase()) return true;
   return getEditorEmails_().indexOf(e) !== -1;
 }
 
@@ -61,7 +63,13 @@ function applyEditSlot(payload) {
   const email = (function(){
     try { return Session.getActiveUser().getEmail() || ''; } catch (e) { return ''; }
   })();
-  if (!isEditor_(email)) {
+  let ownerEmail = '';
+  try {
+    const ss = SpreadsheetApp.openById(getBoundSpreadsheetId_());
+    const o = ss.getOwner();
+    if (o) ownerEmail = String(o.getEmail() || '').toLowerCase();
+  } catch (e) {}
+  if (!isEditor_(email, ownerEmail)) {
     throw new Error('Non autorizzato (email: ' + (email || 'anonimo') + ').');
   }
   const lock = LockService.getDocumentLock();
@@ -208,7 +216,7 @@ function doGet(e) {
   const semester = data.semester || 'S1';
   let userEmail = '';
   try { userEmail = Session.getActiveUser().getEmail() || ''; } catch (e) {}
-  tpl.editMode = isEditor_(userEmail);
+  tpl.editMode = isEditor_(userEmail, data.ownerEmail);
   tpl.userEmail = userEmail;
   return tpl.evaluate()
     .setTitle('Bozza Orario ' + semester)
@@ -283,6 +291,11 @@ function getOrarioData() {
   const ss = SpreadsheetApp.openById(getBoundSpreadsheetId_());
   const { prefix: AULE_PREFIX, output: AULE_OUTPUT } = detectAuleConfigFor_(ss);
   const semester = AULE_PREFIX; // 'S1' o 'S2'
+  let ownerEmail = '';
+  try {
+    const o = ss.getOwner();
+    if (o) ownerEmail = String(o.getEmail() || '').toLowerCase();
+  } catch (e) {}
   const sources = ss.getSheets().filter(s => {
     const n = s.getName();
     return n.toUpperCase().startsWith(AULE_PREFIX) && n !== AULE_OUTPUT;
@@ -474,6 +487,7 @@ function getOrarioData() {
     codesLM: Object.keys(codesLM),
     pds: pdsList,
     vincoloColors: VINCOLO_FALLBACK_COLORS,
+    ownerEmail: ownerEmail,
     sessions: sessions,
     unavail: unavail,
     generatedAt: new Date().toISOString()
