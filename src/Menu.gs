@@ -8,5 +8,8 @@ function onOpen() {
     .addItem('✨ Normalizza celle calendario', 'fixCalendarEntries')
     .addItem('🔄 Ricarica formato tabella', 'reloadTableFormat')
     .addItem('💾 Salva formato tabella', 'saveTableFormat')
+    .addSeparator()
+    .addItem('📤 Esporta JSON', 'exportToJson')
+    .addItem('📥 Importa JSON', 'importFromJson')
     .addToUi();
 }
