@@ -209,36 +209,65 @@
   .view { display: none; }
   .view.active { display: block; }
 
-  /* Vista "Aule" — lista raggruppata */
-  #viewRooms { padding: 12px 16px; }
-  .room-block {
-    background: var(--panel); border: 1px solid var(--border);
-    border-radius: 6px; padding: 10px 14px; margin-bottom: 12px;
+  /* Vista "Aule" — griglia visuale per giorno con timeline orizzontale */
+  #viewRooms { padding: 12px 16px; overflow-x: auto; }
+  .day-section { margin-bottom: 20px; background: var(--panel);
+    border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; }
+  .day-section h3 {
+    margin: 0 0 6px 0; font-size: 14px; font-weight: 600;
+    border-bottom: 1px solid var(--border); padding-bottom: 4px;
   }
-  .room-block.hidden { display: none; }
-  .room-block h3 {
-    margin: 0 0 8px 0; font-size: 14px; font-weight: 600; color: var(--text);
-    border-bottom: 1px solid var(--border); padding-bottom: 6px;
+  .day-grid { font-size: 11px; min-width: max-content; }
+  .day-grid .grid-row {
+    display: grid; grid-template-columns: 130px 1fr;
+    align-items: stretch; min-height: 26px;
   }
-  .day-row {
-    display: flex; align-items: baseline; gap: 8px; padding: 4px 0;
-    font-size: 12px; line-height: 1.4;
+  .day-grid .grid-row.header { min-height: 22px; }
+  .day-grid .room-label {
+    padding: 4px 8px 4px 0; font-weight: 600; color: var(--text);
+    border-right: 1px solid var(--border);
+    display: flex; align-items: center;
   }
-  .day-row .day-label {
-    font-weight: 600; color: var(--muted); width: 32px; flex-shrink: 0;
+  .day-grid .room-label-empty { color: var(--muted); font-weight: 400; font-size: 10px; }
+  .day-grid .room-track {
+    position: relative;
+    background:
+      linear-gradient(to right, transparent 0, transparent calc(100% - 1px), #f0f0f0 calc(100% - 1px)),
+      repeating-linear-gradient(to right, transparent 0, transparent calc(var(--hour-w) - 1px), #eee calc(var(--hour-w) - 1px), #eee var(--hour-w));
+    min-width: var(--track-w);
+    border-bottom: 1px solid #f5f5f5;
   }
-  .day-row .rsessions {
-    display: flex; flex-wrap: wrap; gap: 4px 8px; flex: 1;
+  .day-grid .time-axis {
+    position: relative; min-width: var(--track-w); height: 18px;
+    border-bottom: 1px solid var(--border);
   }
-  .rsession {
-    display: inline-block; padding: 2px 6px; border-radius: 3px;
-    border-left: 3px solid; font-size: 11px; white-space: nowrap;
+  .day-grid .time-tick {
+    position: absolute; top: 0; font-size: 10px; color: var(--muted);
+    transform: translateX(-50%);
   }
-  .rsession.hidden { display: none; }
-  .rsession .rtime { font-weight: 600; }
-  .rsession .rcode { font-weight: 700; }
-  .day-row.no-sessions .day-label { opacity: 0.4; }
-  .day-row .empty-note { color: var(--muted); font-style: italic; opacity: 0.6; font-size: 11px; }
+  .ablock {
+    position: absolute; top: 2px; bottom: 2px;
+    padding: 2px 6px; border-radius: 3px; border-left: 3px solid;
+    font-size: 11px; line-height: 1.2;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+    box-sizing: border-box;
+  }
+  .ablock.hidden { display: none; }
+  .ablock .ablock-code { font-weight: 700; }
+  .ablock .ablock-time { color: var(--muted); font-size: 10px; }
+  .ablock.editable { cursor: grab; user-select: none; }
+  .ablock.editable.dragging { opacity: 0.7; cursor: grabbing; outline: 2px solid #1a73e8; z-index: 100; box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
+  .ablock.editable.conflict { outline: 2px solid #c00; }
+  .ablock.committing { opacity: 0.5; pointer-events: none; }
+  .ablock .resize-handle {
+    position: absolute; top: 0; bottom: 0; width: 6px; cursor: ew-resize;
+    background: transparent;
+  }
+  .ablock .resize-handle.left { left: 0; }
+  .ablock .resize-handle.right { right: 0; }
+  .ablock.editable:hover .resize-handle { background: rgba(26,115,232,0.3); }
+  .day-section.hidden { display: none; }
 </style>
 </head>
 <body>
@@ -442,39 +471,98 @@ var USER_EMAIL = <?!= JSON.stringify(userEmail || '') ?>;
   // Sessioni (NON DISPONIBILE escluse: data.unavail ignorato)
   const sessionEls = [];
   const rsessionEls = [];  // gemelle per la vista "Aule"
-  data.sessions.forEach(s => {
-    const top = (s.start - slotStart) * PX_PER_MIN;
-    const h = (s.end - s.start) * PX_PER_MIN;
-    const el = document.createElement('div');
-    el.className = 'session';
-    el.style.top = top + 'px';
-    el.style.height = (h - 2) + 'px';
-    el.style.right = 'auto';
-    el.dataset.origBg = s.vincoloColor || '#fff';
-    el.style.background = el.dataset.origBg;
-    el.style.borderLeftColor = s.sheetColor || '#888';
-    el.dataset.day = String(s.day);
-    el.dataset.start = String(s.start);
-    el.dataset.end = String(s.end);
-    el.dataset.code = (s.code || '').toLowerCase();
-    el.dataset.name = (s.name || '').toLowerCase();
-    el.dataset.titolare = (s.titolare || '').toLowerCase();
-    el.dataset.sheet = s.sheet;
-    el.dataset.room = s.room;
-    el.dataset.gruppo = s.group;
-    el.dataset.anno = s.anno || '';
+
+  // ----- Vista "Aule": griglia visuale per giorno -----
+  const PX_PER_MIN_AULE = 1.3; // larghezza orizzontale
+  const HOUR_PX = 60 * PX_PER_MIN_AULE;
+  const TRACK_PX = (slotEnd - slotStart) * PX_PER_MIN_AULE;
+  const viewRooms = document.getElementById('viewRooms');
+  // daySections[d] = { section, tracks: {roomName: trackEl} }
+  const daySections = [];
+
+  function buildAuleView() {
+    viewRooms.innerHTML = '';
+    daySections.length = 0;
+    for (let d = 0; d < days.length; d++) {
+      const section = document.createElement('div');
+      section.className = 'day-section';
+      section.dataset.day = String(d);
+      section.innerHTML = '<h3>' + days[d] + '</h3>';
+      const grid = document.createElement('div');
+      grid.className = 'day-grid';
+      grid.style.setProperty('--track-w', TRACK_PX + 'px');
+      grid.style.setProperty('--hour-w', HOUR_PX + 'px');
+
+      // Riga asse temporale
+      const headerRow = document.createElement('div');
+      headerRow.className = 'grid-row header';
+      headerRow.innerHTML = '<div class="room-label"><span class="room-label-empty">(orario)</span></div>';
+      const ta = document.createElement('div');
+      ta.className = 'time-axis';
+      for (let m = slotStart; m <= slotEnd; m += 60) {
+        const t = document.createElement('span');
+        t.className = 'time-tick';
+        t.style.left = ((m - slotStart) * PX_PER_MIN_AULE) + 'px';
+        t.textContent = fmt(m);
+        ta.appendChild(t);
+      }
+      headerRow.appendChild(ta);
+      grid.appendChild(headerRow);
+
+      const tracks = {};
+      data.rooms.forEach(room => {
+        const row = document.createElement('div');
+        row.className = 'grid-row';
+        row.dataset.room = room;
+        row.dataset.day = String(d);
+        const lab = document.createElement('div');
+        lab.className = 'room-label';
+        lab.textContent = room;
+        row.appendChild(lab);
+        const track = document.createElement('div');
+        track.className = 'room-track';
+        track.dataset.room = room;
+        track.dataset.day = String(d);
+        row.appendChild(track);
+        grid.appendChild(row);
+        tracks[room] = track;
+      });
+
+      section.appendChild(grid);
+      viewRooms.appendChild(section);
+      daySections.push({ section: section, tracks: tracks });
+    }
+  }
+
+  function makeAuleBlock(s) {
+    const block = document.createElement('div');
+    block.className = 'ablock';
+    block.style.background = s.vincoloColor || '#fff';
+    block.style.borderLeftColor = s.sheetColor || '#888';
+    block.dataset.origBg = s.vincoloColor || '#fff';
+    block.dataset.code = (s.code || '').toLowerCase();
+    block.dataset.name = (s.name || '').toLowerCase();
+    block.dataset.titolare = (s.titolare || '').toLowerCase();
+    block.dataset.sheet = s.sheet;
+    block.dataset.room = s.room;
+    block.dataset.gruppo = s.group;
+    block.dataset.anno = s.anno || '';
+    block.dataset.day = String(s.day);
+    block.dataset.start = String(s.start);
+    block.dataset.end = String(s.end);
+    if (s.src) block.dataset.src = JSON.stringify(s.src);
+
+    const left = (s.start - slotStart) * PX_PER_MIN_AULE;
+    const width = (s.end - s.start) * PX_PER_MIN_AULE;
+    block.style.left = left + 'px';
+    block.style.width = Math.max(width - 2, 20) + 'px';
+
     const tag = s.group ? (s.code + ' [' + s.group + ']') : s.code;
-    const groupLine = 'Gruppo: ' + (s.group || 'N/A');
-    el.innerHTML =
-      '<div class="code" style="color:' + (s.sheetColor || 'inherit') + '">' + esc(tag) +
-        (s.periodo ? ' <span style="color:var(--muted);font-weight:400">[' + esc(s.periodo) + ']</span>' : '') +
-      '</div>' +
-      '<div>' + esc(s.name) + '</div>' +
-      '<div class="meta">' + fmt(s.start) + '-' + fmt(s.end) + ' · ' + esc(s.room) + '</div>' +
-      (s.titolare ? '<div class="meta">' + esc(s.titolare) + '</div>' : '') +
-      '<div class="meta">' + (s.tipoLabel || s.tipo || '') + (s.tipo ? ' · ' : '') + esc(groupLine) + '</div>' +
-      (s.mutuanti ? '<div class="meta" style="opacity:.8">↺ ' + esc(s.mutuanti) + '</div>' : '');
-    el.title =
+    block.innerHTML =
+      '<span class="ablock-time">' + fmt(s.start) + '–' + fmt(s.end) + '</span> ' +
+      '<span class="ablock-code" style="color:' + (s.sheetColor || 'inherit') + '">' + esc(tag) + '</span>' +
+      (s.name ? ' ' + esc(s.name) : '');
+    block.title =
       tag + (s.name ? ' — ' + s.name : '') + '\n' +
       fmt(s.start) + '-' + fmt(s.end) + ' ' + s.room + '\n' +
       (s.titolare ? 'Titolare: ' + s.titolare + '\n' : '') +
@@ -482,61 +570,255 @@ var USER_EMAIL = <?!= JSON.stringify(userEmail || '') ?>;
       'Gruppo: ' + (s.group || 'N/A') +
       (s.periodo ? '\nPeriodo: ' + s.periodo : '') +
       (s.mutuanti ? '\nMutuazione: ' + s.mutuanti : '');
-    dayColEls[s.day].appendChild(el);
-    sessionEls.push(el);
-  });
 
-  // ----- Vista "Aule": blocchi per aula, righe per giorno -----
-  const viewRooms = document.getElementById('viewRooms');
-  const roomBlocks = {}; // roomName -> { block, dayRows: [...sessions container per ogni day idx] }
-  data.rooms.forEach(room => {
-    const block = document.createElement('div');
-    block.className = 'room-block';
-    block.dataset.room = room;
-    const h = document.createElement('h3');
-    h.textContent = room;
-    block.appendChild(h);
-    const dayRows = [];
-    for (let d = 0; d < days.length; d++) {
-      const row = document.createElement('div');
-      row.className = 'day-row';
-      row.dataset.day = String(d);
-      row.innerHTML = '<span class="day-label">' + days[d] + '</span>';
-      const sessionsContainer = document.createElement('span');
-      sessionsContainer.className = 'rsessions';
-      row.appendChild(sessionsContainer);
-      block.appendChild(row);
-      dayRows.push(sessionsContainer);
+    if (EDIT_MODE) {
+      block.classList.add('editable');
+      const lh = document.createElement('div');
+      lh.className = 'resize-handle left';
+      block.appendChild(lh);
+      const rh = document.createElement('div');
+      rh.className = 'resize-handle right';
+      block.appendChild(rh);
+      attachEditHandlers(block);
     }
-    viewRooms.appendChild(block);
-    roomBlocks[room] = { block: block, dayRows: dayRows };
-  });
+    return block;
+  }
 
-  // Crea le sessioni "gemelle" per la vista Aule (sortate per ora)
-  data.sessions.slice()
-    .sort((a, b) => a.start - b.start || a.end - b.end)
-    .forEach(s => {
-      const rb = roomBlocks[s.room];
-      if (!rb) return;
-      const re = document.createElement('span');
-      re.className = 'rsession';
-      re.style.background = s.vincoloColor || '#fff';
-      re.style.borderLeftColor = s.sheetColor || '#888';
-      re.dataset.origBg = s.vincoloColor || '#fff';
-      re.dataset.code = (s.code || '').toLowerCase();
-      re.dataset.name = (s.name || '').toLowerCase();
-      re.dataset.titolare = (s.titolare || '').toLowerCase();
-      re.dataset.sheet = s.sheet;
-      re.dataset.room = s.room;
-      re.dataset.gruppo = s.group;
-      re.dataset.anno = s.anno || '';
+  function renderAuleSessions() {
+    // Pulisci tracce
+    daySections.forEach(ds => {
+      Object.values(ds.tracks).forEach(t => { t.innerHTML = ''; });
+    });
+    rsessionEls.length = 0;
+    data.sessions.forEach(s => {
+      const ds = daySections[s.day];
+      if (!ds) return;
+      const track = ds.tracks[s.room];
+      if (!track) return;
+      const block = makeAuleBlock(s);
+      track.appendChild(block);
+      rsessionEls.push(block);
+    });
+  }
+
+  // ----- Drag/Resize handlers (solo EDIT_MODE) -----
+  function attachEditHandlers(block) {
+    let mode = null; // 'move' | 'resize-l' | 'resize-r'
+    let pId = null;
+    let startX = 0, startY = 0;
+    let origLeft = 0, origWidth = 0;
+    let origDay = 0, origRoom = '';
+    let curDay, curRoom;
+
+    function onDown(e) {
+      if (block.classList.contains('committing')) return;
+      mode = 'move';
+      if (e.target.classList && e.target.classList.contains('resize-handle')) {
+        mode = e.target.classList.contains('left') ? 'resize-l' : 'resize-r';
+      }
+      pId = e.pointerId;
+      startX = e.clientX;
+      startY = e.clientY;
+      origLeft = parseFloat(block.style.left) || 0;
+      origWidth = parseFloat(block.style.width) || 0;
+      origDay = parseInt(block.dataset.day, 10);
+      origRoom = block.dataset.room;
+      curDay = origDay;
+      curRoom = origRoom;
+      block.setPointerCapture(pId);
+      block.classList.add('dragging');
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    function onMove(e) {
+      if (e.pointerId !== pId || !mode) return;
+      const dx = e.clientX - startX;
+      const snap = Math.round(dx / (30 * PX_PER_MIN_AULE)) * (30 * PX_PER_MIN_AULE);
+
+      if (mode === 'move') {
+        let newLeft = origLeft + snap;
+        if (newLeft < 0) newLeft = 0;
+        if (newLeft + origWidth > TRACK_PX) newLeft = TRACK_PX - origWidth;
+        block.style.left = newLeft + 'px';
+
+        // Possibile cambio aula/giorno tramite hit-test sull'elemento sotto al pointer
+        const elBelow = document.elementFromPoint(e.clientX, e.clientY);
+        const trackBelow = elBelow ? elBelow.closest('.room-track') : null;
+        if (trackBelow && trackBelow !== block.parentNode) {
+          // Sposta visualmente in altra track (cambio aula o giorno)
+          curRoom = trackBelow.dataset.room;
+          curDay = parseInt(trackBelow.dataset.day, 10);
+          trackBelow.appendChild(block);
+          block.dataset.room = curRoom;
+          block.dataset.day = String(curDay);
+        }
+        const newStart = slotStart + Math.round(newLeft / PX_PER_MIN_AULE);
+        const newEnd = newStart + Math.round(origWidth / PX_PER_MIN_AULE);
+        block.dataset.start = String(newStart);
+        block.dataset.end = String(newEnd);
+        block.querySelector('.ablock-time').textContent = fmt(newStart) + '–' + fmt(newEnd);
+      } else if (mode === 'resize-l') {
+        let newLeft = origLeft + snap;
+        if (newLeft < 0) newLeft = 0;
+        if (newLeft >= origLeft + origWidth - 30 * PX_PER_MIN_AULE) {
+          newLeft = origLeft + origWidth - 30 * PX_PER_MIN_AULE; // min 30 min
+        }
+        const newWidth = origLeft + origWidth - newLeft;
+        block.style.left = newLeft + 'px';
+        block.style.width = (newWidth - 2) + 'px';
+        const newStart = slotStart + Math.round(newLeft / PX_PER_MIN_AULE);
+        const newEnd = newStart + Math.round(newWidth / PX_PER_MIN_AULE);
+        block.dataset.start = String(newStart);
+        block.dataset.end = String(newEnd);
+        block.querySelector('.ablock-time').textContent = fmt(newStart) + '–' + fmt(newEnd);
+      } else if (mode === 'resize-r') {
+        let newWidth = origWidth + snap;
+        if (newWidth < 30 * PX_PER_MIN_AULE) newWidth = 30 * PX_PER_MIN_AULE;
+        if (origLeft + newWidth > TRACK_PX) newWidth = TRACK_PX - origLeft;
+        block.style.width = (newWidth - 2) + 'px';
+        const newStart = slotStart + Math.round(origLeft / PX_PER_MIN_AULE);
+        const newEnd = newStart + Math.round(newWidth / PX_PER_MIN_AULE);
+        block.dataset.end = String(newEnd);
+        block.querySelector('.ablock-time').textContent = fmt(newStart) + '–' + fmt(newEnd);
+      }
+    }
+
+    function onUp(e) {
+      if (e.pointerId !== pId || !mode) return;
+      try { block.releasePointerCapture(pId); } catch (err) {}
+      block.classList.remove('dragging');
+      const finalMode = mode;
+      mode = null;
+      pId = null;
+
+      const newStart = parseInt(block.dataset.start, 10);
+      const newEnd = parseInt(block.dataset.end, 10);
+      const newRoom = block.dataset.room;
+      const newDay = parseInt(block.dataset.day, 10);
+
+      let src;
+      try { src = JSON.parse(block.dataset.src || 'null'); } catch (err) { src = null; }
+      if (!src) { revertBlock(block); return; }
+
+      // No-op se nulla è cambiato
+      const orig = data.sessions.find(s => s.src && s.src.sheet === src.sheet
+        && s.src.row === src.row && s.src.col === src.col && s.src.idx === src.idx);
+      if (orig && orig.start === newStart && orig.end === newEnd
+          && orig.room === newRoom && orig.day === newDay) {
+        revertBlock(block);
+        return;
+      }
+
+      // Target col: shift if day changed
+      const newCol = src.col + (newDay - (orig ? orig.day : newDay));
+      const target = {
+        sheet: src.sheet, row: src.row, col: newCol,
+        room: newRoom, start: newStart, end: newEnd
+      };
+
+      commitEdit(block, src, target);
+    }
+
+    block.addEventListener('pointerdown', onDown);
+    block.addEventListener('pointermove', onMove);
+    block.addEventListener('pointerup', onUp);
+    block.addEventListener('pointercancel', () => { mode = null; pId = null; block.classList.remove('dragging'); });
+  }
+
+  function revertBlock(block) {
+    // Ricostruisce la posizione dal data.sessions corrente
+    let src;
+    try { src = JSON.parse(block.dataset.src || 'null'); } catch (e) { return; }
+    if (!src) return;
+    const orig = data.sessions.find(s => s.src && s.src.sheet === src.sheet
+      && s.src.row === src.row && s.src.col === src.col && s.src.idx === src.idx);
+    if (!orig) return;
+    block.dataset.room = orig.room;
+    block.dataset.day = String(orig.day);
+    block.dataset.start = String(orig.start);
+    block.dataset.end = String(orig.end);
+    const left = (orig.start - slotStart) * PX_PER_MIN_AULE;
+    const width = (orig.end - orig.start) * PX_PER_MIN_AULE;
+    block.style.left = left + 'px';
+    block.style.width = Math.max(width - 2, 20) + 'px';
+    block.querySelector('.ablock-time').textContent = fmt(orig.start) + '–' + fmt(orig.end);
+    // Re-attach al track corretto
+    const ds = daySections[orig.day];
+    if (ds && ds.tracks[orig.room] && ds.tracks[orig.room] !== block.parentNode) {
+      ds.tracks[orig.room].appendChild(block);
+    }
+  }
+
+  function commitEdit(block, src, target) {
+    block.classList.add('committing');
+    google.script.run
+      .withSuccessHandler(function(newJson) {
+        block.classList.remove('committing');
+        try {
+          const newData = JSON.parse(newJson);
+          // Sostituisci data e rerender tutto
+          for (const k in newData) data[k] = newData[k];
+          rerenderAfterEdit();
+        } catch (err) {
+          alert('Errore decoding snapshot: ' + err.message);
+          revertBlock(block);
+        }
+      })
+      .withFailureHandler(function(err) {
+        block.classList.remove('committing');
+        alert('Modifica rifiutata: ' + (err && err.message ? err.message : err));
+        revertBlock(block);
+      })
+      .applyEditSlot({ src: src, target: target });
+  }
+
+  function rerenderAfterEdit() {
+    // Rebuild calendar view sessions
+    sessionEls.forEach(el => el.remove());
+    sessionEls.length = 0;
+    rsessionEls.length = 0;
+    renderCalendarSessions();
+    renderAuleSessions();
+    applyFilters();
+  }
+
+  // Render iniziale Aule + Calendar (separato per il rerender post-edit)
+  function renderCalendarSessions() {
+    data.sessions.forEach(s => {
+      // costruisci el come nel blocco originale ma posiziona in dayColEls[s.day]
+      const top = (s.start - slotStart) * PX_PER_MIN;
+      const h = (s.end - s.start) * PX_PER_MIN;
+      const el = document.createElement('div');
+      el.className = 'session';
+      el.style.top = top + 'px';
+      el.style.height = (h - 2) + 'px';
+      el.style.right = 'auto';
+      el.dataset.origBg = s.vincoloColor || '#fff';
+      el.style.background = el.dataset.origBg;
+      el.style.borderLeftColor = s.sheetColor || '#888';
+      el.dataset.day = String(s.day);
+      el.dataset.start = String(s.start);
+      el.dataset.end = String(s.end);
+      el.dataset.code = (s.code || '').toLowerCase();
+      el.dataset.name = (s.name || '').toLowerCase();
+      el.dataset.titolare = (s.titolare || '').toLowerCase();
+      el.dataset.sheet = s.sheet;
+      el.dataset.room = s.room;
+      el.dataset.gruppo = s.group;
+      el.dataset.anno = s.anno || '';
       const tag = s.group ? (s.code + ' [' + s.group + ']') : s.code;
-      re.innerHTML =
-        '<span class="rtime">' + fmt(s.start) + '–' + fmt(s.end) + '</span> ' +
-        '<span class="rcode" style="color:' + (s.sheetColor || 'inherit') + '">' + esc(tag) + '</span>' +
-        (s.name ? ' ' + esc(s.name) : '') +
-        (s.periodo ? ' <span style="color:var(--muted)">[' + esc(s.periodo) + ']</span>' : '');
-      re.title =
+      const groupLine = 'Gruppo: ' + (s.group || 'N/A');
+      el.innerHTML =
+        '<div class="code" style="color:' + (s.sheetColor || 'inherit') + '">' + esc(tag) +
+          (s.periodo ? ' <span style="color:var(--muted);font-weight:400">[' + esc(s.periodo) + ']</span>' : '') +
+        '</div>' +
+        '<div>' + esc(s.name) + '</div>' +
+        '<div class="meta">' + fmt(s.start) + '-' + fmt(s.end) + ' · ' + esc(s.room) + '</div>' +
+        (s.titolare ? '<div class="meta">' + esc(s.titolare) + '</div>' : '') +
+        '<div class="meta">' + (s.tipoLabel || s.tipo || '') + (s.tipo ? ' · ' : '') + esc(groupLine) + '</div>' +
+        (s.mutuanti ? '<div class="meta" style="opacity:.8">↺ ' + esc(s.mutuanti) + '</div>' : '');
+      el.title =
         tag + (s.name ? ' — ' + s.name : '') + '\n' +
         fmt(s.start) + '-' + fmt(s.end) + ' ' + s.room + '\n' +
         (s.titolare ? 'Titolare: ' + s.titolare + '\n' : '') +
@@ -544,21 +826,15 @@ var USER_EMAIL = <?!= JSON.stringify(userEmail || '') ?>;
         'Gruppo: ' + (s.group || 'N/A') +
         (s.periodo ? '\nPeriodo: ' + s.periodo : '') +
         (s.mutuanti ? '\nMutuazione: ' + s.mutuanti : '');
-      rb.dayRows[s.day].appendChild(re);
-      rsessionEls.push(re);
+      dayColEls[s.day].appendChild(el);
+      sessionEls.push(el);
     });
+  }
 
-  // Riga "(vuoto)" per giorni senza sessioni
-  Object.values(roomBlocks).forEach(rb => {
-    rb.dayRows.forEach((cont, d) => {
-      if (cont.children.length === 0) {
-        const e = document.createElement('span');
-        e.className = 'empty-note';
-        e.textContent = '—';
-        cont.appendChild(e);
-      }
-    });
-  });
+  // Init render: prima il calendar, poi la vista Aule (richiedono dayColEls/daySections)
+  buildAuleView();
+  renderCalendarSessions();
+  renderAuleSessions();
 
   // Filtri
   function fillSelect(id, items) {

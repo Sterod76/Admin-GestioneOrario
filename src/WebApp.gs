@@ -41,6 +41,158 @@ function getEditorEmailsList() {
   return getEditorEmails_();
 }
 
+/**
+ * Endpoint editor: applica modifica a uno slot orario.
+ * Payload:
+ *   src    = { sheet, row, col, idx }     (identifica univocamente lo slot)
+ *   target = { sheet, row, col, room, start, end }
+ * Vincoli:
+ *   - src.sheet === target.sheet (la sessione resta nello stesso foglio)
+ *   - src.row   === target.row   (resta nello stesso corso/riga)
+ *   - target.col puo' differire (cambio giorno LUN..SAB)
+ *   - target.room puo' differire
+ *   - target.start/end espressi in minuti dalla mezzanotte
+ * Controllo conflitti: lo slot non puo' sovrapporsi ad altra sessione sulla
+ * stessa (aula, giorno). Lo slot stesso (src) e' escluso dal check.
+ * Ritorna il NUOVO snapshot JSON (stringa) che il client puo' usare per
+ * aggiornare entrambe le viste in tempo reale.
+ */
+function applyEditSlot(payload) {
+  const email = (function(){
+    try { return Session.getActiveUser().getEmail() || ''; } catch (e) { return ''; }
+  })();
+  if (!isEditor_(email)) {
+    throw new Error('Non autorizzato (email: ' + (email || 'anonimo') + ').');
+  }
+  const lock = LockService.getDocumentLock();
+  if (!lock.tryLock(10000)) {
+    throw new Error('Lock fallito (un\'altra modifica e\' in corso). Riprova.');
+  }
+  try {
+    return applyEditSlot_(payload);
+  } finally {
+    try { lock.releaseLock(); } catch (e) {}
+  }
+}
+
+function applyEditSlot_(payload) {
+  if (!payload || !payload.src || !payload.target) {
+    throw new Error('Payload incompleto');
+  }
+  const src = payload.src;
+  const target = payload.target;
+  if (src.sheet !== target.sheet || src.row !== target.row) {
+    throw new Error('Spostamento cross-sheet o cross-row non supportato.');
+  }
+  const tStart = parseInt(target.start, 10);
+  const tEnd = parseInt(target.end, 10);
+  if (!isFinite(tStart) || !isFinite(tEnd) || tEnd <= tStart) {
+    throw new Error('Orario non valido (start=' + target.start + ', end=' + target.end + ').');
+  }
+  if (tStart < SLOT_START_MIN || tEnd > SLOT_END_MIN) {
+    throw new Error('Orario fuori range consentito (' +
+      fmtMin_(SLOT_START_MIN) + '-' + fmtMin_(SLOT_END_MIN) + ').');
+  }
+  if ((tStart % SLOT_STEP_MIN) !== 0 || (tEnd % SLOT_STEP_MIN) !== 0) {
+    throw new Error('Gli slot devono essere allineati a multipli di ' + SLOT_STEP_MIN + ' minuti.');
+  }
+  if (!target.room || !String(target.room).trim()) {
+    throw new Error('Aula target mancante.');
+  }
+  const targetRoom = String(target.room).trim();
+
+  const ss = SpreadsheetApp.openById(getBoundSpreadsheetId_());
+  const sh = ss.getSheetByName(src.sheet);
+  if (!sh) throw new Error('Foglio sorgente non trovato: ' + src.sheet);
+
+  // Conflict check (escludendo self)
+  const conflict = findConflict_(ss, { col: target.col, room: targetRoom, start: tStart, end: tEnd }, src);
+  if (conflict) {
+    throw new Error('Conflitto: ' + conflict);
+  }
+
+  // Leggi la cella sorgente, modifica/sposta il slot
+  const srcCell = sh.getRange(src.row, src.col);
+  const srcText = String(srcCell.getValue() || '');
+  const srcList = extractSessions(srcText).list;
+  if (src.idx < 0 || src.idx >= srcList.length) {
+    throw new Error('idx sessione non valido nella cella sorgente (idx=' +
+      src.idx + ', presenti=' + srcList.length + ').');
+  }
+
+  const newSession = { start: tStart, end: tEnd, room: targetRoom };
+
+  if (src.col === target.col) {
+    // Stessa cella: rimpiazza la sessione idx
+    srcList[src.idx] = newSession;
+    srcCell.setValue(renderSessions_(srcList));
+  } else {
+    // Diversa cella (cambio giorno): rimuovi da source, aggiungi a target
+    srcList.splice(src.idx, 1);
+    srcCell.setValue(renderSessions_(srcList));
+    const tgtCell = sh.getRange(src.row, target.col);
+    const tgtList = extractSessions(String(tgtCell.getValue() || '')).list;
+    tgtList.push(newSession);
+    tgtCell.setValue(renderSessions_(tgtList));
+  }
+
+  // Rebuilda snapshot fresco e salvalo
+  const json = JSON.stringify(getOrarioData());
+  saveSnapshot_(json);
+  return json;
+}
+
+function renderSessions_(sessions) {
+  return sessions.map(s => fmtMin_(s.start) + '-' + fmtMin_(s.end) + '\n' + s.room).join('\n');
+}
+
+function fmtMin_(min) {
+  const h = Math.floor(min / 60), m = min % 60;
+  const pad = n => (n < 10 ? '0' + n : '' + n);
+  return pad(h) + ':' + pad(m);
+}
+
+/**
+ * Scansiona TUTTI i fogli source con il prefisso del semestre attivo
+ * (S1 o S2) e ritorna una stringa descrittiva del primo conflitto trovato
+ * per (aula, giorno col, intervallo [start,end)), escludendo lo slot src.
+ * Ritorna null se nessun conflitto.
+ */
+function findConflict_(ss, target, srcExclude) {
+  const cfg = detectAuleConfigFor_(ss);
+  const sheets = ss.getSheets().filter(s => {
+    const n = s.getName();
+    return n.toUpperCase().startsWith(cfg.prefix) && n !== cfg.output;
+  });
+  const dayIdx = target.col - CALENDAR_COLS_START;
+  for (let si = 0; si < sheets.length; si++) {
+    const sh = sheets[si];
+    const lastRow = sh.getLastRow();
+    if (lastRow < HEADER_ROWS + 1) continue;
+    const colVals = sh.getRange(HEADER_ROWS + 1, target.col, lastRow - HEADER_ROWS, 1).getValues();
+    for (let r = 0; r < colVals.length; r++) {
+      const cellText = colVals[r][0];
+      if (!cellText) continue;
+      const sheetRow = HEADER_ROWS + 1 + r;
+      const list = extractSessions(String(cellText)).list;
+      for (let i = 0; i < list.length; i++) {
+        // Skip self
+        if (sh.getName() === srcExclude.sheet &&
+            sheetRow === srcExclude.row &&
+            target.col === srcExclude.col &&
+            i === srcExclude.idx) continue;
+        const s = list[i];
+        if (s.room !== target.room) continue;
+        if (target.start < s.end && target.end > s.start) {
+          return DAYS_LABELS[dayIdx] + ' ' + fmtMin_(s.start) + '-' + fmtMin_(s.end) +
+                 ' aula ' + s.room + ' (' + sh.getName() + ' riga ' + sheetRow + ')';
+        }
+      }
+    }
+  }
+  return null;
+}
+
 function doGet(e) {
   const action = (e && e.parameter && e.parameter.action) || '';
   const json = getSnapshot_();
