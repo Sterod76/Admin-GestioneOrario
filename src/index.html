@@ -171,6 +171,58 @@
   .footer {
     text-align: center; color: var(--muted); font-size: 11px; padding: 12px;
   }
+
+  /* Tab switcher */
+  .view-tabs {
+    display: flex; gap: 0; padding: 0 16px; background: var(--panel);
+    border-bottom: 1px solid var(--border);
+  }
+  .view-tab {
+    padding: 8px 16px; cursor: pointer; user-select: none;
+    border: 1px solid transparent; border-bottom: none;
+    background: transparent; font-size: 13px; color: var(--muted);
+    font-family: inherit; line-height: 1.2;
+    border-top-left-radius: 4px; border-top-right-radius: 4px;
+    margin-bottom: -1px;
+  }
+  .view-tab:hover { background: #f3f6fb; }
+  .view-tab.active {
+    background: var(--bg); color: var(--text); font-weight: 600;
+    border-color: var(--border);
+  }
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* Vista "Aule" — lista raggruppata */
+  #viewRooms { padding: 12px 16px; }
+  .room-block {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 6px; padding: 10px 14px; margin-bottom: 12px;
+  }
+  .room-block.hidden { display: none; }
+  .room-block h3 {
+    margin: 0 0 8px 0; font-size: 14px; font-weight: 600; color: var(--text);
+    border-bottom: 1px solid var(--border); padding-bottom: 6px;
+  }
+  .day-row {
+    display: flex; align-items: baseline; gap: 8px; padding: 4px 0;
+    font-size: 12px; line-height: 1.4;
+  }
+  .day-row .day-label {
+    font-weight: 600; color: var(--muted); width: 32px; flex-shrink: 0;
+  }
+  .day-row .rsessions {
+    display: flex; flex-wrap: wrap; gap: 4px 8px; flex: 1;
+  }
+  .rsession {
+    display: inline-block; padding: 2px 6px; border-radius: 3px;
+    border-left: 3px solid; font-size: 11px; white-space: nowrap;
+  }
+  .rsession.hidden { display: none; }
+  .rsession .rtime { font-weight: 600; }
+  .rsession .rcode { font-weight: 700; }
+  .day-row.no-sessions .day-label { opacity: 0.4; }
+  .day-row .empty-note { color: var(--muted); font-style: italic; opacity: 0.6; font-size: 11px; }
 </style>
 </head>
 <body>
@@ -210,7 +262,14 @@
   </div>
 </header>
 <div class="legend" id="legend"></div>
-<div id="grid"></div>
+<div class="view-tabs">
+  <button class="view-tab active" data-view="sessions" type="button">📅 Calendario</button>
+  <button class="view-tab" data-view="rooms" type="button">🏛 Aule</button>
+</div>
+<div id="viewSessions" class="view active">
+  <div id="grid"></div>
+</div>
+<div id="viewRooms" class="view"></div>
 <div class="footer" id="footer"></div>
 
 <script>
@@ -335,8 +394,21 @@ var BOOTSTRAP = <?!= bootstrap ?>;
     });
   }
 
+  // Switch tra le viste (calendario / aule)
+  document.querySelectorAll('.view-tab').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.view-tab').forEach(x => x.classList.remove('active'));
+      document.querySelectorAll('.view').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      document.getElementById('view' + t.dataset.view.charAt(0).toUpperCase() + t.dataset.view.slice(1)).classList.add('active');
+      // dopo lo switch: ricalcola layout calendario (le dimensioni potrebbero essere stale)
+      if (t.dataset.view === 'sessions') relayoutVisible();
+    });
+  });
+
   // Sessioni (NON DISPONIBILE escluse: data.unavail ignorato)
   const sessionEls = [];
+  const rsessionEls = [];  // gemelle per la vista "Aule"
   data.sessions.forEach(s => {
     const top = (s.start - slotStart) * PX_PER_MIN;
     const h = (s.end - s.start) * PX_PER_MIN;
@@ -379,6 +451,80 @@ var BOOTSTRAP = <?!= bootstrap ?>;
       (s.mutuanti ? '\nMutuazione: ' + s.mutuanti : '');
     dayColEls[s.day].appendChild(el);
     sessionEls.push(el);
+  });
+
+  // ----- Vista "Aule": blocchi per aula, righe per giorno -----
+  const viewRooms = document.getElementById('viewRooms');
+  const roomBlocks = {}; // roomName -> { block, dayRows: [...sessions container per ogni day idx] }
+  data.rooms.forEach(room => {
+    const block = document.createElement('div');
+    block.className = 'room-block';
+    block.dataset.room = room;
+    const h = document.createElement('h3');
+    h.textContent = room;
+    block.appendChild(h);
+    const dayRows = [];
+    for (let d = 0; d < days.length; d++) {
+      const row = document.createElement('div');
+      row.className = 'day-row';
+      row.dataset.day = String(d);
+      row.innerHTML = '<span class="day-label">' + days[d] + '</span>';
+      const sessionsContainer = document.createElement('span');
+      sessionsContainer.className = 'rsessions';
+      row.appendChild(sessionsContainer);
+      block.appendChild(row);
+      dayRows.push(sessionsContainer);
+    }
+    viewRooms.appendChild(block);
+    roomBlocks[room] = { block: block, dayRows: dayRows };
+  });
+
+  // Crea le sessioni "gemelle" per la vista Aule (sortate per ora)
+  data.sessions.slice()
+    .sort((a, b) => a.start - b.start || a.end - b.end)
+    .forEach(s => {
+      const rb = roomBlocks[s.room];
+      if (!rb) return;
+      const re = document.createElement('span');
+      re.className = 'rsession';
+      re.style.background = s.vincoloColor || '#fff';
+      re.style.borderLeftColor = s.sheetColor || '#888';
+      re.dataset.origBg = s.vincoloColor || '#fff';
+      re.dataset.code = (s.code || '').toLowerCase();
+      re.dataset.name = (s.name || '').toLowerCase();
+      re.dataset.titolare = (s.titolare || '').toLowerCase();
+      re.dataset.sheet = s.sheet;
+      re.dataset.room = s.room;
+      re.dataset.gruppo = s.group;
+      re.dataset.anno = s.anno || '';
+      const tag = s.group ? (s.code + ' [' + s.group + ']') : s.code;
+      re.innerHTML =
+        '<span class="rtime">' + fmt(s.start) + '–' + fmt(s.end) + '</span> ' +
+        '<span class="rcode" style="color:' + (s.sheetColor || 'inherit') + '">' + esc(tag) + '</span>' +
+        (s.name ? ' ' + esc(s.name) : '') +
+        (s.periodo ? ' <span style="color:var(--muted)">[' + esc(s.periodo) + ']</span>' : '');
+      re.title =
+        tag + (s.name ? ' — ' + s.name : '') + '\n' +
+        fmt(s.start) + '-' + fmt(s.end) + ' ' + s.room + '\n' +
+        (s.titolare ? 'Titolare: ' + s.titolare + '\n' : '') +
+        (s.tipo ? 'Tipo: ' + (s.tipoLabel || s.tipo) + '\n' : '') +
+        'Gruppo: ' + (s.group || 'N/A') +
+        (s.periodo ? '\nPeriodo: ' + s.periodo : '') +
+        (s.mutuanti ? '\nMutuazione: ' + s.mutuanti : '');
+      rb.dayRows[s.day].appendChild(re);
+      rsessionEls.push(re);
+    });
+
+  // Riga "(vuoto)" per giorni senza sessioni
+  Object.values(roomBlocks).forEach(rb => {
+    rb.dayRows.forEach((cont, d) => {
+      if (cont.children.length === 0) {
+        const e = document.createElement('span');
+        e.className = 'empty-note';
+        e.textContent = '—';
+        cont.appendChild(e);
+      }
+    });
   });
 
   // Filtri
@@ -498,6 +644,42 @@ var BOOTSTRAP = <?!= bootstrap ?>;
         el.style.background = el.dataset.origBg;
       }
     });
+
+    // Stessa logica per la vista "Aule" (rsessionEls)
+    rsessionEls.forEach(el => {
+      let ok = true;
+      if (allowedCodes && !allowedCodes.has(el.dataset.code)) ok = false;
+      if (!checkedRooms[el.dataset.room]) ok = false;
+      if (fSheet && el.dataset.sheet !== fSheet) ok = false;
+      if (fGruppo && el.dataset.gruppo) {
+        const g = el.dataset.gruppo;
+        const isCompat = g.indexOf(fGruppo) === 0 || fGruppo.indexOf(g) === 0;
+        if (!isCompat) ok = false;
+      }
+      if (fAnno && el.dataset.anno.indexOf(fAnno) === -1) ok = false;
+      if (qTerms.length) {
+        const hay = el.dataset.code + ' ' + el.dataset.name + ' ' + el.dataset.titolare;
+        const matches = qOp === 'and'
+          ? qTerms.every(t => hay.indexOf(t) !== -1)
+          : qTerms.some(t => hay.indexOf(t) !== -1);
+        if (!matches) ok = false;
+      }
+      el.classList.toggle('hidden', !ok);
+      if (activePds && data.vincoloColors) {
+        const codeUpper = (el.dataset.code || '').toUpperCase();
+        const v = activePds.vincoloByCode && activePds.vincoloByCode[codeUpper];
+        const c = v ? data.vincoloColors[v] : null;
+        el.style.background = c || el.dataset.origBg;
+      } else {
+        el.style.background = el.dataset.origBg;
+      }
+    });
+
+    // Nascondi i room-block delle aule deselezionate
+    Object.keys(roomBlocks).forEach(roomName => {
+      roomBlocks[roomName].block.classList.toggle('hidden', !checkedRooms[roomName]);
+    });
+
     relayoutVisible();
   }
   ['q','fSheet','fGruppo','fAnno','fPds'].forEach(id => {
