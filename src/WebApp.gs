@@ -1,6 +1,45 @@
 const SNAPSHOT_PROP_PREFIX = 'orarioSnap:';
 const SNAPSHOT_META_KEY = 'orarioSnap:meta';
 const PROP_CHUNK_SIZE = 4000; // chars; safe sotto il limite byte 9 KB anche con UTF-8 a 2 byte
+const EDIT_EMAILS_PROP = 'EDIT_EMAILS';
+
+/**
+ * Restituisce array di email autorizzate alla modalita' editor.
+ * Letto da DocumentProperty EDIT_EMAILS (formato JSON array).
+ * Es. ["stefano.roddaro@unipi.it", "altro.docente@unipi.it"]
+ */
+function getEditorEmails_() {
+  const raw = PropertiesService.getDocumentProperties().getProperty(EDIT_EMAILS_PROP);
+  if (!raw) return [];
+  try {
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return [];
+    return arr.map(s => String(s || '').trim().toLowerCase()).filter(s => s.length);
+  } catch (e) { return []; }
+}
+
+function isEditor_(email) {
+  if (!email) return false;
+  const e = String(email).trim().toLowerCase();
+  return getEditorEmails_().indexOf(e) !== -1;
+}
+
+/**
+ * Utility eseguibile dall'editor Apps Script per popolare la whitelist.
+ * Esempio: setEditorEmails(["stefano.roddaro@unipi.it", "altro@unipi.it"]);
+ */
+function setEditorEmails(emails) {
+  if (!Array.isArray(emails)) {
+    throw new Error('Passa un array di email, es. ["a@b.it","c@d.it"]');
+  }
+  const cleaned = emails.map(s => String(s || '').trim().toLowerCase()).filter(s => s.length);
+  PropertiesService.getDocumentProperties().setProperty(EDIT_EMAILS_PROP, JSON.stringify(cleaned));
+  return 'EDIT_EMAILS salvate: ' + cleaned.length + ' (' + cleaned.join(', ') + ')';
+}
+
+function getEditorEmailsList() {
+  return getEditorEmails_();
+}
 
 function doGet(e) {
   const action = (e && e.parameter && e.parameter.action) || '';
@@ -28,6 +67,10 @@ function doGet(e) {
   tpl.bootstrap = json;
   let semester = 'S1';
   try { semester = JSON.parse(json).semester || 'S1'; } catch (e) {}
+  let userEmail = '';
+  try { userEmail = Session.getActiveUser().getEmail() || ''; } catch (e) {}
+  tpl.editMode = isEditor_(userEmail);
+  tpl.userEmail = userEmail;
   return tpl.evaluate()
     .setTitle('Bozza Orario ' + semester)
     .setFaviconUrl('https://www.df.unipi.it/wp-content/uploads/2025/03/cropped-favf-192x192.png')
@@ -166,7 +209,9 @@ function getOrarioData() {
         const cellText = row[CALENDAR_COLS_START - 1 + d];
         if (!cellText) continue;
         const parsed = extractSessions(String(cellText));
-        parsed.list.forEach(s => {
+        const sheetRow = HEADER_ROWS + 1 + rIdx;       // 1-indexed
+        const sheetCol = CALENDAR_COLS_START + d;      // 1-indexed
+        parsed.list.forEach((s, sessionIdx) => {
           roomSet[s.room] = true;
           // Anno: estrai tutte le cifre. "1"→"1", "12"→"12", "1 e 2"→"12"
           const annoDigits = String(anno == null ? '' : anno).replace(/[^0-9]/g, '');
@@ -175,6 +220,12 @@ function getOrarioData() {
             sheet: sheetName,
             sheetColor: tabColor,
             anno: annoDigits,
+            src: {
+              sheet: sheetName,
+              row: sheetRow,
+              col: sheetCol,
+              idx: sessionIdx
+            },
             code: codeStr,
             name: nameStr,
             tipo: tipoStr,
