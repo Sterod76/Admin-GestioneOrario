@@ -232,11 +232,20 @@
   .day-grid .room-track {
     position: relative;
     background:
-      linear-gradient(to right, transparent 0, transparent calc(100% - 1px), #f0f0f0 calc(100% - 1px)),
-      repeating-linear-gradient(to right, transparent 0, transparent calc(var(--hour-w) - 1px), #eee calc(var(--hour-w) - 1px), #eee var(--hour-w));
+      /* linee ore (più scure) */
+      repeating-linear-gradient(to right,
+        transparent 0, transparent calc(var(--hour-w) - 1px),
+        #c8c8c8 calc(var(--hour-w) - 1px), #c8c8c8 var(--hour-w)),
+      /* linee mezzore (più chiare, sotto) */
+      repeating-linear-gradient(to right,
+        transparent 0, transparent calc(var(--halfhour-w) - 1px),
+        #ececec calc(var(--halfhour-w) - 1px), #ececec var(--halfhour-w));
     min-width: var(--track-w);
     border-bottom: 1px solid #f5f5f5;
+    min-height: 42px;
   }
+  .day-grid .grid-row { min-height: 42px; }
+  .day-grid .grid-row.header { min-height: 22px; }
   .day-grid .time-axis {
     position: relative; min-width: var(--track-w); height: 18px;
     border-bottom: 1px solid var(--border);
@@ -248,14 +257,20 @@
   .ablock {
     position: absolute; top: 2px; bottom: 2px;
     padding: 2px 6px; border-radius: 3px; border-left: 3px solid;
-    font-size: 11px; line-height: 1.2;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-size: 11px; line-height: 1.15;
+    overflow: hidden;
     box-shadow: 0 1px 2px rgba(0,0,0,0.06);
     box-sizing: border-box;
+    display: flex; flex-direction: column; justify-content: center;
   }
   .ablock.hidden { display: none; }
+  .ablock .ablock-line {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    width: 100%;
+  }
   .ablock .ablock-code { font-weight: 700; }
   .ablock .ablock-time { color: var(--muted); font-size: 10px; }
+  .ablock .ablock-name { font-size: 10px; }
   .ablock.editable { cursor: grab; user-select: none; }
   .ablock.editable.dragging { opacity: 0.7; cursor: grabbing; outline: 2px solid #1a73e8; z-index: 100; box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
   .ablock.editable.conflict { outline: 2px solid #c00; }
@@ -456,7 +471,17 @@ var USER_EMAIL = <?!= JSON.stringify(userEmail || '') ?>;
     });
   }
 
-  // Switch tra le viste (calendario / aule)
+  // Switch tra le viste (calendario / aule).
+  // Il tab "Aule" è visibile SOLO agli editor (EDIT_MODE === true).
+  if (!EDIT_MODE) {
+    const auleTab = document.querySelector('.view-tab[data-view="rooms"]');
+    if (auleTab) auleTab.style.display = 'none';
+    const auleView = document.getElementById('viewRooms');
+    if (auleView) auleView.style.display = 'none';
+    // Nascondi anche la barra tab se rimane un solo tab visibile
+    const tabsBar = document.querySelector('.view-tabs');
+    if (tabsBar) tabsBar.style.display = 'none';
+  }
   document.querySelectorAll('.view-tab').forEach(t => {
     t.addEventListener('click', () => {
       document.querySelectorAll('.view-tab').forEach(x => x.classList.remove('active'));
@@ -492,6 +517,7 @@ var USER_EMAIL = <?!= JSON.stringify(userEmail || '') ?>;
       grid.className = 'day-grid';
       grid.style.setProperty('--track-w', TRACK_PX + 'px');
       grid.style.setProperty('--hour-w', HOUR_PX + 'px');
+      grid.style.setProperty('--halfhour-w', (HOUR_PX / 2) + 'px');
 
       // Riga asse temporale
       const headerRow = document.createElement('div');
@@ -558,10 +584,13 @@ var USER_EMAIL = <?!= JSON.stringify(userEmail || '') ?>;
     block.style.width = Math.max(width - 2, 20) + 'px';
 
     const tag = s.group ? (s.code + ' [' + s.group + ']') : s.code;
+    // Due righe: riga 1 = code+name (truncato); riga 2 = time
     block.innerHTML =
-      '<span class="ablock-time">' + fmt(s.start) + '–' + fmt(s.end) + '</span> ' +
-      '<span class="ablock-code" style="color:' + (s.sheetColor || 'inherit') + '">' + esc(tag) + '</span>' +
-      (s.name ? ' ' + esc(s.name) : '');
+      '<div class="ablock-line">' +
+        '<span class="ablock-code" style="color:' + (s.sheetColor || 'inherit') + '">' + esc(tag) + '</span>' +
+        (s.name ? ' <span class="ablock-name">' + esc(s.name) + '</span>' : '') +
+      '</div>' +
+      '<div class="ablock-line ablock-time">' + fmt(s.start) + '–' + fmt(s.end) + '</div>';
     block.title =
       tag + (s.name ? ' — ' + s.name : '') + '\n' +
       fmt(s.start) + '-' + fmt(s.end) + ' ' + s.room + '\n' +
@@ -657,7 +686,8 @@ var USER_EMAIL = <?!= JSON.stringify(userEmail || '') ?>;
         const newEnd = newStart + Math.round(origWidth / PX_PER_MIN_AULE);
         block.dataset.start = String(newStart);
         block.dataset.end = String(newEnd);
-        block.querySelector('.ablock-time').textContent = fmt(newStart) + '–' + fmt(newEnd);
+        const tEl = block.querySelector('.ablock-time');
+        if (tEl) tEl.textContent = fmt(newStart) + '–' + fmt(newEnd);
       } else if (mode === 'resize-l') {
         let newLeft = origLeft + snap;
         if (newLeft < 0) newLeft = 0;
@@ -671,7 +701,8 @@ var USER_EMAIL = <?!= JSON.stringify(userEmail || '') ?>;
         const newEnd = newStart + Math.round(newWidth / PX_PER_MIN_AULE);
         block.dataset.start = String(newStart);
         block.dataset.end = String(newEnd);
-        block.querySelector('.ablock-time').textContent = fmt(newStart) + '–' + fmt(newEnd);
+        const tEl = block.querySelector('.ablock-time');
+        if (tEl) tEl.textContent = fmt(newStart) + '–' + fmt(newEnd);
       } else if (mode === 'resize-r') {
         let newWidth = origWidth + snap;
         if (newWidth < 30 * PX_PER_MIN_AULE) newWidth = 30 * PX_PER_MIN_AULE;
@@ -680,7 +711,8 @@ var USER_EMAIL = <?!= JSON.stringify(userEmail || '') ?>;
         const newStart = slotStart + Math.round(origLeft / PX_PER_MIN_AULE);
         const newEnd = newStart + Math.round(newWidth / PX_PER_MIN_AULE);
         block.dataset.end = String(newEnd);
-        block.querySelector('.ablock-time').textContent = fmt(newStart) + '–' + fmt(newEnd);
+        const tEl = block.querySelector('.ablock-time');
+        if (tEl) tEl.textContent = fmt(newStart) + '–' + fmt(newEnd);
       }
     }
 
@@ -742,7 +774,8 @@ var USER_EMAIL = <?!= JSON.stringify(userEmail || '') ?>;
     const width = (orig.end - orig.start) * PX_PER_MIN_AULE;
     block.style.left = left + 'px';
     block.style.width = Math.max(width - 2, 20) + 'px';
-    block.querySelector('.ablock-time').textContent = fmt(orig.start) + '–' + fmt(orig.end);
+    const tEl2 = block.querySelector('.ablock-time');
+    if (tEl2) tEl2.textContent = fmt(orig.start) + '–' + fmt(orig.end);
     // Re-attach al track corretto
     const ds = daySections[orig.day];
     if (ds && ds.tracks[orig.room] && ds.tracks[orig.room] !== block.parentNode) {
