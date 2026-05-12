@@ -136,10 +136,9 @@ function applyEditSlot_(payload) {
     tgtCell.setValue(renderSessions_(tgtList));
   }
 
-  // Rebuilda snapshot fresco e salvalo
-  const json = JSON.stringify(getOrarioData());
-  saveSnapshot_(json);
-  return json;
+  // Modifica scritta sul foglio. Ritorna lo snapshot fresco al client
+  // (non serve cachare: doGet legge sempre live ad ogni page load).
+  return JSON.stringify(getOrarioData());
 }
 
 function renderSessions_(sessions) {
@@ -195,30 +194,18 @@ function findConflict_(ss, target, srcExclude) {
 
 function doGet(e) {
   const action = (e && e.parameter && e.parameter.action) || '';
-  const json = getSnapshot_();
-  if (!json) {
-    if (action === 'data') {
-      return ContentService.createTextOutput(JSON.stringify({ error: 'snapshot_missing' }))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
-    return HtmlService.createHtmlOutput(
-      '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bozza Orario CdS</title>' +
-      '<style>body{font-family:system-ui,sans-serif;padding:48px;text-align:center;color:#444}' +
-      'h1{margin-bottom:8px}p{color:#888}</style></head><body>' +
-      '<h1>📅 Bozza Orario CdS</h1>' +
-      '<p>Snapshot non ancora pubblicato.</p>' +
-      '<p style="font-size:12px">Riprova fra qualche minuto.</p>' +
-      '</body></html>'
-    ).setTitle('Bozza Orario CdS');
-  }
+  // Sempre live: ogni page load rilegge lo stato attuale dello Spreadsheet.
+  // Niente snapshot cached, niente "pubblicazione" intermedia → vista
+  // sempre allineata col foglio.
+  const data = getOrarioData();
+  const json = JSON.stringify(data);
   if (action === 'data') {
     return ContentService.createTextOutput(json)
       .setMimeType(ContentService.MimeType.JSON);
   }
   const tpl = HtmlService.createTemplateFromFile('index');
   tpl.bootstrap = json;
-  let semester = 'S1';
-  try { semester = JSON.parse(json).semester || 'S1'; } catch (e) {}
+  const semester = data.semester || 'S1';
   let userEmail = '';
   try { userEmail = Session.getActiveUser().getEmail() || ''; } catch (e) {}
   tpl.editMode = isEditor_(userEmail);
@@ -229,14 +216,16 @@ function doGet(e) {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
+/**
+ * Deprecato: il Web Calendar e' ora sempre live (legge lo Spreadsheet
+ * ad ogni page load). Non c'e' piu' uno snapshot da aggiornare.
+ * Lasciato per backward-compat se qualche flusso esterno lo invocava;
+ * non e' nel menu.
+ */
 function aggiornaWebApp() {
-  const json = JSON.stringify(getOrarioData());
-  saveSnapshot_(json);
-  const data = JSON.parse(json);
   SpreadsheetApp.getActiveSpreadsheet().toast(
-    `Sessioni ${data.sessions.length} • indisp. ${data.unavail.length} • ${Math.round(json.length / 1024)} KB`,
-    '✅ Web Calendar aggiornato',
-    6
+    'Non serve piu\': il Web Calendar e\' sempre allineato live al foglio.',
+    'Web Calendar', 5
   );
 }
 
