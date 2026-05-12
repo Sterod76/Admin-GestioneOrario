@@ -232,20 +232,27 @@
   .day-grid .room-track {
     position: relative;
     background:
-      /* linee ore (più scure) */
+      /* maschera orizzontale: alterna trasparente (3px) e bianco-panel (3px)
+         crea effetto tratteggio sulle linee verticali sottostanti.
+         Nei punti senza linee verticali e' invisibile (sfondo gia' bianco). */
+      repeating-linear-gradient(0deg,
+        transparent 0 3px,
+        var(--panel) 3px 6px),
+      /* linee ore (piu' scure) */
       repeating-linear-gradient(to right,
         transparent 0, transparent calc(var(--hour-w) - 1px),
-        #c8c8c8 calc(var(--hour-w) - 1px), #c8c8c8 var(--hour-w)),
-      /* linee mezzore (più chiare, sotto) */
+        #b0b0b0 calc(var(--hour-w) - 1px), #b0b0b0 var(--hour-w)),
+      /* linee mezzore (piu' chiare) */
       repeating-linear-gradient(to right,
         transparent 0, transparent calc(var(--halfhour-w) - 1px),
-        #ececec calc(var(--halfhour-w) - 1px), #ececec var(--halfhour-w));
+        #d8d8d8 calc(var(--halfhour-w) - 1px), #d8d8d8 var(--halfhour-w));
     min-width: var(--track-w);
     border-bottom: 1px solid #f5f5f5;
     min-height: 42px;
   }
   .day-grid .grid-row { min-height: 42px; }
   .day-grid .grid-row.header { min-height: 22px; }
+  .day-grid .grid-row.hidden { display: none; }
   .day-grid .time-axis {
     position: relative; min-width: var(--track-w); height: 18px;
     border-bottom: 1px solid var(--border);
@@ -283,6 +290,17 @@
   .ablock .resize-handle.right { right: 0; }
   .ablock.editable:hover .resize-handle { background: rgba(26,115,232,0.3); }
   .day-section.hidden { display: none; }
+  /* Blocchi NON DISPONIBILE (read-only, non draggabili) */
+  .ablock.ablock-unavail {
+    background: #cccccc;
+    color: #fff;
+    font-weight: 700;
+    font-style: italic;
+    border-left: 3px solid #888;
+    cursor: default;
+    text-align: left;
+  }
+  .ablock.ablock-unavail .ablock-line { color: #fff; }
 </style>
 </head>
 <body>
@@ -496,6 +514,7 @@ var USER_EMAIL = <?!= JSON.stringify(userEmail || '') ?>;
   // Sessioni (NON DISPONIBILE escluse: data.unavail ignorato)
   const sessionEls = [];
   const rsessionEls = [];  // gemelle per la vista "Aule"
+  const unavailEls = [];   // blocchi NON DISPONIBILE (solo vista Aule)
 
   // ----- Vista "Aule": griglia visuale per giorno -----
   const PX_PER_MIN_AULE = 1.3; // larghezza orizzontale
@@ -619,6 +638,7 @@ var USER_EMAIL = <?!= JSON.stringify(userEmail || '') ?>;
       Object.values(ds.tracks).forEach(t => { t.innerHTML = ''; });
     });
     rsessionEls.length = 0;
+    unavailEls.length = 0;
     data.sessions.forEach(s => {
       const ds = daySections[s.day];
       if (!ds) return;
@@ -627,6 +647,29 @@ var USER_EMAIL = <?!= JSON.stringify(userEmail || '') ?>;
       const block = makeAuleBlock(s);
       track.appendChild(block);
       rsessionEls.push(block);
+    });
+    // Indisponibilita' (read-only, non draggabili) renderizzate dopo le sessioni
+    (data.unavail || []).forEach(u => {
+      const ds = daySections[u.day];
+      if (!ds) return;
+      const track = ds.tracks[u.room];
+      if (!track) return;
+      const block = document.createElement('div');
+      block.className = 'ablock ablock-unavail';
+      block.dataset.day = String(u.day);
+      block.dataset.start = String(u.start);
+      block.dataset.end = String(u.end);
+      block.dataset.room = u.room;
+      const left = (u.start - slotStart) * PX_PER_MIN_AULE;
+      const width = (u.end - u.start) * PX_PER_MIN_AULE;
+      block.style.left = left + 'px';
+      block.style.width = Math.max(width - 2, 20) + 'px';
+      block.innerHTML =
+        '<div class="ablock-line">' + esc(u.text) + '</div>' +
+        '<div class="ablock-line ablock-time">' + fmt(u.start) + '–' + fmt(u.end) + '</div>';
+      block.title = u.text + ' · ' + u.room + ' · ' + fmt(u.start) + '-' + fmt(u.end);
+      track.appendChild(block);
+      unavailEls.push(block);
     });
   }
 
@@ -1020,9 +1063,18 @@ var USER_EMAIL = <?!= JSON.stringify(userEmail || '') ?>;
       }
     });
 
-    // Nascondi i room-block delle aule deselezionate
-    Object.keys(roomBlocks).forEach(roomName => {
-      roomBlocks[roomName].block.classList.toggle('hidden', !checkedRooms[roomName]);
+    // Nascondi le righe aula deselezionate in TUTTE le day-section della vista Aule
+    daySections.forEach(ds => {
+      ds.section.querySelectorAll('.grid-row').forEach(row => {
+        const r = row.dataset.room;
+        if (r) row.classList.toggle('hidden', !checkedRooms[r]);
+      });
+    });
+
+    // Blocchi NON DISPONIBILE: nascondi se l'aula non e' selezionata.
+    // Non applichiamo altri filtri (non hanno code/gruppo/sheet/ecc.).
+    unavailEls.forEach(el => {
+      el.classList.toggle('hidden', !checkedRooms[el.dataset.room]);
     });
 
     relayoutVisible();
