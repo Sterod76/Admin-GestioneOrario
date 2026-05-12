@@ -234,22 +234,35 @@ function getOrarioData() {
     }
   }
 
-  // PdS: lista curricula → codici
+  // PdS: lista curricula → codici + classificazione per-codice (OBB/FOR/OPZ)
   const pdsList = [];
   const pdsSheet = ss.getSheetByName(PDS_SHEET_NAME);
   if (pdsSheet) {
     const lr = pdsSheet.getLastRow();
     if (lr >= 2) {
-      const lc = Math.max(pdsSheet.getLastColumn(), PDS_COL_FOR_LAST + 1);
+      const lc = Math.max(pdsSheet.getLastColumn(), PDS_COL_OPT);
       const pdsData = pdsSheet.getRange(2, 1, lr - 1, lc).getValues();
+      const vincPriority = { OBB: 3, FOR: 2, OPZ: 1 };
       pdsData.forEach(row => {
         const name = String(row[0] || '').trim();
         if (!name) return;
         const codes = {};
-        for (let c = 1; c < row.length; c++) {
-          extractPdsCodes(row[c]).forEach(code => codes[code] = true);
+        const vincoloByCode = {};
+        function set(code, v) {
+          codes[code] = true;
+          const cur = vincoloByCode[code];
+          if (!cur || vincPriority[v] > vincPriority[cur]) vincoloByCode[code] = v;
         }
-        pdsList.push({ name: name, codes: Object.keys(codes) });
+        extractPdsCodes(row[PDS_COL_OBB - 1]).forEach(c => set(c, 'OBB'));
+        for (let c = PDS_COL_FOR_FIRST; c <= PDS_COL_FOR_LAST; c++) {
+          extractPdsCodes(row[c - 1]).forEach(code => set(code, 'FOR'));
+        }
+        extractPdsCodes(row[PDS_COL_OPT - 1]).forEach(code => set(code, 'OPZ'));
+        pdsList.push({
+          name: name,
+          codes: Object.keys(codes),
+          vincoloByCode: vincoloByCode
+        });
       });
     }
   }
@@ -268,6 +281,7 @@ function getOrarioData() {
     codesLT: Object.keys(codesLT),
     codesLM: Object.keys(codesLM),
     pds: pdsList,
+    vincoloColors: VINCOLO_FALLBACK_COLORS,
     sessions: sessions,
     unavail: unavail,
     generatedAt: new Date().toISOString()

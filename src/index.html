@@ -345,7 +345,8 @@ var BOOTSTRAP = <?!= bootstrap ?>;
     el.style.top = top + 'px';
     el.style.height = (h - 2) + 'px';
     el.style.right = 'auto';
-    el.style.background = s.vincoloColor || '#fff';
+    el.dataset.origBg = s.vincoloColor || '#fff';
+    el.style.background = el.dataset.origBg;
     el.style.borderLeftColor = s.sheetColor || '#888';
     el.dataset.day = String(s.day);
     el.dataset.start = String(s.start);
@@ -457,12 +458,13 @@ var BOOTSTRAP = <?!= bootstrap ?>;
     const fAnno = document.getElementById('fAnno').value;
     const fPds = document.getElementById('fPds').value;
     let allowedCodes = null;
+    let activePds = null;
     if (fPds === 'LT') allowedCodes = new Set((data.codesLT || []).map(c => c.toLowerCase()));
     else if (fPds === 'LM') allowedCodes = new Set((data.codesLM || []).map(c => c.toLowerCase()));
     else if (fPds.indexOf('PDS:') === 0) {
       const name = fPds.substring(4);
-      const p = (data.pds || []).find(x => x.name === name);
-      if (p) allowedCodes = new Set(p.codes.map(c => c.toLowerCase()));
+      activePds = (data.pds || []).find(x => x.name === name);
+      if (activePds) allowedCodes = new Set(activePds.codes.map(c => c.toLowerCase()));
     }
     const checkedRooms = getCheckedRooms();
     sessionEls.forEach(el => {
@@ -485,6 +487,16 @@ var BOOTSTRAP = <?!= bootstrap ?>;
         if (!matches) ok = false;
       }
       el.classList.toggle('hidden', !ok);
+
+      // Override colore sfondo per PdS specifico (rispecchia OBB/FOR/OPZ del PdS)
+      if (activePds && data.vincoloColors) {
+        const codeUpper = (el.dataset.code || '').toUpperCase();
+        const v = activePds.vincoloByCode && activePds.vincoloByCode[codeUpper];
+        const c = v ? data.vincoloColors[v] : null;
+        el.style.background = c || el.dataset.origBg;
+      } else {
+        el.style.background = el.dataset.origBg;
+      }
     });
     relayoutVisible();
   }
