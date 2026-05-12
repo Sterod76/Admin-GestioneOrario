@@ -634,8 +634,11 @@ var BOOTSTRAP = <?!= bootstrap ?>;
       }
       el.classList.toggle('hidden', !ok);
 
-      // Override colore sfondo per PdS specifico (rispecchia OBB/FOR/OPZ del PdS)
-      if (activePds && data.vincoloColors) {
+      // Override colore sfondo: solo per sessioni LM, e solo se un singolo
+      // PdS e' selezionato. Tutti i corsi / Tutta LT / Tutta LM / Tutti gli
+      // anni → colore originale della tabella (cella F del foglio sorgente).
+      const isLM = /LM$/i.test(el.dataset.sheet || '');
+      if (activePds && isLM && data.vincoloColors) {
         const codeUpper = (el.dataset.code || '').toUpperCase();
         const v = activePds.vincoloByCode && activePds.vincoloByCode[codeUpper];
         const c = v ? data.vincoloColors[v] : null;
