@@ -23,7 +23,6 @@
     color: var(--text);
   }
   header {
-    position: sticky; top: 0; z-index: 10;
     background: var(--panel);
     border-bottom: 1px solid var(--border);
   }
@@ -172,21 +171,6 @@
     text-align: center; color: var(--muted); font-size: 11px; padding: 12px;
   }
 
-  /* Edit mode badge */
-  .edit-badge {
-    display: inline-flex; align-items: center; gap: 4px;
-    margin-left: auto;
-    padding: 3px 10px; border-radius: 12px;
-    background: #fff4e5; color: #b95000;
-    border: 1px solid #ffcc80;
-    font-size: 11px; font-weight: 600;
-    cursor: pointer; user-select: none;
-  }
-  .edit-badge.active { background: #e6f4ea; color: #137333; border-color: #81c995; }
-  .edit-badge .dot {
-    display: inline-block; width: 6px; height: 6px; border-radius: 50%;
-    background: currentColor;
-  }
 
   /* Tab switcher */
   .view-tabs {
@@ -213,23 +197,43 @@
     font-size: 10px; font-weight: 700; letter-spacing: 0.3px;
     vertical-align: middle;
   }
+  .view-tab .edit-tag.locked-out {
+    background: #c5221f; color: #fff;
+  }
   .view-tab.edit-on { background: #e6f4ea; color: #137333; }
   .view-tab.edit-on.active { background: #d4edda; color: #0b5828; border-color: #81c995; }
+  .view-tab.edit-locked { background: #fce8e6; color: #c5221f; }
+  .view-tab.edit-locked.active { background: #fad2cf; color: #a50e0e; border-color: #f28b82; }
   .view { display: none; }
   .view.active { display: block; }
 
   /* Vista "Aule" — griglia visuale per giorno con timeline orizzontale */
   #viewRooms { padding: 12px 16px; overflow-x: auto; }
-  .day-section { margin-bottom: 20px; background: var(--panel);
-    border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; }
+  .day-section { margin-bottom: 8px; background: var(--panel);
+    border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px 6px 10px; }
   .day-section h3 {
-    margin: 0 0 6px 0; font-size: 14px; font-weight: 600;
-    border-bottom: 1px solid var(--border); padding-bottom: 4px;
+    margin: 0 0 3px 0; font-size: 14px; font-weight: 600;
+    border-bottom: 1px solid var(--border); padding-bottom: 2px;
   }
-  .day-grid { font-size: 11px; min-width: max-content; }
+  .day-grid { font-size: 11px; min-width: max-content; width: 100%; }
   .day-grid .grid-row {
-    display: grid; grid-template-columns: 130px 1fr;
-    align-items: stretch; min-height: 26px;
+    display: grid; grid-template-columns: 130px var(--track-w) 1fr 56px;
+    align-items: stretch; min-height: 22px;
+  }
+  /* La colonna Tot è esplicitamente nella colonna 4, lasciando la colonna 3
+     (1fr) come spaziatore che spinge Tot al bordo destro della day-section. */
+  .day-grid .day-total { grid-column: 4; }
+  .day-grid .day-total {
+    padding: 2px 6px; font-size: 11px; font-weight: 600;
+    color: var(--text); border-left: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    background: #fafafa;
+  }
+  .day-grid .day-total.zero { color: var(--muted); font-weight: 400; }
+  .day-grid .header .day-total {
+    font-size: 10px; color: var(--muted); font-weight: 600;
+    background: transparent; border-left: 1px solid var(--border);
+    justify-content: center;
   }
   .day-grid .grid-row.header { min-height: 22px; }
   .day-grid .room-label {
@@ -257,13 +261,13 @@
         #d8d8d8 calc(var(--halfhour-w) - 1px), #d8d8d8 var(--halfhour-w));
     min-width: var(--track-w);
     border-bottom: 1px solid #f5f5f5;
-    min-height: 42px;
+    min-height: 22px;
   }
-  .day-grid .grid-row { min-height: 42px; }
-  .day-grid .grid-row.header { min-height: 22px; }
+  .day-grid .grid-row { min-height: 22px; }
+  .day-grid .grid-row.header { min-height: 16px; }
   .day-grid .grid-row.hidden { display: none; }
   .day-grid .time-axis {
-    position: relative; min-width: var(--track-w); height: 18px;
+    position: relative; min-width: var(--track-w); height: 14px;
     border-bottom: 1px solid var(--border);
   }
   .day-grid .time-tick {
@@ -272,8 +276,8 @@
   }
   .ablock {
     position: absolute; top: 2px; bottom: 2px;
-    padding: 2px 6px; border-radius: 3px; border-left: 3px solid;
-    font-size: 11px; line-height: 1.15;
+    padding: 1px 6px; border-radius: 3px; border-left: 3px solid;
+    font-size: 11px; line-height: 1.12;
     overflow: hidden;
     box-shadow: 0 1px 2px rgba(0,0,0,0.06);
     box-sizing: border-box;
@@ -290,7 +294,7 @@
   .ablock.editable { cursor: grab; user-select: none; }
   .ablock.editable.dragging { opacity: 0.7; cursor: grabbing; outline: 2px solid #1a73e8; z-index: 100; box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
   .ablock.editable.conflict { outline: 2px solid #c00; }
-  .ablock.committing { opacity: 0.5; pointer-events: none; }
+  /* .ablock.committing rimossa: il drag è ora istantaneo, niente fade */
   .ablock .resize-handle {
     position: absolute; top: 0; bottom: 0; width: 6px; cursor: ew-resize;
     background: transparent;
@@ -310,13 +314,107 @@
     text-align: left;
   }
   .ablock.ablock-unavail .ablock-line { color: #fff; }
+
+  .ablock.dirty { outline: 2px dashed #fbbc04; }
+
+  /* Parking: rettangolo stilizzato come .day-section, ma fissato a destra
+     della viewport e sempre visibile durante lo scroll. Visibile solo in EDIT_MODE. */
+  .parking-zone {
+    position: fixed; right: 16px; top: 180px; bottom: 16px; width: 200px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 6px;
+    padding: 8px 12px; z-index: 20;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    display: none; flex-direction: column;
+  }
+  .parking-zone.active { display: flex; }
+  .parking-zone h3 {
+    margin: 0 0 6px 0; font-size: 14px; font-weight: 600;
+    border-bottom: 1px solid var(--border); padding-bottom: 4px;
+  }
+  .parking-zone .phint {
+    font-size: 10px; color: var(--muted); font-style: italic; margin-bottom: 6px;
+  }
+  .parking-zone .pbody {
+    flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px;
+  }
+  body.has-parking { padding-right: 648px; overflow-x: hidden; }
+  /* Sticky-top: position:sticky → naturalmente in flusso (content scorre sotto
+     senza bisogno di body padding-top). z-index alto per stare sopra parking/log.
+     Negative margin-right quando body.has-parking: estende il bordo destro
+     sopra la zona riservata ai due rettangoli fissi. */
+  .sticky-top {
+    position: sticky; top: 0; z-index: 40;
+    background: var(--panel); border-bottom: 1px solid var(--border);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  body.has-parking .sticky-top { margin-right: -648px; }
+  /* Parking widen: 300px (era 200px) */
+  .parking-zone { width: 300px !important; }
+  /* Log modifiche: alla sinistra del parking, stessa larghezza (300px) */
+  .logmod-zone {
+    position: fixed; right: 332px; top: 200px; bottom: 16px; width: 300px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 6px;
+    padding: 8px 12px; z-index: 20;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    display: none; flex-direction: column;
+  }
+  .logmod-zone.active { display: flex; }
+  .logmod-zone h3 {
+    margin: 0 0 6px 0; font-size: 14px; font-weight: 600;
+    border-bottom: 1px solid var(--border); padding-bottom: 4px;
+  }
+  .logmod-zone .lmbody {
+    flex: 1; overflow-y: auto; font-size: 11px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  /* Footer dei rettangoli: bottoni Carica/Salva (logMod) e Restore (parking) */
+  .lmfooter, .pfooter {
+    margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border);
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .lmfooter button, .pfooter button {
+    padding: 6px 12px; border: 1px solid var(--border); background: #fff;
+    border-radius: 4px; cursor: pointer; font-size: 12px; width: 100%;
+  }
+  .lmfooter button:hover, .pfooter button:hover { background: #f1f3f4; }
+  .lmfooter button.primary { background: #1a73e8; color: #fff; border-color: #1a73e8; }
+  .lmfooter button.primary:hover { background: #1765cc; }
+  .lmfooter button:disabled, .pfooter button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .lmfooter .status { color: var(--muted); font-size: 10px; min-height: 12px; text-align: center; }
+  .lmentry.parked-entry { border-left-color: #f9b54a; background: #fff8e1; }
+  /* RPC silenziose: niente body.busy, niente spinner. Drag istantaneo. */
+  .logmod-zone .lmentry {
+    position: relative;
+    border-left: 3px solid #fbbc04; padding: 4px 22px 4px 6px;
+    background: #fffdf5;
+    border-radius: 2px;
+  }
+  .logmod-zone .lmx {
+    position: absolute; top: 3px; right: 3px;
+    width: 18px; height: 18px;
+    border: none; background: rgba(0,0,0,0.06); border-radius: 3px;
+    cursor: pointer; line-height: 1; padding: 0;
+    font-size: 14px; font-weight: 700; color: #444;
+  }
+  .logmod-zone .lmx:hover { background: #c5221f; color: #fff; }
+  .logmod-zone .lmentry .lmcode { font-weight: 700; font-size: 12px; }
+  .logmod-zone .lmentry .lmrow { color: #555; font-size: 10px; line-height: 1.4; }
+  .logmod-zone .lmempty { color: var(--muted); font-style: italic; font-size: 11px; }
+  /* Blocchi parcheggiati: layout di flusso normale, niente posizionamento absolute */
+  .ablock.in-parking {
+    position: relative !important;
+    left: 0 !important; top: 0 !important; right: 0 !important; bottom: 0 !important;
+    width: 100% !important; min-height: 38px;
+    margin: 0; box-sizing: border-box;
+  }
+  .ablock.in-parking .resize-handle { display: none; }
 </style>
 </head>
 <body>
+<div class="sticky-top" id="stickyTop">
 <header>
   <div class="header-row top">
     <h1 id="pageH1">📅 Bozza Orario</h1>
-    <span id="editBadge" class="edit-badge" style="display:none" title=""><span class="dot"></span> <span id="editBadgeLabel">read-only</span></span>
     <div class="filters">
       <input type="text" id="q" placeholder="Cerca codice / nome / docente..."
         title="Sintassi:&#10;• una parola → match singolo&#10;• &quot;frase con spazi&quot; → token unico (puoi usare le virgolette)&#10;• A B → A or B (default)&#10;• A or B → A or B&#10;• A and B → A e B insieme&#10;Esempi:&#10;• fisica → corsi con &quot;fisica&quot;&#10;• cei mannella → docenti Cei o Mannella&#10;• &quot;analisi matematica&quot; → solo corsi col nome esatto&#10;• &quot;analisi matematica&quot; and lab → labs di Analisi Matematica&#10;Oltre 2 token / 3 con operatore: ignorato.">
@@ -354,19 +452,88 @@
   <button class="view-tab active" data-view="sessions" type="button">📅 Calendario</button>
   <button class="view-tab" data-view="rooms" type="button">🏛 Aule</button>
 </div>
+</div><!-- /sticky-top -->
 <div id="viewSessions" class="view active">
   <div id="grid"></div>
 </div>
 <div id="viewRooms" class="view"></div>
+<div id="logMod" class="logmod-zone">
+  <h3>📝 Log modifiche</h3>
+  <div class="lmbody" id="logModBody"></div>
+  <div class="lmfooter">
+    <span class="status" id="syncStatus"></span>
+    <button id="btnLoad" type="button" title="Rilegge tutto dal Google Sheet, scartando le modifiche non salvate">📥 Carica dal gsheet</button>
+    <button id="btnSave" class="primary" type="button" title="Scrive le modifiche pendenti sul Google Sheet">📤 Salva sul gsheet</button>
+  </div>
+</div>
+<div id="parking" class="parking-zone">
+  <h3>🅿️ Parking</h3>
+  <div class="phint">Trascina qui uno slot per appoggiarlo durante lo spostamento.</div>
+  <div class="pbody" id="parkingBody"></div>
+</div>
 <div class="footer" id="footer"></div>
+<div class="footer" id="diagPanel" style="display:none;font-family:ui-monospace,monospace;font-size:10px;text-align:left;padding:4px 12px 12px 12px;color:#666;border-top:1px dashed #ddd"></div>
 
 <script>
 var BOOTSTRAP = <?!= bootstrap ?>;
 var EDIT_MODE = <?!= editMode ?>;
 var USER_EMAIL = <?!= JSON.stringify(userEmail || '') ?>;
+var WEBAPP_URL = <?!= JSON.stringify(webAppUrl || '') ?>;
+var DIAG = <?!= diag ?>;
 
 (function(){
+  // Wrapper di sicurezza: se qualcosa rompe nell'IIFE, mostra l'errore in pagina
+  // invece di silenziare la console nascosta dell'iframe Apps Script.
+  window.addEventListener('error', function(ev) {
+    const el = document.getElementById('jsErrorBanner') || (function(){
+      const d = document.createElement('div');
+      d.id = 'jsErrorBanner';
+      d.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:9999;'+
+        'background:#c00;color:#fff;padding:8px 12px;font-family:monospace;'+
+        'font-size:11px;white-space:pre-wrap;max-height:30vh;overflow:auto';
+      document.body.appendChild(d);
+      return d;
+    })();
+    el.textContent += '\n[JS ERROR] ' + (ev.message || ev) +
+      (ev.filename ? ' @ ' + ev.filename + ':' + ev.lineno : '');
+  });
+
   const data = BOOTSTRAP;
+  // Difese: se per qualsiasi ragione lo snapshot ha campi mancanti,
+  // fallback a default sicuri così l'IIFE non si rompe a metà.
+  data.sessions = data.sessions || [];
+  data.unavail = data.unavail || [];
+  data.rooms = data.rooms || [];
+  data.sheets = data.sheets || [];
+  data.tipi = data.tipi || [];
+  data.gruppi = data.gruppi || [];
+  data.titolari = data.titolari || [];
+  data.codesLT = data.codesLT || [];
+  data.codesLM = data.codesLM || [];
+  data.pds = data.pds || [];
+  data.pendingEdits = data.pendingEdits || [];
+  data.vincoloColors = data.vincoloColors || {};
+  data.roomSubtitles = data.roomSubtitles || {};
+  data.days = data.days || ['LUN','MAR','MER','GIO','VEN','SAB'];
+  data.slotStartMin = data.slotStartMin || 510;
+  data.slotEndMin = data.slotEndMin || 1170;
+  data.slotStepMin = data.slotStepMin || 30;
+
+  // Stato parking lato client: { sig → {room, day, start, end} posizione PRECEDENTE al parking }
+  // Persistito in sessionStorage per sopravvivere ai refresh.
+  // Dichiarato in cima all'IIFE perché renderAuleSessions lo referenzia.
+  const PARKING_KEY = 'orarioParking:v1';
+  const parkedItems = (function loadParking(){
+    try {
+      const raw = sessionStorage.getItem(PARKING_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) { return {}; }
+  })();
+  function persistParking() {
+    try { sessionStorage.setItem(PARKING_KEY, JSON.stringify(parkedItems)); } catch (e) {}
+  }
+  function sigOf(src) { return src.sheet + '|' + src.row + '|' + src.col + '|' + src.idx; }
+
   const days = data.days;
   // Titolo dinamico in base al semestre (S1/S2)
   const semLabel = 'Bozza Orario ' + (data.semester || 'S1');
@@ -374,19 +541,7 @@ var USER_EMAIL = <?!= JSON.stringify(userEmail || '') ?>;
   document.getElementById('pageH1').textContent = '📅 ' + semLabel;
   document.title = semLabel;
 
-  // Edit-mode badge
-  const editBadge = document.getElementById('editBadge');
-  const editBadgeLabel = document.getElementById('editBadgeLabel');
-  editBadge.style.display = 'inline-flex';
-  if (EDIT_MODE) {
-    editBadge.classList.add('active');
-    editBadgeLabel.textContent = 'EDIT';
-    editBadge.title = 'Modalità edit attiva — ' + (USER_EMAIL || 'utente loggato');
-  } else {
-    editBadge.classList.remove('active');
-    editBadgeLabel.textContent = 'read-only';
-    editBadge.title = USER_EMAIL ? ('Loggato come ' + USER_EMAIL + ' — non in EDIT_EMAILS') : 'Anonimo / non identificato';
-  }
+  // Badge "EDIT" rimosso dall'header (ridondante con GRAPHICAL EDIT sul tab Aule)
   const slotStart = data.slotStartMin;
   const slotEnd = data.slotEndMin;
   const PX_PER_MIN = 0.7;
@@ -511,8 +666,8 @@ var USER_EMAIL = <?!= JSON.stringify(userEmail || '') ?>;
     if (tabsBar) tabsBar.style.display = 'none';
   } else if (auleTab) {
     auleTab.classList.add('edit-on');
-    auleTab.innerHTML = '🏛 Aule <span class="edit-tag">EDIT</span>';
-    auleTab.title = 'Modalità edit attiva: drag/resize degli slot orari abilitato per ' + (USER_EMAIL || 'utente loggato');
+    auleTab.innerHTML = '🏛 Aule <span class="edit-tag">GRAPHICAL EDIT</span>';
+    auleTab.title = 'Modalità edit attiva per ' + (USER_EMAIL || 'utente loggato');
   }
   document.querySelectorAll('.view-tab').forEach(t => {
     t.addEventListener('click', () => {
@@ -520,8 +675,18 @@ var USER_EMAIL = <?!= JSON.stringify(userEmail || '') ?>;
       document.querySelectorAll('.view').forEach(x => x.classList.remove('active'));
       t.classList.add('active');
       document.getElementById('view' + t.dataset.view.charAt(0).toUpperCase() + t.dataset.view.slice(1)).classList.add('active');
-      // dopo lo switch: ricalcola layout calendario (le dimensioni potrebbero essere stale)
-      if (t.dataset.view === 'sessions') relayoutVisible();
+      // Rebuild Calendar lazy: se ci sono state edit mentre Aule era attivo
+      if (t.dataset.view === 'sessions') {
+        if (calendarDirty) {
+          sessionEls.forEach(el => el.remove());
+          sessionEls.length = 0;
+          renderCalendarSessions();
+          applyFilters();
+          calendarDirty = false;
+        } else {
+          relayoutVisible();
+        }
+      }
     });
   });
 
@@ -535,24 +700,27 @@ var USER_EMAIL = <?!= JSON.stringify(userEmail || '') ?>;
   const HOUR_PX = 60 * PX_PER_MIN_AULE;
   const TRACK_PX = (slotEnd - slotStart) * PX_PER_MIN_AULE;
   const viewRooms = document.getElementById('viewRooms');
-  // daySections[d] = { section, tracks: {roomName: trackEl} }
-  const daySections = [];
+  // roomSections[roomName] = { section, tracks: {dayIdx: trackEl} }
+  const roomSections = {};
 
   function buildAuleView() {
     viewRooms.innerHTML = '';
-    daySections.length = 0;
-    for (let d = 0; d < days.length; d++) {
+    for (const k in roomSections) delete roomSections[k];
+    data.rooms.forEach(room => {
       const section = document.createElement('div');
       section.className = 'day-section';
-      section.dataset.day = String(d);
-      section.innerHTML = '<h3>' + days[d] + '</h3>';
+      section.dataset.room = room;
+      const sub = (data.roomSubtitles && data.roomSubtitles[room]) || '';
+      section.innerHTML = '<h3>' + esc(room) +
+        (sub ? ' <span style="font-weight:400;font-style:italic;color:#666;font-size:12px">' + esc(sub) + '</span>' : '') +
+        '</h3>';
       const grid = document.createElement('div');
       grid.className = 'day-grid';
       grid.style.setProperty('--track-w', TRACK_PX + 'px');
       grid.style.setProperty('--hour-w', HOUR_PX + 'px');
       grid.style.setProperty('--halfhour-w', (HOUR_PX / 2) + 'px');
 
-      // Riga asse temporale
+      // Header: cella vuota + asse temporale (ore)
       const headerRow = document.createElement('div');
       headerRow.className = 'grid-row header';
       headerRow.innerHTML = '<div class="room-label"><span class="room-label-empty">(orario)</span></div>';
@@ -566,31 +734,42 @@ var USER_EMAIL = <?!= JSON.stringify(userEmail || '') ?>;
         ta.appendChild(t);
       }
       headerRow.appendChild(ta);
+      const headerTot = document.createElement('div');
+      headerTot.className = 'day-total';
+      headerTot.textContent = 'Tot';
+      headerRow.appendChild(headerTot);
       grid.appendChild(headerRow);
 
+      // Una riga per giorno
       const tracks = {};
-      data.rooms.forEach(room => {
+      const totals = {};
+      for (let d = 0; d < days.length; d++) {
         const row = document.createElement('div');
         row.className = 'grid-row';
         row.dataset.room = room;
         row.dataset.day = String(d);
         const lab = document.createElement('div');
         lab.className = 'room-label';
-        lab.textContent = room;
+        lab.textContent = days[d];
         row.appendChild(lab);
         const track = document.createElement('div');
         track.className = 'room-track';
         track.dataset.room = room;
         track.dataset.day = String(d);
         row.appendChild(track);
+        const totEl = document.createElement('div');
+        totEl.className = 'day-total zero';
+        totEl.textContent = '—';
+        row.appendChild(totEl);
         grid.appendChild(row);
-        tracks[room] = track;
-      });
+        tracks[d] = track;
+        totals[d] = totEl;
+      }
 
       section.appendChild(grid);
       viewRooms.appendChild(section);
-      daySections.push({ section: section, tracks: tracks });
-    }
+      roomSections[room] = { section: section, tracks: tracks, totals: totals };
+    });
   }
 
   function makeAuleBlock(s) {
@@ -617,13 +796,13 @@ var USER_EMAIL = <?!= JSON.stringify(userEmail || '') ?>;
     block.style.width = Math.max(width - 2, 20) + 'px';
 
     const tag = s.group ? (s.code + ' [' + s.group + ']') : s.code;
-    // Due righe: riga 1 = code+name (truncato); riga 2 = time
+    // Singola riga: code + name (truncato). L'orario è leggibile dalla posizione
+    // del blocco sulla timeline e dal tooltip.
     block.innerHTML =
       '<div class="ablock-line">' +
         '<span class="ablock-code" style="color:' + (s.sheetColor || 'inherit') + '">' + esc(tag) + '</span>' +
         (s.name ? ' <span class="ablock-name">' + esc(s.name) + '</span>' : '') +
-      '</div>' +
-      '<div class="ablock-line ablock-time">' + fmt(s.start) + '–' + fmt(s.end) + '</div>';
+      '</div>';
     block.title =
       tag + (s.name ? ' — ' + s.name : '') + '\n' +
       fmt(s.start) + '-' + fmt(s.end) + ' ' + s.room + '\n' +
@@ -646,27 +825,78 @@ var USER_EMAIL = <?!= JSON.stringify(userEmail || '') ?>;
     return block;
   }
 
+  function recomputeAuleTotals() {
+    // Accumula minuti per (room, day) dalle sessioni; non conteggia unavail.
+    const acc = {};
+    (data.sessions || []).forEach(s => {
+      const k = s.room + '|' + s.day;
+      acc[k] = (acc[k] || 0) + (s.end - s.start);
+    });
+    Object.keys(roomSections).forEach(room => {
+      const rs = roomSections[room];
+      Object.keys(rs.totals).forEach(d => {
+        const min = acc[room + '|' + d] || 0;
+        const el = rs.totals[d];
+        if (min === 0) {
+          el.textContent = '—';
+          el.classList.add('zero');
+        } else {
+          const h = Math.floor(min / 60);
+          const m = min % 60;
+          el.textContent = m === 0 ? (h + 'h') : (h + 'h' + (m < 10 ? '0' + m : m));
+          el.classList.remove('zero');
+        }
+      });
+    });
+  }
+
   function renderAuleSessions() {
-    // Pulisci tracce
-    daySections.forEach(ds => {
-      Object.values(ds.tracks).forEach(t => { t.innerHTML = ''; });
+    // Raccogli signature di blocchi attualmente nel parking → non vanno duplicati
+    const parking = document.getElementById('parking');
+    const parkedSigs = {};
+    if (parking) {
+      parking.querySelectorAll('.ablock.in-parking').forEach(el => {
+        if (el.dataset.src) parkedSigs[el.dataset.src] = el;
+      });
+    }
+    // Pulisci tracce (non tocca il parking)
+    Object.keys(roomSections).forEach(r => {
+      Object.values(roomSections[r].tracks).forEach(t => { t.innerHTML = ''; });
     });
     rsessionEls.length = 0;
     unavailEls.length = 0;
+    // Body del parking (per restore da sessionStorage al primo render)
+    const parkingBody = document.getElementById('parkingBody');
     data.sessions.forEach(s => {
-      const ds = daySections[s.day];
-      if (!ds) return;
-      const track = ds.tracks[s.room];
-      if (!track) return;
+      const sigJson = s.src ? JSON.stringify(s.src) : '';
+      if (sigJson && parkedSigs[sigJson]) {
+        // Già nel DOM parking: mantieni
+        rsessionEls.push(parkedSigs[sigJson]);
+        return;
+      }
+      const sigKey = s.src ? sigOf(s.src) : '';
+      const isParkedFromStorage = !!(sigKey && parkedItems[sigKey] && parkingBody);
       const block = makeAuleBlock(s);
-      track.appendChild(block);
+      if (isParkedFromStorage) {
+        // Restore parking da sessionStorage: piazza il blocco nel parking
+        parkingBody.appendChild(block);
+        block.classList.add('in-parking');
+        block.style.left = '';
+        block.style.width = '';
+      } else {
+        const rs = roomSections[s.room];
+        if (!rs) return;
+        const track = rs.tracks[s.day];
+        if (!track) return;
+        track.appendChild(block);
+      }
       rsessionEls.push(block);
     });
     // Indisponibilita' (read-only, non draggabili) renderizzate dopo le sessioni
     (data.unavail || []).forEach(u => {
-      const ds = daySections[u.day];
-      if (!ds) return;
-      const track = ds.tracks[u.room];
+      const rs = roomSections[u.room];
+      if (!rs) return;
+      const track = rs.tracks[u.day];
       if (!track) return;
       const block = document.createElement('div');
       block.className = 'ablock ablock-unavail';
@@ -679,38 +909,84 @@ var USER_EMAIL = <?!= JSON.stringify(userEmail || '') ?>;
       block.style.left = left + 'px';
       block.style.width = Math.max(width - 2, 20) + 'px';
       block.innerHTML =
-        '<div class="ablock-line">' + esc(u.text) + '</div>' +
-        '<div class="ablock-line ablock-time">' + fmt(u.start) + '–' + fmt(u.end) + '</div>';
+        '<div class="ablock-line">' + esc(u.text) + '</div>';
       block.title = u.text + ' · ' + u.room + ' · ' + fmt(u.start) + '-' + fmt(u.end);
       track.appendChild(block);
       unavailEls.push(block);
     });
+    recomputeAuleTotals();
   }
 
   // ----- Drag/Resize handlers (solo EDIT_MODE) -----
   function attachEditHandlers(block) {
     let mode = null; // 'move' | 'resize-l' | 'resize-r'
     let pId = null;
-    let startX = 0, startY = 0;
+    let startX = 0;
     let origLeft = 0, origWidth = 0;
+    let origStart = 0, origEnd = 0;
     let origDay = 0, origRoom = '';
-    let curDay, curRoom;
+    let pointerOffsetX = 0, pointerOffsetY = 0;
+    let ghost = null;
+    let lastDropTarget = null; // {kind: 'track'|'parking', el}
+    const snap30 = m => Math.round(m / 30) * 30;
+    const stepPx = 30 * PX_PER_MIN_AULE;
+
+    function cleanupDrag() {
+      if (ghost && ghost.parentNode) ghost.parentNode.removeChild(ghost);
+      ghost = null;
+      block.style.opacity = '';
+      block.classList.remove('dragging');
+      mode = null; pId = null; lastDropTarget = null;
+    }
 
     function onDown(e) {
-      if (block.classList.contains('committing')) return;
-      mode = 'move';
       if (e.target.classList && e.target.classList.contains('resize-handle')) {
         mode = e.target.classList.contains('left') ? 'resize-l' : 'resize-r';
+      } else {
+        mode = 'move';
       }
       pId = e.pointerId;
       startX = e.clientX;
-      startY = e.clientY;
       origLeft = parseFloat(block.style.left) || 0;
       origWidth = parseFloat(block.style.width) || 0;
       origDay = parseInt(block.dataset.day, 10);
       origRoom = block.dataset.room;
-      curDay = origDay;
-      curRoom = origRoom;
+      origStart = parseInt(block.dataset.start, 10);
+      origEnd = parseInt(block.dataset.end, 10);
+
+      const rect = block.getBoundingClientRect();
+      pointerOffsetX = e.clientX - rect.left;
+      pointerOffsetY = e.clientY - rect.top;
+
+      if (mode === 'move') {
+        // Crea ghost (clone visivo) in body con position:fixed.
+        // L'originale resta dove sta, semitrasparente.
+        const w = block.classList.contains('in-parking')
+          ? (origEnd - origStart) * PX_PER_MIN_AULE - 2
+          : rect.width;
+        const h = rect.height;
+        ghost = block.cloneNode(true);
+        ghost.querySelectorAll('.resize-handle').forEach(el => el.remove());
+        ghost.classList.remove('in-parking');
+        ghost.style.position = 'fixed';
+        ghost.style.left = '0px';
+        ghost.style.top = '0px';
+        ghost.style.width = Math.max(w, 60) + 'px';
+        ghost.style.height = h + 'px';
+        ghost.style.margin = '0';
+        ghost.style.pointerEvents = 'none';
+        ghost.style.zIndex = '9999';
+        ghost.style.opacity = '0.9';
+        ghost.style.outline = '2px solid #1a73e8';
+        ghost.style.boxShadow = '0 6px 16px rgba(0,0,0,0.3)';
+        ghost.style.transform = 'translate(' + rect.left + 'px,' + rect.top + 'px)';
+        ghost.style.willChange = 'transform';
+        document.body.appendChild(ghost);
+        block.style.opacity = '0.25';
+        // Drop di default: track originale (no-op)
+        lastDropTarget = null;
+      }
+
       block.setPointerCapture(pId);
       block.classList.add('dragging');
       e.preventDefault();
@@ -719,54 +995,45 @@ var USER_EMAIL = <?!= JSON.stringify(userEmail || '') ?>;
 
     function onMove(e) {
       if (e.pointerId !== pId || !mode) return;
-      const dx = e.clientX - startX;
-      const snap = Math.round(dx / (30 * PX_PER_MIN_AULE)) * (30 * PX_PER_MIN_AULE);
 
       if (mode === 'move') {
-        let newLeft = origLeft + snap;
-        if (newLeft < 0) newLeft = 0;
-        if (newLeft + origWidth > TRACK_PX) newLeft = TRACK_PX - origWidth;
-        block.style.left = newLeft + 'px';
+        // Aggiorna ghost (singolo transform = fast)
+        const gx = e.clientX - pointerOffsetX;
+        const gy = e.clientY - pointerOffsetY;
+        ghost.style.transform = 'translate(' + gx + 'px,' + gy + 'px)';
+        // Hit-test (la ghost ha pointer-events:none quindi non interferisce)
+        const el = document.elementFromPoint(e.clientX, e.clientY);
+        const parking = el ? el.closest('.parking-zone') : null;
+        const track = el ? el.closest('.room-track') : null;
+        if (parking) lastDropTarget = { kind: 'parking', el: parking };
+        else if (track) lastDropTarget = { kind: 'track', el: track };
+        else lastDropTarget = null;
+        return;
+      }
 
-        // Possibile cambio aula/giorno tramite hit-test sull'elemento sotto al pointer
-        const elBelow = document.elementFromPoint(e.clientX, e.clientY);
-        const trackBelow = elBelow ? elBelow.closest('.room-track') : null;
-        if (trackBelow && trackBelow !== block.parentNode) {
-          // Sposta visualmente in altra track (cambio aula o giorno)
-          curRoom = trackBelow.dataset.room;
-          curDay = parseInt(trackBelow.dataset.day, 10);
-          trackBelow.appendChild(block);
-          block.dataset.room = curRoom;
-          block.dataset.day = String(curDay);
-        }
-        const newStart = slotStart + Math.round(newLeft / PX_PER_MIN_AULE);
-        const newEnd = newStart + Math.round(origWidth / PX_PER_MIN_AULE);
-        block.dataset.start = String(newStart);
-        block.dataset.end = String(newEnd);
-        const tEl = block.querySelector('.ablock-time');
-        if (tEl) tEl.textContent = fmt(newStart) + '–' + fmt(newEnd);
-      } else if (mode === 'resize-l') {
+      // Resize: logica invariata, modifica l'originale in-place
+      const dx = e.clientX - startX;
+      const snap = Math.round(dx / stepPx) * stepPx;
+      if (mode === 'resize-l') {
         let newLeft = origLeft + snap;
         if (newLeft < 0) newLeft = 0;
-        if (newLeft >= origLeft + origWidth - 30 * PX_PER_MIN_AULE) {
-          newLeft = origLeft + origWidth - 30 * PX_PER_MIN_AULE; // min 30 min
-        }
+        if (newLeft >= origLeft + origWidth - stepPx) newLeft = origLeft + origWidth - stepPx;
         const newWidth = origLeft + origWidth - newLeft;
         block.style.left = newLeft + 'px';
         block.style.width = (newWidth - 2) + 'px';
-        const newStart = slotStart + Math.round(newLeft / PX_PER_MIN_AULE);
-        const newEnd = newStart + Math.round(newWidth / PX_PER_MIN_AULE);
+        const newStart = snap30(slotStart + Math.round(newLeft / PX_PER_MIN_AULE));
+        const newEnd = snap30(newStart + Math.round(newWidth / PX_PER_MIN_AULE));
         block.dataset.start = String(newStart);
         block.dataset.end = String(newEnd);
         const tEl = block.querySelector('.ablock-time');
         if (tEl) tEl.textContent = fmt(newStart) + '–' + fmt(newEnd);
       } else if (mode === 'resize-r') {
         let newWidth = origWidth + snap;
-        if (newWidth < 30 * PX_PER_MIN_AULE) newWidth = 30 * PX_PER_MIN_AULE;
+        if (newWidth < stepPx) newWidth = stepPx;
         if (origLeft + newWidth > TRACK_PX) newWidth = TRACK_PX - origLeft;
         block.style.width = (newWidth - 2) + 'px';
-        const newStart = slotStart + Math.round(origLeft / PX_PER_MIN_AULE);
-        const newEnd = newStart + Math.round(newWidth / PX_PER_MIN_AULE);
+        const newStart = snap30(slotStart + Math.round(origLeft / PX_PER_MIN_AULE));
+        const newEnd = snap30(newStart + Math.round(newWidth / PX_PER_MIN_AULE));
         block.dataset.end = String(newEnd);
         const tEl = block.querySelector('.ablock-time');
         if (tEl) tEl.textContent = fmt(newStart) + '–' + fmt(newEnd);
@@ -776,43 +1043,114 @@ var USER_EMAIL = <?!= JSON.stringify(userEmail || '') ?>;
     function onUp(e) {
       if (e.pointerId !== pId || !mode) return;
       try { block.releasePointerCapture(pId); } catch (err) {}
-      block.classList.remove('dragging');
       const finalMode = mode;
-      mode = null;
-      pId = null;
 
-      const newStart = parseInt(block.dataset.start, 10);
-      const newEnd = parseInt(block.dataset.end, 10);
-      const newRoom = block.dataset.room;
-      const newDay = parseInt(block.dataset.day, 10);
+      if (finalMode === 'move') {
+        // Determina drop usando POSIZIONE FINALE del puntatore.
+        // Non ci fidiamo di lastDropTarget perché pointermove può non aver firato
+        // alla fine. Fallback su lastDropTarget se elementFromPoint = ghost/null.
+        const el = document.elementFromPoint(e.clientX, e.clientY);
+        const parking = el ? el.closest('.parking-zone') : null;
+        const track = el ? el.closest('.room-track') : null;
+        let drop;
+        if (parking) drop = { kind: 'parking', el: parking };
+        else if (track) drop = { kind: 'track', el: track };
+        else drop = lastDropTarget;
 
-      let src;
-      try { src = JSON.parse(block.dataset.src || 'null'); } catch (err) { src = null; }
-      if (!src) { revertBlock(block); return; }
+        if (!drop) {
+          // Abort: rilasciato fuori da qualsiasi zona valida
+          cleanupDrag();
+          return;
+        }
 
-      // No-op se nulla è cambiato
-      const orig = data.sessions.find(s => s.src && s.src.sheet === src.sheet
-        && s.src.row === src.row && s.src.col === src.col && s.src.idx === src.idx);
-      if (orig && orig.start === newStart && orig.end === newEnd
-          && orig.room === newRoom && orig.day === newDay) {
-        revertBlock(block);
+        if (drop.kind === 'parking') {
+          // Parcheggia (no commit) — nel body interno, non nell'header.
+          // Registra la posizione PRECEDENTE al parking (per il restore).
+          const body = drop.el.querySelector('.pbody') || drop.el;
+          recordParked(block, { room: origRoom, day: origDay, start: origStart, end: origEnd });
+          body.appendChild(block);
+          block.classList.add('in-parking');
+          block.style.left = '';
+          block.style.width = '';
+          cleanupDrag();
+          updatePendingUI();
+          return;
+        }
+
+        // drop.kind === 'track'
+        const trackEl = drop.el;
+        const trackRect = trackEl.getBoundingClientRect();
+        let xInTrack = e.clientX - trackRect.left - pointerOffsetX;
+        xInTrack = Math.round(xInTrack / stepPx) * stepPx;
+        if (xInTrack < 0) xInTrack = 0;
+        const duration = origEnd - origStart;
+        const widthPx = duration * PX_PER_MIN_AULE;
+        if (xInTrack + widthPx > TRACK_PX) xInTrack = TRACK_PX - widthPx;
+        const newStart = snap30(slotStart + Math.round(xInTrack / PX_PER_MIN_AULE));
+        const newEnd = newStart + duration;
+        const newRoom = trackEl.dataset.room;
+        const newDay = parseInt(trackEl.dataset.day, 10);
+
+        // No-op check (stessa posizione e non era nel parking)
+        const wasParked = block.classList.contains('in-parking');
+        if (!wasParked && newStart === origStart && newEnd === origEnd
+            && newRoom === origRoom && newDay === origDay) {
+          cleanupDrag();
+          return;
+        }
+
+        // Uscita dal parking (se era parcheggiato): cancella registro parking
+        if (block.classList.contains('in-parking')) unrecordParked(block);
+        // Re-parent e applica posizione/dimensione finale
+        trackEl.appendChild(block);
+        block.classList.remove('in-parking');
+        block.style.left = xInTrack + 'px';
+        block.style.width = Math.max(widthPx - 2, 20) + 'px';
+        block.dataset.room = newRoom;
+        block.dataset.day = String(newDay);
+        block.dataset.start = String(newStart);
+        block.dataset.end = String(newEnd);
+        const tEl = block.querySelector('.ablock-time');
+        if (tEl) tEl.textContent = fmt(newStart) + '–' + fmt(newEnd);
+
+        let src;
+        try { src = JSON.parse(block.dataset.src || 'null'); } catch (err) { src = null; }
+        if (!src) { cleanupDrag(); revertBlock(block); return; }
+
+        // La colonna sul foglio è univocamente determinata dal giorno target
+        // (CALENDAR_COLS_START = 12 = colonna L). Indipendente da dove la sess
+        // è stata mossa in precedenza. Solo questo permette il rilevamento
+        // back-to-original quando l'utente riporta uno slot alla posizione iniziale.
+        const newCol = 12 + newDay;
+        const target = {
+          sheet: src.sheet, row: src.row, col: newCol,
+          room: newRoom, start: newStart, end: newEnd
+        };
+        cleanupDrag();
+        commitEdit(block, src, target);
         return;
       }
 
-      // Target col: shift if day changed
-      const newCol = src.col + (newDay - (orig ? orig.day : newDay));
+      // Resize: commit con valori correnti
+      mode = null; pId = null;
+      block.classList.remove('dragging');
+      const newStart = parseInt(block.dataset.start, 10);
+      const newEnd = parseInt(block.dataset.end, 10);
+      if (newStart === origStart && newEnd === origEnd) return;
+      let src;
+      try { src = JSON.parse(block.dataset.src || 'null'); } catch (err) { src = null; }
+      if (!src) { revertBlock(block); return; }
       const target = {
-        sheet: src.sheet, row: src.row, col: newCol,
-        room: newRoom, start: newStart, end: newEnd
+        sheet: src.sheet, row: src.row, col: src.col,
+        room: origRoom, start: newStart, end: newEnd
       };
-
       commitEdit(block, src, target);
     }
 
     block.addEventListener('pointerdown', onDown);
     block.addEventListener('pointermove', onMove);
     block.addEventListener('pointerup', onUp);
-    block.addEventListener('pointercancel', () => { mode = null; pId = null; block.classList.remove('dragging'); });
+    block.addEventListener('pointercancel', () => { cleanupDrag(); revertBlock(block); });
   }
 
   function revertBlock(block) {
@@ -834,33 +1172,127 @@ var USER_EMAIL = <?!= JSON.stringify(userEmail || '') ?>;
     const tEl2 = block.querySelector('.ablock-time');
     if (tEl2) tEl2.textContent = fmt(orig.start) + '–' + fmt(orig.end);
     // Re-attach al track corretto
-    const ds = daySections[orig.day];
-    if (ds && ds.tracks[orig.room] && ds.tracks[orig.room] !== block.parentNode) {
-      ds.tracks[orig.room].appendChild(block);
+    const rs = roomSections[orig.room];
+    if (rs && rs.tracks[orig.day] && rs.tracks[orig.day] !== block.parentNode) {
+      rs.tracks[orig.day].appendChild(block);
     }
   }
 
+  /**
+   * Applica una modifica LOCALMENTE (optimistic UI).
+   * - Pre-check conflitti (sessions + unavail) — niente RPC se conflitto.
+   * - Aggiorna sess.* in data.sessions.
+   * - Aggiorna data.pendingEdits coerentemente (add / update / remove se
+   *   back-to-original) usando la stessa logica del server.
+   * - Ritorna { ok, error?, revert() }. revert() ripristina lo stato precedente.
+   */
+  function applyEditLocally(src, target) {
+    const sig = sigOf(src);
+    const sess = (data.sessions || []).find(s => s.src && sigOf(s.src) === sig);
+    if (!sess) return { ok: false, error: 'Sessione non trovata.' };
+
+    const tStart = parseInt(target.start, 10);
+    const tEnd = parseInt(target.end, 10);
+    const tCol = parseInt(target.col, 10);
+    const targetRoom = String(target.room || '').trim();
+    if (!isFinite(tStart) || !isFinite(tEnd) || tEnd <= tStart) {
+      return { ok: false, error: 'Orario non valido.' };
+    }
+    if (tStart < data.slotStartMin || tEnd > data.slotEndMin) {
+      return { ok: false, error: 'Orario fuori range consentito.' };
+    }
+    const step = data.slotStepMin || 30;
+    if ((tStart % step) !== 0 || (tEnd % step) !== 0) {
+      return { ok: false, error: 'Allinea a multipli di ' + step + ' min.' };
+    }
+    if (!targetRoom) return { ok: false, error: 'Aula target mancante.' };
+
+    const dayIdx = tCol - 12; // CALENDAR_COLS_START
+
+    // Conflict check vs altre sessioni
+    const conflict = (data.sessions || []).find(s => s !== sess &&
+      s.room === targetRoom && s.day === dayIdx &&
+      tStart < s.end && tEnd > s.start);
+    if (conflict) {
+      return { ok: false, error: 'Conflitto con ' + conflict.code +
+        ' ' + fmt(conflict.start) + '–' + fmt(conflict.end) + ' in ' + conflict.room + '.' };
+    }
+    // Conflict vs unavail
+    const unav = (data.unavail || []).find(u =>
+      u.room === targetRoom && u.day === dayIdx &&
+      tStart < u.end && tEnd > u.start);
+    if (unav) return { ok: false, error: 'Aula non disponibile: ' + (unav.text || '') };
+
+    if (!Array.isArray(data.pendingEdits)) data.pendingEdits = [];
+    const existing = data.pendingEdits.find(e =>
+      e.src.sheet === src.sheet && e.src.row === src.row &&
+      e.src.col === src.col && e.src.idx === src.idx);
+    const original = existing ? existing.original : {
+      col: src.col, day: sess.day, room: sess.room, start: sess.start, end: sess.end
+    };
+
+    // Backup per revert
+    const sessBackup = { day: sess.day, room: sess.room, start: sess.start, end: sess.end };
+    const pendingBackup = data.pendingEdits.slice();
+
+    // Applica al sess
+    sess.day = dayIdx;
+    sess.room = targetRoom;
+    sess.start = tStart;
+    sess.end = tEnd;
+
+    // Manage pendingEdits con stessa logica del server
+    const isBackToOriginal =
+      original.col === tCol && original.room === targetRoom &&
+      original.start === tStart && original.end === tEnd;
+    if (isBackToOriginal) {
+      if (existing) {
+        data.pendingEdits = data.pendingEdits.filter(e => e !== existing);
+      }
+    } else if (existing) {
+      existing.target = { col: tCol, room: targetRoom, start: tStart, end: tEnd };
+      existing.ts = new Date().toISOString();
+    } else {
+      data.pendingEdits.push({
+        src: { sheet: src.sheet, row: src.row, col: src.col, idx: src.idx },
+        target: { col: tCol, room: targetRoom, start: tStart, end: tEnd },
+        original: original,
+        user: USER_EMAIL,
+        ts: new Date().toISOString()
+      });
+    }
+
+    return {
+      ok: true,
+      revert: function() {
+        sess.day = sessBackup.day;
+        sess.room = sessBackup.room;
+        sess.start = sessBackup.start;
+        sess.end = sessBackup.end;
+        data.pendingEdits = pendingBackup;
+      }
+    };
+  }
+
+  // Flag per ricostruire la vista Calendario solo quando si torna su quel tab.
+  // Il drag aggiorna data.sessions e la vista Aule (già visivamente in posto dal
+  // drag handler). Calendar è marcato dirty e rebuildato lazy.
+  let calendarDirty = false;
+
   function commitEdit(block, src, target) {
-    block.classList.add('committing');
-    google.script.run
-      .withSuccessHandler(function(newJson) {
-        block.classList.remove('committing');
-        try {
-          const newData = JSON.parse(newJson);
-          // Sostituisci data e rerender tutto
-          for (const k in newData) data[k] = newData[k];
-          rerenderAfterEdit();
-        } catch (err) {
-          alert('Errore decoding snapshot: ' + err.message);
-          revertBlock(block);
-        }
-      })
-      .withFailureHandler(function(err) {
-        block.classList.remove('committing');
-        alert('Modifica rifiutata: ' + (err && err.message ? err.message : err));
-        revertBlock(block);
-      })
-      .applyEditSlot({ src: src, target: target });
+    // TUTTO CLIENT-SIDE, SINCRONO, ISTANTANEO.
+    // Nessun RPC: gli edit non toccano il server. Solo Carica/Salva lo fanno.
+    const local = applyEditLocally(src, target);
+    if (!local.ok) {
+      alert('Modifica rifiutata: ' + local.error);
+      revertBlock(block);
+      return;
+    }
+    // Aule view: blocco già nella posizione corretta dal drag handler.
+    // Calendar view: dirty (rebuild lazy al tab switch).
+    calendarDirty = true;
+    updatePendingUI();
+    recomputeAuleTotals();
   }
 
   function rerenderAfterEdit() {
@@ -871,6 +1303,11 @@ var USER_EMAIL = <?!= JSON.stringify(userEmail || '') ?>;
     renderCalendarSessions();
     renderAuleSessions();
     applyFilters();
+    if (typeof updatePendingUI === 'function') updatePendingUI();
+    if (typeof setSyncStatus === 'function') {
+      const pc = (data.pendingEdits || []).length;
+      setSyncStatus(pc + ' modifica/e pendente/i — clicca "Salva sul gsheet" per scrivere.');
+    }
   }
 
   // Render iniziale Aule + Calendar (separato per il rerender post-edit)
@@ -921,7 +1358,7 @@ var USER_EMAIL = <?!= JSON.stringify(userEmail || '') ?>;
     });
   }
 
-  // Init render: prima il calendar, poi la vista Aule (richiedono dayColEls/daySections)
+  // Init render: prima il calendar, poi la vista Aule (richiedono dayColEls/roomSections)
   buildAuleView();
   renderCalendarSessions();
   renderAuleSessions();
@@ -1077,12 +1514,9 @@ var USER_EMAIL = <?!= JSON.stringify(userEmail || '') ?>;
       }
     });
 
-    // Nascondi le righe aula deselezionate in TUTTE le day-section della vista Aule
-    daySections.forEach(ds => {
-      ds.section.querySelectorAll('.grid-row').forEach(row => {
-        const r = row.dataset.room;
-        if (r) row.classList.toggle('hidden', !checkedRooms[r]);
-      });
+    // Nascondi l'intera sezione aula se non selezionata
+    Object.keys(roomSections).forEach(r => {
+      roomSections[r].section.classList.toggle('hidden', !checkedRooms[r]);
     });
 
     // Blocchi NON DISPONIBILE: nascondi se l'aula non e' selezionata.
@@ -1109,9 +1543,403 @@ var USER_EMAIL = <?!= JSON.stringify(userEmail || '') ?>;
     span.innerHTML = '<span class="dot" style="background:' + sh.color + '"></span>' + sh.name;
     leg.appendChild(span);
   });
-  document.getElementById('footer').textContent =
-    'Generato ' + new Date(data.generatedAt).toLocaleString('it-IT') +
-    ' · ' + data.sessions.length + ' sessioni';
+  (function renderFooter(){
+    const f = document.getElementById('footer');
+    f.innerHTML = '';
+    const info = document.createElement('span');
+    info.textContent = 'Generato ' + new Date(data.generatedAt).toLocaleString('it-IT') +
+                       ' · ' + data.sessions.length + ' sessioni';
+    f.appendChild(info);
+    const sep = document.createElement('span');
+    sep.textContent = ' · ';
+    f.appendChild(sep);
+    const who = document.createElement('span');
+    const mode = EDIT_MODE ? '' : ' (read-only)';
+    who.textContent = (USER_EMAIL ? ('Accesso come ' + USER_EMAIL) : 'Non autenticato') + mode;
+    if (!EDIT_MODE) who.style.color = '#b95000';
+    f.appendChild(who);
+    f.appendChild(document.createTextNode(' '));
+    const sw = document.createElement('a');
+    const target = WEBAPP_URL || 'https://script.google.com/';
+    // AccountChooser accetta solo continue verso domini Google (script.google.com OK,
+    // ma NON il sandbox googleusercontent.com dell'iframe interno).
+    sw.href = 'https://accounts.google.com/AccountChooser?continue=' + encodeURIComponent(target);
+    sw.target = '_top';
+    sw.textContent = '(cambia account)';
+    sw.style.color = 'var(--accent)';
+    sw.style.textDecoration = 'none';
+    f.appendChild(sw);
+  })();
+
+  (function renderDiag(){
+    const d = document.getElementById('diagPanel');
+    if (!d || !DIAG) return;
+    const lines = [
+      '── DIAGNOSTICA SERVER ──',
+      'activeEmail (Session.getActiveUser): ' + JSON.stringify(DIAG.activeEmail),
+      'effectiveEmail (Session.getEffectiveUser): ' + JSON.stringify(DIAG.effectiveEmail),
+      'ownerEmail (ss.getOwner): ' + JSON.stringify(DIAG.ownerEmail),
+      'EDIT_EMAILS (DocumentProperty): ' + JSON.stringify(DIAG.editEmails),
+      'isEditor result: ' + JSON.stringify(DIAG.isEditorResult),
+      'scriptId: ' + DIAG.scriptId,
+      'spreadsheetId: ' + DIAG.spreadsheetId
+    ];
+    d.textContent = lines.join('\n');
+    d.style.whiteSpace = 'pre';
+    // Mostrabile via ?diag=1 in URL
+    if (/[?&]diag=1\b/.test(window.location.search || '')) d.style.display = 'block';
+  })();
+
+  // ─── Refresh stato bottoni (Carica / Salva / Restore) ─────────────────────
+  function updatePendingUI() {
+    const list = Array.isArray(data.pendingEdits) ? data.pendingEdits : [];
+    // Disabilita Salva se ci sono blocchi nel parking (non salvabili)
+    const parkingEl = document.getElementById('parking');
+    const parkedCount = parkingEl ? parkingEl.querySelectorAll('.ablock.in-parking').length : 0;
+    const saveBtn = document.getElementById('btnSave');
+    if (saveBtn && !savingInProgress) {
+      saveBtn.disabled = parkedCount > 0 || commitInFlight > 0;
+      saveBtn.title = commitInFlight > 0
+        ? 'Operazione in corso…'
+        : parkedCount > 0
+          ? ('Svuota il parking prima di salvare (' + parkedCount + ' slot parcheggiati)')
+          : 'Scrive le modifiche pendenti sul gsheet + rigenera SxAULE';
+    }
+    const loadBtn = document.getElementById('btnLoad');
+    if (loadBtn) loadBtn.disabled = commitInFlight > 0;
+    const restoreBtn = document.getElementById('btnRestoreParked');
+    if (restoreBtn) {
+      restoreBtn.disabled = parkedCount === 0 || commitInFlight > 0;
+      restoreBtn.title = commitInFlight > 0
+        ? 'Operazione in corso…'
+        : parkedCount === 0
+          ? 'Nessuno slot nel parking'
+          : 'Rimette ' + parkedCount + ' slot dove erano prima del parcheggio';
+    }
+    // Marca i blocchi dirty (sessioni in pendingEdits)
+    const dirtySet = {};
+    list.forEach(e => {
+      const k = e.src.sheet + '|' + e.src.row + '|' + e.src.col + '|' + e.src.idx;
+      dirtySet[k] = true;
+    });
+    document.querySelectorAll('.ablock').forEach(el => {
+      let s = null;
+      try { s = JSON.parse(el.dataset.src || 'null'); } catch (e) {}
+      if (s) {
+        const k = s.sheet + '|' + s.row + '|' + s.col + '|' + s.idx;
+        if (dirtySet[k]) el.classList.add('dirty'); else el.classList.remove('dirty');
+      }
+    });
+    renderModLog();
+  }
+  // Stato globale: numero di RPC in volo. Mentre > 0, nessuna nuova
+  // interazione è permessa (drag, click bottoni). Garantisce che la UI
+  // non venga distrutta a metà di un'operazione utente.
+  let commitInFlight = 0;
+  let savingInProgress = false;  // true mentre la RPC di Save è in volo
+  function bumpInFlight(delta) {
+    commitInFlight += delta;
+    if (commitInFlight < 0) commitInFlight = 0;
+    updatePendingUI();
+  }
+
+  // (parkedItems + sigOf + helpers spostati in cima all'IIFE per evitare TDZ
+  //  quando renderAuleSessions li referenzia durante l'init)
+
+  function recordParked(block, prev) {
+    let src; try { src = JSON.parse(block.dataset.src || 'null'); } catch (e) { src = null; }
+    if (!src) return;
+    parkedItems[sigOf(src)] = { room: prev.room, day: prev.day, start: prev.start, end: prev.end };
+    persistParking();
+  }
+  function unrecordParked(block) {
+    let src; try { src = JSON.parse(block.dataset.src || 'null'); } catch (e) { src = null; }
+    if (!src) return;
+    delete parkedItems[sigOf(src)];
+    persistParking();
+  }
+
+  function revertPendingEdit(sig) {
+    const edit = (data.pendingEdits || []).find(e => sigOf(e.src) === sig);
+    if (!edit) return;
+    const sess = (data.sessions || []).find(s => s.src && sigOf(s.src) === sig);
+    if (!sess) return;
+    const orig = edit.original;
+    const origDay = orig.col - 12; // CALENDAR_COLS_START
+    // Conflict check: la posizione originale è ora occupata da altri edit?
+    const conflict = (data.sessions || []).find(s => s !== sess &&
+      s.room === orig.room && s.day === origDay &&
+      orig.start < s.end && orig.end > s.start);
+    if (conflict) {
+      alert('Impossibile annullare: ' + (conflict.code || '?') +
+        ' ora occupa la posizione originale.');
+      return;
+    }
+    const unav = (data.unavail || []).find(u =>
+      u.room === orig.room && u.day === origDay &&
+      orig.start < u.end && orig.end > u.start);
+    if (unav) {
+      alert('Impossibile annullare: la posizione originale è ora indisponibile.');
+      return;
+    }
+    // Applica revert al sess
+    sess.room = orig.room;
+    sess.day = origDay;
+    sess.start = orig.start;
+    sess.end = orig.end;
+    // Rimuovi il pendingEdit
+    data.pendingEdits = (data.pendingEdits || []).filter(e => e !== edit);
+    // Sposta visivamente il blocco in Aule view
+    const block = rsessionEls.find(el => {
+      try { return el.dataset.src && sigOf(JSON.parse(el.dataset.src)) === sig; }
+      catch (e) { return false; }
+    });
+    if (block) {
+      attachToTrack_(block, orig.room, origDay, orig.start, orig.end);
+    }
+    calendarDirty = true;
+    updatePendingUI();
+    recomputeAuleTotals();
+  }
+
+  function revertParkedEntry(sig) {
+    const prev = parkedItems[sig];
+    if (!prev) return;
+    // Cerca il blocco in parking che ha questo sig
+    const parking = document.getElementById('parking');
+    if (!parking) return;
+    let block = null;
+    parking.querySelectorAll('.ablock.in-parking').forEach(el => {
+      try {
+        if (el.dataset.src && sigOf(JSON.parse(el.dataset.src)) === sig) block = el;
+      } catch (e) {}
+    });
+    if (!block) {
+      // pulizia: entry orfana
+      delete parkedItems[sig];
+      persistParking();
+      updatePendingUI();
+      return;
+    }
+    // Ri-attacca alla track originale (pre-parking)
+    attachToTrack_(block, prev.room, prev.day, prev.start, prev.end);
+    delete parkedItems[sig];
+    persistParking();
+    updatePendingUI();
+    recomputeAuleTotals();
+  }
+
+  function restoreAllParked() {
+    const parkingEl = document.getElementById('parking');
+    if (!parkingEl) return;
+    const blocks = parkingEl.querySelectorAll('.ablock.in-parking');
+    if (!blocks.length) return;
+    blocks.forEach(block => {
+      let src; try { src = JSON.parse(block.dataset.src || 'null'); } catch (e) { src = null; }
+      if (!src) return;
+      const prev = parkedItems[sigOf(src)];
+      if (!prev) {
+        // Fallback: usa data.sessions originale
+        const sess = (data.sessions || []).find(s => s.src && sigOf(s.src) === sigOf(src));
+        if (!sess) return;
+        attachToTrack_(block, sess.room, sess.day, sess.start, sess.end);
+      } else {
+        attachToTrack_(block, prev.room, prev.day, prev.start, prev.end);
+      }
+      unrecordParked(block);
+    });
+    updatePendingUI();
+  }
+
+  function attachToTrack_(block, room, day, start, end) {
+    const rs = roomSections[room];
+    if (!rs) return;
+    const track = rs.tracks[day];
+    if (!track) return;
+    track.appendChild(block);
+    block.classList.remove('in-parking');
+    const left = (start - data.slotStartMin) * (60 * 1.3 / 60); // PX_PER_MIN_AULE = 1.3
+    const width = (end - start) * 1.3;
+    block.style.left = left + 'px';
+    block.style.width = Math.max(width - 2, 20) + 'px';
+    block.dataset.room = room;
+    block.dataset.day = String(day);
+    block.dataset.start = String(start);
+    block.dataset.end = String(end);
+    const tEl = block.querySelector('.ablock-time');
+    if (tEl) {
+      const f = (m) => { const h=Math.floor(m/60), x=m%60; return (h<10?'0':'')+h+':'+(x<10?'0':'')+x; };
+      tEl.textContent = f(start) + '–' + f(end);
+    }
+  }
+
+  function renderModLog() {
+    const body = document.getElementById('logModBody');
+    if (!body) return;
+    const list = Array.isArray(data.pendingEdits) ? data.pendingEdits : [];
+    const parkedSigs = Object.keys(parkedItems);
+    if (!list.length && !parkedSigs.length) {
+      body.innerHTML = '<div class="lmempty">Nessuna modifica pendente.</div>';
+      return;
+    }
+    const dayLabels = data.days || ['LUN','MAR','MER','GIO','VEN','SAB'];
+    const sessionsBySig = {};
+    (data.sessions || []).forEach(s => {
+      if (s.src) sessionsBySig[sigOf(s.src)] = s;
+    });
+    const f = (m) => { const h=Math.floor(m/60), x=m%60; return (h<10?'0':'')+h+':'+(x<10?'0':'')+x; };
+    const parts = [];
+    // Modifiche pendenti (drag/resize)
+    list.forEach(e => {
+      const sig = sigOf(e.src);
+      const s = sessionsBySig[sig];
+      const code = s ? (s.code || '?') : '?';
+      const name = s ? (s.name || '') : '';
+      const origDay = e.original.col - 12;
+      const tgtDay = e.target.col - 12;
+      parts.push(
+        '<div class="lmentry" data-kind="pending" data-sig="' + esc(sig) + '">' +
+          '<button class="lmx" title="Annulla questa modifica">×</button>' +
+          '<div class="lmcode">🔀 ' + esc(code) + (name ? ' <span style="font-weight:400;color:#666">'+esc(name.substring(0,30))+'</span>' : '') + '</div>' +
+          '<div class="lmrow"><b>da</b> ' + esc(e.original.room) + ' · ' + (dayLabels[origDay]||'?') + ' ' + f(e.original.start) + '–' + f(e.original.end) + '</div>' +
+          '<div class="lmrow"><b>a</b> &nbsp;' + esc(e.target.room) + ' · ' + (dayLabels[tgtDay]||'?') + ' ' + f(e.target.start) + '–' + f(e.target.end) + '</div>' +
+        '</div>'
+      );
+    });
+    // Item parcheggiati (solo client)
+    parkedSigs.forEach(sig => {
+      const prev = parkedItems[sig];
+      const s = sessionsBySig[sig];
+      const code = s ? (s.code || '?') : '?';
+      const name = s ? (s.name || '') : '';
+      parts.push(
+        '<div class="lmentry parked-entry" data-kind="parked" data-sig="' + esc(sig) + '">' +
+          '<button class="lmx" title="Rimetti dove era prima del parking">×</button>' +
+          '<div class="lmcode">🅿️ ' + esc(code) + (name ? ' <span style="font-weight:400;color:#666">'+esc(name.substring(0,30))+'</span>' : '') + '</div>' +
+          '<div class="lmrow"><b>da</b> ' + esc(prev.room) + ' · ' + (dayLabels[prev.day]||'?') + ' ' + f(prev.start) + '–' + f(prev.end) + '</div>' +
+          '<div class="lmrow"><b>a</b> &nbsp;parking (in attesa)</div>' +
+        '</div>'
+      );
+    });
+    body.innerHTML = parts.join('');
+  }
+
+  function setSyncStatus(msg) { const el = document.getElementById('syncStatus'); if (el) el.textContent = msg || ''; }
+
+  // Sticky-top ora è position:sticky → content scorre naturalmente sotto.
+  // Devo solo posizionare parking/logMod sotto la sticky bar (in EDIT_MODE).
+  const sticky = document.getElementById('stickyTop');
+  function syncFixedTop() {
+    if (!EDIT_MODE) return;
+    const h = sticky ? sticky.getBoundingClientRect().height : 200;
+    const top = (h + 12) + 'px';
+    const pk = document.getElementById('parking');
+    const lm = document.getElementById('logMod');
+    if (pk) pk.style.top = top;
+    if (lm) lm.style.top = top;
+  }
+  syncFixedTop();
+  window.addEventListener('resize', syncFixedTop);
+  if (window.ResizeObserver && sticky) new ResizeObserver(syncFixedTop).observe(sticky);
+
+  if (EDIT_MODE) {
+    document.getElementById('parking').classList.add('active');
+    document.getElementById('logMod').classList.add('active');
+    document.body.classList.add('has-parking');
+    syncFixedTop();
+    document.getElementById('btnLoad').addEventListener('click', () => {
+      if (commitInFlight > 0) return;
+      const pending = (data.pendingEdits || []).length;
+      const parked = Object.keys(parkedItems).length;
+      const msgs = [];
+      if (pending) msgs.push(pending + ' modifiche pendenti');
+      if (parked) msgs.push(parked + ' slot nel parking');
+      if (msgs.length && !confirm('Carica dal gsheet: ' + msgs.join(' + ') + ' verranno SCARTATI. Procedere?')) return;
+      // Svuota anche il parking lato client (+ sessionStorage)
+      Object.keys(parkedItems).forEach(k => delete parkedItems[k]);
+      persistParking();
+      bumpInFlight(+1);
+      setSyncStatus('Caricamento dal foglio…');
+      google.script.run
+        .withSuccessHandler(function(newJson) {
+          try {
+            const newData = JSON.parse(newJson);
+            for (const k in newData) data[k] = newData[k];
+            sessionEls.forEach(el => el.remove()); sessionEls.length = 0; rsessionEls.length = 0;
+            // Rimuovi blocchi parking residui (saranno ricreati nelle track)
+            const pkBody = document.getElementById('parkingBody');
+            if (pkBody) pkBody.innerHTML = '';
+            renderCalendarSessions(); renderAuleSessions(); applyFilters();
+            calendarDirty = false;
+            setSyncStatus('Caricato ' + (data.sessions || []).length + ' sessioni.');
+          } catch (e) { setSyncStatus('Errore parsing: ' + e.message); }
+          bumpInFlight(-1);
+        })
+        .withFailureHandler(function(err) {
+          setSyncStatus('Errore: ' + (err && err.message ? err.message : err));
+          bumpInFlight(-1);
+        })
+        .rpcLoadFromSheet();
+    });
+    document.getElementById('btnSave').addEventListener('click', () => {
+      const btn = document.getElementById('btnSave');
+      if (btn.disabled) return;
+      const pending = (data.pendingEdits || []).length;
+      if (pending === 0 && !confirm('Nessuna modifica pendente. Salvare comunque (rebuild snapshot)?')) return;
+      // Snapshot dei pendingEdits che stiamo per inviare: l'utente può
+      // continuare a fare drag durante il save → i nuovi edit restano in coda.
+      const editsToSave = (data.pendingEdits || []).slice();
+      savingInProgress = true;
+      btn.disabled = true;
+      const originalText = btn.textContent || '📤 Salva sul gsheet';
+      btn.textContent = 'Saving…';
+      setSyncStatus('Salvataggio in corso ('  + editsToSave.length + ' modifiche)…');
+      google.script.run
+        .withSuccessHandler(function(newJson) {
+          try {
+            const newData = JSON.parse(newJson);
+            // newData.sessions ha lo stato aggiornato post-save. newData.pendingEdits = [].
+            // Sostituisci tutto MA preserva pendingEdits non ancora inviati.
+            const editsNotSaved = (data.pendingEdits || []).filter(e => editsToSave.indexOf(e) === -1);
+            for (const k in newData) data[k] = newData[k];
+            data.pendingEdits = editsNotSaved;
+            sessionEls.forEach(el => el.remove()); sessionEls.length = 0; rsessionEls.length = 0;
+            renderCalendarSessions(); renderAuleSessions(); applyFilters();
+            calendarDirty = false;
+            setSyncStatus('Salvato (' + editsToSave.length + ' modifiche scritte, SxAULE rigenerato).');
+          } catch (e) { setSyncStatus('Errore parsing: ' + e.message); }
+          btn.textContent = '✓ Done';
+          setTimeout(function() {
+            btn.textContent = originalText;
+            savingInProgress = false;
+            updatePendingUI();
+          }, 1000);
+        })
+        .withFailureHandler(function(err) {
+          setSyncStatus('Errore: ' + (err && err.message ? err.message : err));
+          btn.textContent = originalText;
+          savingInProgress = false;
+          updatePendingUI();
+        })
+        .rpcSaveToSheet({ pendingEdits: editsToSave });
+    });
+    // Click sulla X dentro Log modifiche → revert dell'entry specifica
+    const logModBody = document.getElementById('logModBody');
+    if (logModBody) {
+      logModBody.addEventListener('click', (ev) => {
+        if (commitInFlight > 0) return;
+        const xBtn = ev.target.closest('.lmx');
+        if (!xBtn) return;
+        const entry = xBtn.closest('.lmentry');
+        if (!entry) return;
+        const sig = entry.getAttribute('data-sig') || '';
+        const kind = entry.getAttribute('data-kind') || '';
+        if (kind === 'pending') revertPendingEdit(sig);
+        else if (kind === 'parked') revertParkedEntry(sig);
+      });
+    }
+    updatePendingUI();
+  }
 
   // Layout iniziale (tutti visibili)
   relayoutVisible();

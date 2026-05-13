@@ -73,7 +73,7 @@ function detectAuleConfigFor_(ss) {
 const HEADER_ROWS = 1;
 
 function getTableFormat() {
-  const raw = PropertiesService.getDocumentProperties().getProperty(TABLE_FORMAT_PROP);
+  const raw = PropertiesService.getScriptProperties().getProperty(TABLE_FORMAT_PROP);
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw);
@@ -85,5 +85,5 @@ function getTableFormat() {
 }
 
 function setTableFormat(arr) {
-  PropertiesService.getDocumentProperties().setProperty(TABLE_FORMAT_PROP, JSON.stringify(arr));
+  PropertiesService.getScriptProperties().setProperty(TABLE_FORMAT_PROP, JSON.stringify(arr));
 }

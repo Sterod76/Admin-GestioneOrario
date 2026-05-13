@@ -33,15 +33,28 @@ const UNAVAIL_FG = '#ffffff';
 const UNAVAIL_FONT_SIZE = 10;
 const UNAVAIL_MARKER_REGEX = /^\s*non\s*disp/i;
 
-function tabellaAule() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const { prefix: AULE_PREFIX, output: AULE_OUTPUT } = detectAuleConfig();
+/**
+ * Helper: ritorna SpreadsheetApp.getUi() oppure null se chiamati da contesto
+ * non-bound (es. webapp RPC). Permette di chiamare tabellaAule sia dal menu
+ * Sheet (interattivo) sia da rpcSaveToSheet (silenzioso).
+ */
+function _maybeUi_() {
+  try { return SpreadsheetApp.getUi(); } catch (e) { return null; }
+}
+
+function tabellaAule(opts) {
+  const interactive = !opts || opts.interactive !== false;
+  const passedSs = opts && opts.ss ? opts.ss : null;
+  const ss = passedSs || SpreadsheetApp.getActiveSpreadsheet();
+  const { prefix: AULE_PREFIX, output: AULE_OUTPUT } = detectAuleConfigFor_(ss);
   const sources = ss.getSheets().filter(s => {
     const n = s.getName();
     return n.toUpperCase().startsWith(AULE_PREFIX) && n !== AULE_OUTPUT;
   });
   if (!sources.length) {
-    SpreadsheetApp.getUi().alert(`Nessun foglio "${AULE_PREFIX}*" trovato (escluso ${AULE_OUTPUT}).`);
+    const ui = _maybeUi_();
+    if (ui) ui.alert(`Nessun foglio "${AULE_PREFIX}*" trovato (escluso ${AULE_OUTPUT}).`);
+    else throw new Error(`Nessun foglio "${AULE_PREFIX}*" trovato (escluso ${AULE_OUTPUT}).`);
     return;
   }
 
@@ -193,8 +206,15 @@ function tabellaAule() {
       });
     });
     Logger.log(conflicts.join('\n'));
-    showConflictsDialog(conflicts, parseIssues);
-    return;
+    if (interactive) {
+      showConflictsDialog(conflicts, parseIssues);
+      return;
+    } else {
+      // Webapp context: niente dialog. Propaga errore al chiamante.
+      throw new Error('Conflitti rilevati (' + conflicts.length + '):\n' +
+        conflicts.slice(0, 5).join('\n') +
+        (conflicts.length > 5 ? '\n…' : ''));
+    }
   }
 
   // Read existing rooms from S1AULE.
@@ -242,18 +262,22 @@ function tabellaAule() {
 
   let acceptedNew = [];
   if (newRooms.length) {
-    const ui = SpreadsheetApp.getUi();
-    const resp = ui.alert(
-      'Aule non in S1AULE',
-      `Le seguenti aule sono usate nei fogli sorgente ma non sono in S1AULE:\n\n` +
-      `${newRooms.join(', ')}\n\nAggiungerle in coda?`,
-      ui.ButtonSet.YES_NO_CANCEL
-    );
-    if (resp === ui.Button.CANCEL || resp === ui.Button.CLOSE) {
+    const ui = interactive ? _maybeUi_() : null;
+    let resp = null;
+    if (ui) {
+      resp = ui.alert(
+        'Aule non in S1AULE',
+        `Le seguenti aule sono usate nei fogli sorgente ma non sono in S1AULE:\n\n` +
+        `${newRooms.join(', ')}\n\nAggiungerle in coda?`,
+        ui.ButtonSet.YES_NO_CANCEL
+      );
+    }
+    if (ui && (resp === ui.Button.CANCEL || resp === ui.Button.CLOSE)) {
       ss.toast('Operazione annullata.', 'Tabella aule', 3);
       return;
     }
-    if (resp === ui.Button.YES) acceptedNew = newRooms;
+    // In webapp (no ui) o se YES → auto-accept nuove aule
+    if (!ui || resp === ui.Button.YES) acceptedNew = newRooms;
     // se NO: sessioni di quelle aule verranno scartate
   }
 

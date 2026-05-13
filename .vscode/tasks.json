@@ -52,6 +52,27 @@
       "isBackground": true,
       "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
       "problemMatcher": []
+    },
+    {
+      "label": "clasp: whoami (account corrente)",
+      "type": "shell",
+      "command": "npm run whoami",
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "clasp: login (cambia account)",
+      "type": "shell",
+      "command": "npm run logout && npm run login",
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "clasp: logout",
+      "type": "shell",
+      "command": "npm run logout",
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
     }
   ]
 }

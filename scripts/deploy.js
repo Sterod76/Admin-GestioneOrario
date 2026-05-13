@@ -31,6 +31,7 @@ const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..');
 const LOCAL_PATH = path.join(ROOT, 'config', 'local.json');
+const { getLoggedAccount } = require('./whoami');
 
 function readJson(p) {
   try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch (e) { return null; }
@@ -82,6 +83,22 @@ if (!cfg.deploymentId) {
   console.error('');
   console.error('Dettagli completi: docs/duplicare-gsheet.md');
   process.exit(1);
+}
+
+// Preflight: verifica account clasp
+const loggedAccount = getLoggedAccount();
+const expected = cfg.expectedAccount || '';
+if (!loggedAccount) {
+  console.error('ERR: nessun account clasp loggato. Esegui: clasp login');
+  process.exit(1);
+}
+console.log('Account clasp attivo: ' + loggedAccount);
+if (expected && loggedAccount.toLowerCase() !== expected.toLowerCase()) {
+  console.error('');
+  console.error('⚠ ABORT: account loggato (' + loggedAccount + ') ≠ expectedAccount (' + expected + ').');
+  console.error('  Fix: clasp logout && clasp login   (seleziona ' + expected + ')');
+  console.error('  Oppure aggiorna expectedAccount in config/local.json.');
+  process.exit(2);
 }
 
 const cliDesc = process.argv[2];

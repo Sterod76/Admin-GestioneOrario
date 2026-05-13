@@ -1,152 +1,202 @@
-const SNAPSHOT_PROP_PREFIX = 'orarioSnap:';
-const SNAPSHOT_META_KEY = 'orarioSnap:meta';
-const PROP_CHUNK_SIZE = 4000; // chars; safe sotto il limite byte 9 KB anche con UTF-8 a 2 byte
+// ─────────────────────────────────────────────────────────────────────────────
+// Costanti — solo EDIT_EMAILS è strettamente necessaria per il funzionamento.
+// Lo snapshot ScriptProperty è una cache che accelera il page load (doGet).
+// ─────────────────────────────────────────────────────────────────────────────
+
 const EDIT_EMAILS_PROP = 'EDIT_EMAILS';
+const PROP_CHUNK_SIZE = 4000;            // chars per chunk; safe sotto i 9KB byte limit
+const SNAP_BUCKETS = ['LT', 'LM', 'PDS']; // nomi dei bucket snapshot
 
-/**
- * Restituisce array di email autorizzate alla modalita' editor.
- * Letto da DocumentProperty EDIT_EMAILS (formato JSON array).
- * Es. ["stefano.roddaro@unipi.it", "altro.docente@unipi.it"]
- */
+// ─────────────────────────────────────────────────────────────────────────────
+// AUTH: EDIT_EMAILS whitelist
+// ─────────────────────────────────────────────────────────────────────────────
+
 function getEditorEmails_() {
-  const raw = PropertiesService.getDocumentProperties().getProperty(EDIT_EMAILS_PROP);
+  const raw = PropertiesService.getScriptProperties().getProperty(EDIT_EMAILS_PROP);
   if (!raw) return [];
-  try {
-    const arr = JSON.parse(raw);
-    if (!Array.isArray(arr)) return [];
-    return arr.map(s => String(s || '').trim().toLowerCase()).filter(s => s.length);
-  } catch (e) { return []; }
+  return String(raw).split(/[\s,;]+/).map(s => s.trim().toLowerCase()).filter(s => s.indexOf('@') > 0);
 }
 
-function isEditor_(email, ownerEmail) {
+function isEditor_(email) {
   if (!email) return false;
-  const e = String(email).trim().toLowerCase();
-  // L'owner dello Spreadsheet e' sempre editor (anche se non in EDIT_EMAILS).
-  if (ownerEmail && e === String(ownerEmail).trim().toLowerCase()) return true;
-  return getEditorEmails_().indexOf(e) !== -1;
+  return getEditorEmails_().indexOf(String(email).trim().toLowerCase()) !== -1;
 }
 
-/**
- * Utility eseguibile dall'editor Apps Script per popolare la whitelist.
- * Esempio: setEditorEmails(["stefano.roddaro@unipi.it", "altro@unipi.it"]);
- */
 function setEditorEmails(emails) {
-  if (!Array.isArray(emails)) {
-    throw new Error('Passa un array di email, es. ["a@b.it","c@d.it"]');
-  }
+  if (!Array.isArray(emails)) throw new Error('Passa un array di email');
   const cleaned = emails.map(s => String(s || '').trim().toLowerCase()).filter(s => s.length);
-  PropertiesService.getDocumentProperties().setProperty(EDIT_EMAILS_PROP, JSON.stringify(cleaned));
-  return 'EDIT_EMAILS salvate: ' + cleaned.length + ' (' + cleaned.join(', ') + ')';
+  PropertiesService.getScriptProperties().setProperty(EDIT_EMAILS_PROP, cleaned.join(', '));
+  return 'EDIT_EMAILS: ' + cleaned.join(', ');
 }
 
-function getEditorEmailsList() {
-  return getEditorEmails_();
+function manageEditors() {
+  const ui = SpreadsheetApp.getUi();
+  const current = getEditorEmails_();
+  const res = ui.prompt(
+    'Editor web app (EDIT_EMAILS)',
+    'Inserisci email autorizzate, separate da virgola o nuova riga.\n\n' +
+    'Attuali:\n' + (current.length ? current.join('\n') : '(nessuna)'),
+    ui.ButtonSet.OK_CANCEL
+  );
+  if (res.getSelectedButton() !== ui.Button.OK) return;
+  const raw = res.getResponseText() || '';
+  const list = raw.split(/[\s,;]+/).map(s => s.trim().toLowerCase()).filter(s => s.indexOf('@') > 0);
+  setEditorEmails(list);
+  ui.alert('Salvato. ' + list.length + ' email:\n' + (list.join('\n') || '(vuoto)'));
 }
 
-/**
- * Endpoint editor: applica modifica a uno slot orario.
- * Payload:
- *   src    = { sheet, row, col, idx }     (identifica univocamente lo slot)
- *   target = { sheet, row, col, room, start, end }
- * Vincoli:
- *   - src.sheet === target.sheet (la sessione resta nello stesso foglio)
- *   - src.row   === target.row   (resta nello stesso corso/riga)
- *   - target.col puo' differire (cambio giorno LUN..SAB)
- *   - target.room puo' differire
- *   - target.start/end espressi in minuti dalla mezzanotte
- * Controllo conflitti: lo slot non puo' sovrapporsi ad altra sessione sulla
- * stessa (aula, giorno). Lo slot stesso (src) e' escluso dal check.
- * Ritorna il NUOVO snapshot JSON (stringa) che il client puo' usare per
- * aggiornare entrambe le viste in tempo reale.
- */
-function applyEditSlot(payload) {
-  const email = (function(){
-    try { return Session.getActiveUser().getEmail() || ''; } catch (e) { return ''; }
-  })();
-  let ownerEmail = '';
-  try {
-    const ss = SpreadsheetApp.openById(getBoundSpreadsheetId_());
-    const o = ss.getOwner();
-    if (o) ownerEmail = String(o.getEmail() || '').toLowerCase();
-  } catch (e) {}
-  if (!isEditor_(email, ownerEmail)) {
-    throw new Error('Non autorizzato (email: ' + (email || 'anonimo') + ').');
-  }
-  const lock = LockService.getDocumentLock();
-  if (!lock.tryLock(10000)) {
-    throw new Error('Lock fallito (un\'altra modifica e\' in corso). Riprova.');
-  }
-  try {
-    return applyEditSlot_(payload);
-  } finally {
-    try { lock.releaseLock(); } catch (e) {}
-  }
+function currentEmail_() {
+  try { return Session.getActiveUser().getEmail() || ''; } catch (e) { return ''; }
 }
 
-function applyEditSlot_(payload) {
-  if (!payload || !payload.src || !payload.target) {
-    throw new Error('Payload incompleto');
-  }
-  const src = payload.src;
-  const target = payload.target;
-  if (src.sheet !== target.sheet || src.row !== target.row) {
-    throw new Error('Spostamento cross-sheet o cross-row non supportato.');
-  }
-  const tStart = parseInt(target.start, 10);
-  const tEnd = parseInt(target.end, 10);
-  if (!isFinite(tStart) || !isFinite(tEnd) || tEnd <= tStart) {
-    throw new Error('Orario non valido (start=' + target.start + ', end=' + target.end + ').');
-  }
-  if (tStart < SLOT_START_MIN || tEnd > SLOT_END_MIN) {
-    throw new Error('Orario fuori range consentito (' +
-      fmtMin_(SLOT_START_MIN) + '-' + fmtMin_(SLOT_END_MIN) + ').');
-  }
-  if ((tStart % SLOT_STEP_MIN) !== 0 || (tEnd % SLOT_STEP_MIN) !== 0) {
-    throw new Error('Gli slot devono essere allineati a multipli di ' + SLOT_STEP_MIN + ' minuti.');
-  }
-  if (!target.room || !String(target.room).trim()) {
-    throw new Error('Aula target mancante.');
-  }
-  const targetRoom = String(target.room).trim();
+// ─────────────────────────────────────────────────────────────────────────────
+// doGet: legge lo snapshot dalle ScriptProperties (3 bucket LT/LM/PDS).
+// Se non esiste, fa un bootstrap one-shot leggendo il foglio.
+// ─────────────────────────────────────────────────────────────────────────────
 
-  const ss = SpreadsheetApp.openById(getBoundSpreadsheetId_());
-  const sh = ss.getSheetByName(src.sheet);
-  if (!sh) throw new Error('Foglio sorgente non trovato: ' + src.sheet);
-
-  // Conflict check (escludendo self)
-  const conflict = findConflict_(ss, { col: target.col, room: targetRoom, start: tStart, end: tEnd }, src);
-  if (conflict) {
-    throw new Error('Conflitto: ' + conflict);
-  }
-
-  // Leggi la cella sorgente, modifica/sposta il slot
-  const srcCell = sh.getRange(src.row, src.col);
-  const srcText = String(srcCell.getValue() || '');
-  const srcList = extractSessions(srcText).list;
-  if (src.idx < 0 || src.idx >= srcList.length) {
-    throw new Error('idx sessione non valido nella cella sorgente (idx=' +
-      src.idx + ', presenti=' + srcList.length + ').');
-  }
-
-  const newSession = { start: tStart, end: tEnd, room: targetRoom };
-
-  if (src.col === target.col) {
-    // Stessa cella: rimpiazza la sessione idx
-    srcList[src.idx] = newSession;
-    srcCell.setValue(renderSessions_(srcList));
+function doGet(e) {
+  const action = (e && e.parameter && e.parameter.action) || '';
+  let data = _readSnapshot_();
+  if (!data) {
+    // Primo accesso o snapshot corrotto: bootstrap dal foglio.
+    data = getOrarioData();
+    data.pendingEdits = [];
+    _writeSnapshot_(data);
   } else {
-    // Diversa cella (cambio giorno): rimuovi da source, aggiungi a target
-    srcList.splice(src.idx, 1);
-    srcCell.setValue(renderSessions_(srcList));
-    const tgtCell = sh.getRange(src.row, target.col);
-    const tgtList = extractSessions(String(tgtCell.getValue() || '')).list;
-    tgtList.push(newSession);
-    tgtCell.setValue(renderSessions_(tgtList));
+    data.pendingEdits = [];
   }
+  const json = JSON.stringify(data);
+  if (action === 'data') {
+    return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
+  }
+  const tpl = HtmlService.createTemplateFromFile('index');
+  tpl.bootstrap = json;
+  const semester = data.semester || 'S1';
+  let userEmail = '';
+  try { userEmail = Session.getActiveUser().getEmail() || ''; } catch (err) {}
+  tpl.editMode = isEditor_(userEmail);
+  tpl.userEmail = userEmail;
+  let webAppUrl = '';
+  try { webAppUrl = ScriptApp.getService().getUrl() || ''; } catch (err) {}
+  tpl.webAppUrl = webAppUrl;
+  tpl.diag = JSON.stringify({
+    activeEmail: userEmail,
+    editEmails: getEditorEmails_(),
+    isEditorResult: tpl.editMode,
+    ts: new Date().toISOString()
+  });
+  return tpl.evaluate()
+    .setTitle('Bozza Orario ' + semester)
+    .setFaviconUrl('https://www.df.unipi.it/wp-content/uploads/2025/03/cropped-favf-192x192.png')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
 
-  // Modifica scritta sul foglio. Ritorna lo snapshot fresco al client
-  // (non serve cachare: doGet legge sempre live ad ogni page load).
-  return JSON.stringify(getOrarioData());
+// ─────────────────────────────────────────────────────────────────────────────
+// RPC: Carica dal gsheet (foglio → snapshot → client)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function rpcLoadFromSheet() {
+  if (!isEditor_(currentEmail_())) throw new Error('Non autorizzato.');
+  const data = getOrarioData();
+  data.pendingEdits = [];
+  _writeSnapshot_(data);
+  return JSON.stringify(data);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RPC: Salva sul gsheet (pendingEdits → SxLT/LM celle, rigenera SxAULE,
+//                       rebuild snapshot, ritorna data fresco)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function rpcSaveToSheet(payload) {
+  if (!isEditor_(currentEmail_())) throw new Error('Non autorizzato.');
+  const lock = LockService.getDocumentLock();
+  if (!lock.tryLock(15000)) throw new Error('Lock fallito (altra scrittura in corso).');
+  try {
+    const edits = (payload && Array.isArray(payload.pendingEdits)) ? payload.pendingEdits : [];
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (edits.length) applyEditsBatch_(ss, edits);
+    // Rigenera SxAULE (non-interactive: throw su conflitti, auto-accept new rooms)
+    tabellaAule({ ss: ss, interactive: false });
+    // Re-read foglio + scrivi 3 bucket
+    const data = getOrarioData();
+    data.pendingEdits = [];
+    _writeSnapshot_(data);
+    return JSON.stringify(data);
+  } finally { try { lock.releaseLock(); } catch (e) {} }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sheet menu: 📅 Pubblica Web Calendar
+// Legge il foglio, rigenera SxAULE, scrive i 3 bucket dello snapshot.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function publishWebCalendar() {
+  const ui = SpreadsheetApp.getUi();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  // Rigenera SxAULE (interattivo: dialog su conflitti / new rooms)
+  tabellaAule({ ss: ss, interactive: true });
+  // Legge il foglio e scrive snapshot
+  const data = getOrarioData();
+  data.pendingEdits = [];
+  _writeSnapshot_(data);
+  ui.alert('Pubblicato',
+    'Web Calendar aggiornato:\n' +
+    '• ' + data.sessions.length + ' sessioni\n' +
+    '• ' + (data.rooms || []).length + ' aule\n' +
+    '• Bucket: ' + SNAP_BUCKETS.join(', '),
+    ui.ButtonSet.OK);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Edit batch su SxLT/SxLM
+// ─────────────────────────────────────────────────────────────────────────────
+
+function applyEditsBatch_(ss, edits) {
+  const cellOps = {};
+  const sheetCache = {};
+  function getSheet(name) {
+    if (!sheetCache[name]) sheetCache[name] = ss.getSheetByName(name);
+    return sheetCache[name];
+  }
+  function ensure(sheet, row, col) {
+    const k = sheet + '|' + row + '|' + col;
+    if (!cellOps[k]) cellOps[k] = { sheet, row, col, replacements: {}, removals: [], additions: [] };
+    return cellOps[k];
+  }
+  edits.forEach(e => {
+    const sheet = e.src.sheet;
+    const row = e.src.row;
+    const sCol = e.src.col;
+    const tCol = parseInt(e.target.col, 10);
+    const slot = { start: e.target.start, end: e.target.end, room: String(e.target.room).trim() };
+    if (sCol === tCol) {
+      ensure(sheet, row, sCol).replacements[e.src.idx] = slot;
+    } else {
+      ensure(sheet, row, sCol).removals.push(e.src.idx);
+      ensure(sheet, row, tCol).additions.push(slot);
+    }
+  });
+  let cellsRead = 0, cellsWritten = 0;
+  Object.keys(cellOps).forEach(k => {
+    const op = cellOps[k];
+    const sh = getSheet(op.sheet);
+    if (!sh) throw new Error('Foglio non trovato: ' + op.sheet);
+    const cell = sh.getRange(op.row, op.col);
+    let list = extractSessions(String(cell.getValue() || '')).list;
+    cellsRead++;
+    Object.keys(op.replacements).forEach(idx => {
+      const i = parseInt(idx, 10);
+      if (i >= 0 && i < list.length) list[i] = op.replacements[idx];
+    });
+    op.removals.sort((a, b) => b - a).forEach(i => {
+      if (i >= 0 && i < list.length) list.splice(i, 1);
+    });
+    op.additions.forEach(s => list.push(s));
+    cell.setValue(renderSessions_(list));
+    cellsWritten++;
+  });
+  return { cellsRead, cellsWritten };
 }
 
 function renderSessions_(sessions) {
@@ -159,138 +209,221 @@ function fmtMin_(min) {
   return pad(h) + ':' + pad(m);
 }
 
-/**
- * Scansiona TUTTI i fogli source con il prefisso del semestre attivo
- * (S1 o S2) e ritorna una stringa descrittiva del primo conflitto trovato
- * per (aula, giorno col, intervallo [start,end)), escludendo lo slot src.
- * Ritorna null se nessun conflitto.
- */
-function findConflict_(ss, target, srcExclude) {
-  const cfg = detectAuleConfigFor_(ss);
-  const sheets = ss.getSheets().filter(s => {
-    const n = s.getName();
-    return n.toUpperCase().startsWith(cfg.prefix) && n !== cfg.output;
-  });
-  const dayIdx = target.col - CALENDAR_COLS_START;
-  for (let si = 0; si < sheets.length; si++) {
-    const sh = sheets[si];
-    const lastRow = sh.getLastRow();
-    if (lastRow < HEADER_ROWS + 1) continue;
-    const colVals = sh.getRange(HEADER_ROWS + 1, target.col, lastRow - HEADER_ROWS, 1).getValues();
-    for (let r = 0; r < colVals.length; r++) {
-      const cellText = colVals[r][0];
-      if (!cellText) continue;
-      const sheetRow = HEADER_ROWS + 1 + r;
-      const list = extractSessions(String(cellText)).list;
-      for (let i = 0; i < list.length; i++) {
-        // Skip self
-        if (sh.getName() === srcExclude.sheet &&
-            sheetRow === srcExclude.row &&
-            target.col === srcExclude.col &&
-            i === srcExclude.idx) continue;
-        const s = list[i];
-        if (s.room !== target.room) continue;
-        if (target.start < s.end && target.end > s.start) {
-          return DAYS_LABELS[dayIdx] + ' ' + fmtMin_(s.start) + '-' + fmtMin_(s.end) +
-                 ' aula ' + s.room + ' (' + sh.getName() + ' riga ' + sheetRow + ')';
-        }
-      }
+// ─────────────────────────────────────────────────────────────────────────────
+// Snapshot storage in 3 bucket: LT, LM, PDS
+//
+//   ScriptProperties layout:
+//     LT_meta     → JSON { n, len, ts }
+//     LT_0..LT_N  → chunk JSON (PROP_CHUNK_SIZE chars max each)
+//     LM_meta, LM_0..LM_M
+//     PDS_meta, PDS_0..PDS_K
+//
+//   Contenuto per bucket (split logico, ricomposto a doGet):
+//     LT:  sessioni da SxLT, codes (LT), sheetsInfo (LT), tipi/gruppi/titolari LT
+//     LM:  stesso per SxLM
+//     PDS: pds list + rooms + roomSubtitles + unavail + semester + slot meta
+//          + vincoloColors + ownerEmail + generatedAt
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Split logico del data in 3 bucket per fonte. */
+function _splitBuckets_(data) {
+  const sessions = data.sessions || [];
+  const sheets = data.sheets || [];
+
+  const ltSessions = sessions.filter(s => /LT$/i.test(s.sheet || ''));
+  const lmSessions = sessions.filter(s => /LM$/i.test(s.sheet || ''));
+
+  const ltSheets = sheets.filter(si => /LT$/i.test(si.name || ''));
+  const lmSheets = sheets.filter(si => /LM$/i.test(si.name || ''));
+
+  function uniqFromSessions_(arr, key) {
+    const seen = {};
+    arr.forEach(s => { const v = s[key]; if (v) seen[v] = true; });
+    return Object.keys(seen).sort();
+  }
+
+  return {
+    LT: {
+      sessions: ltSessions,
+      codes: data.codesLT || [],
+      sheetsInfo: ltSheets,
+      tipi: uniqFromSessions_(ltSessions, 'tipo'),
+      gruppi: uniqFromSessions_(ltSessions, 'group'),
+      titolari: uniqFromSessions_(ltSessions, 'titolare')
+    },
+    LM: {
+      sessions: lmSessions,
+      codes: data.codesLM || [],
+      sheetsInfo: lmSheets,
+      tipi: uniqFromSessions_(lmSessions, 'tipo'),
+      gruppi: uniqFromSessions_(lmSessions, 'group'),
+      titolari: uniqFromSessions_(lmSessions, 'titolare')
+    },
+    PDS: {
+      pds: data.pds || [],
+      rooms: data.rooms || [],
+      roomSubtitles: data.roomSubtitles || {},
+      unavail: data.unavail || [],
+      semester: data.semester || 'S1',
+      days: data.days || ['LUN','MAR','MER','GIO','VEN','SAB'],
+      slotStartMin: data.slotStartMin,
+      slotEndMin: data.slotEndMin,
+      slotStepMin: data.slotStepMin,
+      vincoloColors: data.vincoloColors || {},
+      ownerEmail: data.ownerEmail || '',
+      generatedAt: data.generatedAt || new Date().toISOString()
     }
-  }
-  return null;
+  };
 }
 
-function doGet(e) {
-  const action = (e && e.parameter && e.parameter.action) || '';
-  // Sempre live: ogni page load rilegge lo stato attuale dello Spreadsheet.
-  // Niente snapshot cached, niente "pubblicazione" intermedia → vista
-  // sempre allineata col foglio.
-  const data = getOrarioData();
-  const json = JSON.stringify(data);
-  if (action === 'data') {
-    return ContentService.createTextOutput(json)
-      .setMimeType(ContentService.MimeType.JSON);
+/** Riassembla i 3 bucket in un oggetto data flat, formato atteso dal client. */
+function _assembleBuckets_(buckets) {
+  const LT = buckets.LT || {};
+  const LM = buckets.LM || {};
+  const PDS = buckets.PDS || {};
+  function uniq_(a, b) {
+    const seen = {};
+    (a || []).forEach(x => { seen[x] = true; });
+    (b || []).forEach(x => { seen[x] = true; });
+    return Object.keys(seen).sort();
   }
-  const tpl = HtmlService.createTemplateFromFile('index');
-  tpl.bootstrap = json;
-  const semester = data.semester || 'S1';
-  let userEmail = '';
-  try { userEmail = Session.getActiveUser().getEmail() || ''; } catch (e) {}
-  tpl.editMode = isEditor_(userEmail, data.ownerEmail);
-  tpl.userEmail = userEmail;
-  return tpl.evaluate()
-    .setTitle('Bozza Orario ' + semester)
-    .setFaviconUrl('https://www.df.unipi.it/wp-content/uploads/2025/03/cropped-favf-192x192.png')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  return {
+    semester: PDS.semester || 'S1',
+    days: PDS.days || ['LUN','MAR','MER','GIO','VEN','SAB'],
+    slotStartMin: PDS.slotStartMin,
+    slotEndMin: PDS.slotEndMin,
+    slotStepMin: PDS.slotStepMin,
+    sheets: [].concat(LT.sheetsInfo || [], LM.sheetsInfo || []),
+    rooms: PDS.rooms || [],
+    roomSubtitles: PDS.roomSubtitles || {},
+    tipi: uniq_(LT.tipi, LM.tipi),
+    gruppi: uniq_(LT.gruppi, LM.gruppi),
+    titolari: uniq_(LT.titolari, LM.titolari),
+    codesLT: LT.codes || [],
+    codesLM: LM.codes || [],
+    pds: PDS.pds || [],
+    vincoloColors: PDS.vincoloColors || {},
+    ownerEmail: PDS.ownerEmail || '',
+    sessions: [].concat(LT.sessions || [], LM.sessions || []),
+    unavail: PDS.unavail || [],
+    generatedAt: PDS.generatedAt || new Date().toISOString()
+  };
 }
 
-/**
- * Deprecato: il Web Calendar e' ora sempre live (legge lo Spreadsheet
- * ad ogni page load). Non c'e' piu' uno snapshot da aggiornare.
- * Lasciato per backward-compat se qualche flusso esterno lo invocava;
- * non e' nel menu.
- */
-function aggiornaWebApp() {
-  SpreadsheetApp.getActiveSpreadsheet().toast(
-    'Non serve piu\': il Web Calendar e\' sempre allineato live al foglio.',
-    'Web Calendar', 5
-  );
-}
-
-function saveSnapshot_(json) {
-  const props = PropertiesService.getDocumentProperties();
-  // Cancella chunk precedenti
-  const all = props.getProperties();
-  Object.keys(all).forEach(k => {
-    if (k.indexOf(SNAPSHOT_PROP_PREFIX) === 0) props.deleteProperty(k);
-  });
-  // Split + write
-  const chunks = [];
-  for (let i = 0; i < json.length; i += PROP_CHUNK_SIZE) {
-    chunks.push(json.slice(i, i + PROP_CHUNK_SIZE));
-  }
-  const meta = { n: chunks.length, len: json.length, ts: Date.now() };
-  const toSet = {};
-  toSet[SNAPSHOT_META_KEY] = JSON.stringify(meta);
-  chunks.forEach((c, i) => { toSet[SNAPSHOT_PROP_PREFIX + i] = c; });
-  props.setProperties(toSet);
-}
-
-function getSnapshot_() {
-  const props = PropertiesService.getDocumentProperties();
-  const metaRaw = props.getProperty(SNAPSHOT_META_KEY);
-  if (!metaRaw) return null;
-  let meta;
-  try { meta = JSON.parse(metaRaw); } catch (e) { return null; }
-  const keys = [];
-  for (let i = 0; i < meta.n; i++) keys.push(SNAPSHOT_PROP_PREFIX + i);
-  let out = '';
-  for (let i = 0; i < meta.n; i++) {
-    const c = props.getProperty(keys[i]);
-    if (c == null) return null;
-    out += c;
-  }
-  if (out.length !== meta.len) return null;
+function _chunkString_(s) {
+  const out = [];
+  for (let i = 0; i < s.length; i += PROP_CHUNK_SIZE) out.push(s.slice(i, i + PROP_CHUNK_SIZE));
   return out;
 }
 
-function clearSnapshot() {
-  const props = PropertiesService.getDocumentProperties();
-  const all = props.getProperties();
-  let n = 0;
-  Object.keys(all).forEach(k => {
-    if (k.indexOf(SNAPSHOT_PROP_PREFIX) === 0) {
-      props.deleteProperty(k);
-      n++;
+/** Scrive i 3 bucket + meta in un singolo setProperties batch. */
+function _writeSnapshot_(data) {
+  const props = PropertiesService.getScriptProperties();
+  const buckets = _splitBuckets_(data);
+
+  // Conta chunk vecchi per cleanup orfani
+  const oldCounts = {};
+  SNAP_BUCKETS.forEach(name => {
+    let n = 0;
+    try {
+      const m = props.getProperty(name + '_meta');
+      if (m) n = JSON.parse(m).n || 0;
+    } catch (e) {}
+    oldCounts[name] = n;
+  });
+
+  const toSet = {};
+  const newCounts = {};
+  SNAP_BUCKETS.forEach(name => {
+    const json = JSON.stringify(buckets[name] || {});
+    const chunks = _chunkString_(json);
+    toSet[name + '_meta'] = JSON.stringify({ n: chunks.length, len: json.length, ts: Date.now() });
+    chunks.forEach((c, i) => { toSet[name + '_' + i] = c; });
+    newCounts[name] = chunks.length;
+  });
+  props.setProperties(toSet);
+
+  // Orphan delete (se nuovo snapshot ha meno chunk)
+  SNAP_BUCKETS.forEach(name => {
+    for (let i = newCounts[name]; i < oldCounts[name]; i++) {
+      props.deleteProperty(name + '_' + i);
     }
   });
-  SpreadsheetApp.getActiveSpreadsheet().toast(`Rimosse ${n} chiavi snapshot.`, 'Web app', 3);
 }
 
+/** Legge i 3 bucket e ritorna data riassemblato. Null se mancante/corrotto. */
+function _readSnapshot_() {
+  const props = PropertiesService.getScriptProperties();
+  const all = props.getProperties();
+  const buckets = {};
+  for (let bi = 0; bi < SNAP_BUCKETS.length; bi++) {
+    const name = SNAP_BUCKETS[bi];
+    const metaRaw = all[name + '_meta'];
+    if (!metaRaw) return null;
+    let meta;
+    try { meta = JSON.parse(metaRaw); } catch (e) { return null; }
+    let str = '';
+    for (let i = 0; i < meta.n; i++) {
+      const c = all[name + '_' + i];
+      if (c == null) return null;
+      str += c;
+    }
+    if (str.length !== meta.len) return null;
+    try { buckets[name] = JSON.parse(str); } catch (e) { return null; }
+  }
+  return _assembleBuckets_(buckets);
+}
+
+/** Rimuove tutti i chunk + meta dei 3 bucket. */
+function _clearSnapshot_() {
+  const props = PropertiesService.getScriptProperties();
+  const all = props.getProperties();
+  Object.keys(all).forEach(k => {
+    for (let bi = 0; bi < SNAP_BUCKETS.length; bi++) {
+      const name = SNAP_BUCKETS[bi];
+      if (k === name + '_meta' || k.indexOf(name + '_') === 0) {
+        props.deleteProperty(k);
+        return;
+      }
+    }
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// One-shot cleanup chiavi legacy (snap:*, orarioSnap:*, orarioLog,
+// ownerEmailCache, spreadsheetId). Esegui dall'editor Apps Script una volta.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function cleanupLegacyProperties() {
+  const props = PropertiesService.getScriptProperties();
+  const all = props.getProperties();
+  const legacyPrefixes = ['snap:', 'orarioSnap:'];
+  const legacyKeys = ['snap:meta', 'orarioSnap:meta', 'orarioLog', 'ownerEmailCache', 'spreadsheetId'];
+  let removed = 0;
+  Object.keys(all).forEach(k => {
+    const hitPrefix = legacyPrefixes.some(p => k.indexOf(p) === 0);
+    const hitKey = legacyKeys.indexOf(k) !== -1;
+    if (hitPrefix || hitKey) {
+      props.deleteProperty(k);
+      removed++;
+    }
+  });
+  const msg = 'Rimosse ' + removed + ' chiavi legacy.';
+  Logger.log(msg);
+  try { SpreadsheetApp.getActiveSpreadsheet().toast(msg, 'Cleanup', 5); } catch (e) {}
+  return msg;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// getOrarioData: legge il foglio e costruisce l'oggetto data completo.
+// Chiamato da doGet (bootstrap), rpcLoadFromSheet, rpcSaveToSheet,
+// publishWebCalendar. È l'unica funzione che apre lo Spreadsheet.
+// ─────────────────────────────────────────────────────────────────────────────
+
 function getOrarioData() {
-  const ss = SpreadsheetApp.openById(getBoundSpreadsheetId_());
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
   const { prefix: AULE_PREFIX, output: AULE_OUTPUT } = detectAuleConfigFor_(ss);
-  const semester = AULE_PREFIX; // 'S1' o 'S2'
+  const semester = AULE_PREFIX;
   let ownerEmail = '';
   try {
     const o = ss.getOwner();
@@ -301,7 +434,6 @@ function getOrarioData() {
     return n.toUpperCase().startsWith(AULE_PREFIX) && n !== AULE_OUTPUT;
   });
 
-  // Phase 1: mappa mutuanti per codice padre
   const mutuantiByParent = buildMutuantiMap(sources);
 
   const sheetsInfo = [];
@@ -323,21 +455,20 @@ function getOrarioData() {
     if (lastRow < HEADER_ROWS + 1) return;
     const fullRange = sheet.getRange(HEADER_ROWS + 1, 1, lastRow - HEADER_ROWS, ROW_DATA_LAST_COL);
     const data = fullRange.getValues();
-    const bgs = fullRange.getBackgrounds();
+    const vincoloBgs = sheet.getRange(HEADER_ROWS + 1, COL_VINCOLO, lastRow - HEADER_ROWS, 1).getBackgrounds();
     data.forEach((row, rIdx) => {
       const code = row[COL_CODICE - 1];
       if (!code) return;
       const codeUpper = String(code).trim().toUpperCase();
       if (sheetIsLT) codesLT[codeUpper] = true;
       if (sheetIsLM) codesLM[codeUpper] = true;
-      // Riga mutuata: salta, non genera sessioni
       if (parseMutuazione(row[COL_MUTUATO - 1])) return;
       const anno = row[0];
       const name = row[COL_NOMECORSO - 1];
       const tipo = row[COL_TIPO - 1];
       const vincoloRaw = row[COL_VINCOLO - 1];
       const vincoloKey = vincoloRaw ? String(vincoloRaw).trim().toUpperCase() : '';
-      const staticBg = bgs[rIdx][COL_VINCOLO - 1];
+      const staticBg = vincoloBgs[rIdx][0];
       const vincoloBg = !isWhiteOrEmpty(staticBg)
         ? staticBg
         : (VINCOLO_FALLBACK_COLORS[vincoloKey] || VINCOLO_DEFAULT_COLOR);
@@ -363,23 +494,17 @@ function getOrarioData() {
         const cellText = row[CALENDAR_COLS_START - 1 + d];
         if (!cellText) continue;
         const parsed = extractSessions(String(cellText));
-        const sheetRow = HEADER_ROWS + 1 + rIdx;       // 1-indexed
-        const sheetCol = CALENDAR_COLS_START + d;      // 1-indexed
+        const sheetRow = HEADER_ROWS + 1 + rIdx;
+        const sheetCol = CALENDAR_COLS_START + d;
         parsed.list.forEach((s, sessionIdx) => {
           roomSet[s.room] = true;
-          // Anno: estrai tutte le cifre. "1"→"1", "12"→"12", "1 e 2"→"12"
           const annoDigits = String(anno == null ? '' : anno).replace(/[^0-9]/g, '');
           const mutLista = mutuantiByParent[codeStr.toUpperCase()] || [];
           sessions.push({
             sheet: sheetName,
             sheetColor: tabColor,
             anno: annoDigits,
-            src: {
-              sheet: sheetName,
-              row: sheetRow,
-              col: sheetCol,
-              idx: sessionIdx
-            },
+            src: { sheet: sheetName, row: sheetRow, col: sheetCol, idx: sessionIdx },
             code: codeStr,
             name: nameStr,
             tipo: tipoStr,
@@ -401,12 +526,12 @@ function getOrarioData() {
     });
   });
 
-  // Unavailability from S1AULE
   const slots = [];
   for (let m = SLOT_START_MIN; m + SLOT_STEP_MIN <= SLOT_END_MIN; m += SLOT_STEP_MIN) slots.push(m);
   const unavail = [];
   const aule = ss.getSheetByName(AULE_OUTPUT);
   const orderedRooms = [];
+  const roomSubtitles = {};
   if (aule) {
     const items = readUnavailability(aule, DAYS_LABELS.length, slots.length);
     items.forEach(it => {
@@ -419,7 +544,6 @@ function getOrarioData() {
         text: it.text
       });
     });
-    // Ordine aule da col A del foglio AULE (un blocco di nDays righe per aula)
     const lr = aule.getLastRow();
     if (lr >= 2) {
       const colA = aule.getRange(2, 1, lr - 1, 1).getValues().map(r => r[0]);
@@ -435,11 +559,13 @@ function getOrarioData() {
         if (seen[name]) continue;
         seen[name] = true;
         orderedRooms.push(name);
+        if (lines.length > 1) {
+          roomSubtitles[name] = lines.slice(1).join(' · ');
+        }
       }
     }
   }
 
-  // PdS: lista curricula → codici + classificazione per-codice (OBB/FOR/OPZ)
   const pdsList = [];
   const pdsSheet = ss.getSheetByName(PDS_SHEET_NAME);
   if (pdsSheet) {
@@ -463,23 +589,20 @@ function getOrarioData() {
           extractPdsCodes(row[c - 1]).forEach(code => set(code, 'FOR'));
         }
         extractPdsCodes(row[PDS_COL_OPT - 1]).forEach(code => set(code, 'OPZ'));
-        pdsList.push({
-          name: name,
-          codes: Object.keys(codes),
-          vincoloByCode: vincoloByCode
-        });
+        pdsList.push({ name, codes: Object.keys(codes), vincoloByCode });
       });
     }
   }
 
   return {
-    semester: semester,
+    semester,
     days: DAYS_LABELS,
     slotStartMin: SLOT_START_MIN,
     slotEndMin: SLOT_END_MIN,
     slotStepMin: SLOT_STEP_MIN,
     sheets: sheetsInfo,
     rooms: mergeRoomOrder_(orderedRooms, Object.keys(roomSet)),
+    roomSubtitles: roomSubtitles,
     tipi: Object.keys(tipoSet).sort(),
     gruppi: Object.keys(groupSet).sort(),
     titolari: Object.keys(titolareSet).sort(),
@@ -487,40 +610,17 @@ function getOrarioData() {
     codesLM: Object.keys(codesLM),
     pds: pdsList,
     vincoloColors: VINCOLO_FALLBACK_COLORS,
-    ownerEmail: ownerEmail,
-    sessions: sessions,
-    unavail: unavail,
+    ownerEmail,
+    sessions,
+    unavail,
     generatedAt: new Date().toISOString()
   };
 }
 
-/**
- * Combina l'ordine "ufficiale" del foglio AULE con le aule scoperte nei sources.
- * Le aule presenti in AULE_OUTPUT mantengono l'ordine; quelle eventualmente in piu
- * (sessioni in fogli S1 o S2 di aule non in AULE) sono accodate ordinate.
- */
 function mergeRoomOrder_(orderedRooms, discoveredRooms) {
   const seen = {};
   const out = [];
   orderedRooms.forEach(r => { if (!seen[r]) { seen[r] = true; out.push(r); } });
   const extras = discoveredRooms.filter(r => !seen[r]).sort(roomCompare);
   return out.concat(extras);
-}
-
-function getBoundSpreadsheetId_() {
-  const id = PropertiesService.getDocumentProperties().getProperty('spreadsheetId');
-  if (id) return id;
-  // Fallback: bound script
-  try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    if (ss) return ss.getId();
-  } catch (e) {}
-  throw new Error('Spreadsheet ID non trovato. Esegui setSpreadsheetId() dall\'editor con l\'ID.');
-}
-
-function setSpreadsheetIdFromActive() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  if (!ss) throw new Error('Esegui dall\'editor del foglio');
-  PropertiesService.getDocumentProperties().setProperty('spreadsheetId', ss.getId());
-  SpreadsheetApp.getActiveSpreadsheet().toast('Spreadsheet ID salvato.', 'Web app', 3);
 }

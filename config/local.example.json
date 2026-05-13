@@ -3,5 +3,6 @@
   "deploymentId": "<YOUR_WEBAPP_DEPLOYMENT_ID>",
   "deploymentDescription": "BozzaOrario",
   "webappUrl": "<https://script.google.com/.../exec>",
-  "spreadsheetId": "<OPTIONAL_SPREADSHEET_ID>"
+  "spreadsheetId": "<OPTIONAL_SPREADSHEET_ID>",
+  "expectedAccount": "<your.account@example.com>"
 }

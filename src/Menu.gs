@@ -8,7 +8,11 @@ function onOpen() {
     .addItem('🔄 Ricarica formato tabella', 'reloadTableFormat')
     .addItem('💾 Salva formato tabella', 'saveTableFormat')
     .addSeparator()
+    .addItem('📅 Pubblica Web Calendar', 'publishWebCalendar')
+    .addSeparator()
     .addItem('📤 Esporta JSON', 'exportToJson')
     .addItem('📥 Importa JSON', 'importFromJson')
+    .addSeparator()
+    .addItem('👥 Gestisci editor web app', 'manageEditors')
     .addToUi();
 }

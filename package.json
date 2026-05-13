@@ -11,7 +11,10 @@
     "deployments": "clasp list-deployments",
     "status": "clasp status",
     "open": "clasp open-script",
-    "logs": "clasp logs"
+    "logs": "clasp logs",
+    "whoami": "node scripts/whoami.js",
+    "login": "clasp login",
+    "logout": "clasp logout"
   },
   "engines": {
     "node": ">=18"
