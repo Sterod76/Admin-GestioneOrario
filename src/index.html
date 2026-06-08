@@ -2696,7 +2696,10 @@ var _editActive = !!EDIT_MODE;
 
     let html = '';
     if (_collView === 'matrix') {
-      html += renderPdsLists('obb');
+      // OBBLIGHI–OBBLIGHI come liste per PdS; se non ce ne sono, lo diciamo
+      // esplicitamente (come per la matrice OPZIONALI).
+      const _obbH = renderPdsLists('obb');
+      html += _obbH || '<div class="cl-section"><h3>OBBLIGHI – OBBLIGHI</h3><div class="cl-none">— nessuna collisione —</div></div>';
       html += collMatrixHtml('OBBLIGHI – FORCHETTE <span class="cl-count">(<span class="cl-lg-obb">obbligo</span> = righe ✕ <span class="cl-lg-for">forchetta</span> = colonne)</span>', ofMap, 'of');
       html += collMatrixHtml('FORCHETTE – FORCHETTE', ffMap, 'ff');
       html += collMatrixOpzHtml('OPZIONALI – TUTTI <span class="cl-count">(<span class="cl-lg-opz">opzionale</span> = colonne ✕ tutti gli esami = righe · non valorizzate)</span>', opzMap, 'opz');
@@ -3000,7 +3003,7 @@ var _editActive = !!EDIT_MODE;
   function renderCoexamMatrix() {
     _renderCoexMatrix({
       boxId: 'coexamBody', codesKey: 'codesLM', levelRe: /LM$/i, vincoli: { OBB: 1, FOR: 1 }, selKey: 'LM', usePds: true,
-      title: 'Matrice di co-esami', emptyMsg: 'Nessun codice LM obbligatorio/forchetta del semestre.',
+      title: 'Matrice di co-esami (obblighi+forchette)', emptyMsg: 'Nessun codice LM obbligatorio/forchetta del semestre.',
       inputId: 'cxThresh', getT: () => _cxThresh, render: renderCoexamMatrix,
       setT: v => { _cxThresh = v; try { localStorage.setItem('orarioCoexThresh', String(v)); } catch (e) {} }
     });

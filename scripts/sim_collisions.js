@@ -420,5 +420,11 @@ check('Somme: presenti i totali di riga/colonna (cx-sum) e generale (cx-grand)',
 check('Somme: i totali delle matrici (OF+FF) sommano al banner (' + grands.join('+') + '=' + bannerTot + ')',
   grands.reduce((a, b) => a + b, 0) === bannerTot);
 
+// ===== OBB-OBB vuoto: quando non ci sono collisioni obbligo-obbligo, la vista
+// matrice scrive esplicitamente "OBBLIGHI – OBBLIGHI · — nessuna collisione —"
+// (il dataset E2E non ha coppie OBB-OBB). =====
+check('OBB-OBB vuoto: sezione "OBBLIGHI – OBBLIGHI" con "nessuna collisione"',
+  /<h3>OBBLIGHI[^<]*OBBLIGHI<\/h3><div class="cl-none">[^<]*nessuna collisione/.test(eout));
+
 console.log('\nRISULTATO: ' + pass + ' pass, ' + fail + ' fail');
 process.exit(fail ? 1 : 0);

@@ -214,8 +214,9 @@ tab Collisioni, passando sopra la cella costo.)*
 
 Report (sola lettura) delle sovrapposizioni d'orario, con la **funzione di costo**
 in cima (totale `ore × studenti-in-comune` a settimana). Le collisioni fra
-**obblighi** sono **sempre** mostrate come **lista**; il toggle in alto cambia solo
-le *forchette*:
+**obblighi** sono **sempre** mostrate come **lista** (se non ce ne sono, una sezione
+**OBBLIGHI–OBBLIGHI** lo dice esplicitamente: «— nessuna collisione —»); il toggle in
+alto cambia solo le *forchette*:
 - **📋 Mostra solo liste** — tutto a lista (per Piano di Studi).
 - **▦ Mostra matrice forchette** (default) — obblighi a lista + le collisioni con le
   forchette come **matrici** (OBBLIGHI–FORCHETTE e FORCHETTE–FORCHETTE), più la
@@ -318,13 +319,21 @@ docente; le collisioni fra slot dello **stesso codice** sono escluse (falsi posi
 
 ### Co-esami LM
 
-**Matrice** dei codici LM obbligatori/forchetta del semestre. **Diagonale** = `E`
+**Matrice** dei codici LM obbligatori/forchetta del semestre (intestazione
+**"Matrice di co-esami (obblighi+forchette)"**, come la LT è etichettata
+*(opzionali)*). **Diagonale** = `E`
 (numero esami sostenuti, sui 3 AA); **fuori diagonale** = `N` (studenti che hanno
 sostenuto **entrambi**). Heatmap ambra a partire dalla **soglia** impostabile nel
 campo *"colore da N ≥"* (default 2, persistita). Lo sfondo della casella del codice
 è colorato per vincolo (rosso OBB / giallo FOR); la casella in alto a sinistra è
 quadrata. **Passando sopra un codice** (riga o colonna) compare un popover con i
 dettagli del corso (titolo, docenti, settore, E…).
+
+> **Tutti i co-esami vengono importati.** Il foglio `MATRICE` viene letto **per
+> intero** — *tutti* i codici e *tutte* le coppie (opzionali compresi; i mutuati
+> rimappati sul capostipite), **senza filtri di vincolo**. Il tab LM **mostra** solo
+> il sottoinsieme **obblighi+forchette** e il tab LT i soli **opzionali**, ma il
+> dato completo (`perCode`/`pairs`) resta in memoria e alimenta i calcoli di costo.
 
 **Selezione (clic)** → a destra compare un pannello:
 - **clic su una casella** (coppia): «*N* studenti hanno sostenuto sia l'uno sia
