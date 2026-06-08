@@ -246,6 +246,12 @@ esteso** (es. «Costo 18 ore·studente/settimana, N=9 studenti in overlap storic
 2 ore», in rosso se N≥5) con il **Piano di Studi a destra**; e sotto i **due slot**
 su righe distinte (codice + titolo, e aula · orario).
 
+Ogni matrice riporta le **somme di riga** (colonna **Σ** a destra), le **somme di
+colonna** (riga **Σ** in basso) e il **totale** della matrice nell'**angolo in basso
+a destra** (evidenziato). Le caselle speculari `/2` contano **metà**, quindi i totali
+sono **additivi**: la somma dei totali di OBBLIGHI–FORCHETTE + FORCHETTE–FORCHETTE +
+gli obblighi-obblighi (a lista) coincide con il **totale del banner**.
+
 > **Sezioni additive (niente doppi conteggi).** Una stessa collisione può cadere
 > in categorie diverse a seconda del Piano di Studi — un codice può essere
 > **obbligo** in un curriculum e **forchetta** in un altro. Per non contarla due

@@ -411,5 +411,14 @@ const bm = eout.match(/overlap totale\):[\s\S]*?<b>(\d+)<\/b>/);
 const bannerTot = bm ? parseInt(bm[1], 10) : -1;
 check('Additività E2E: somma celle (' + cellSum + ') = totale banner (' + bannerTot + ')', cellSum === bannerTot && bannerTot === 16);
 
+// ===== Somme di riga/colonna + totale generale (angolo) sulle matrici di costo.
+// Ogni matrice (OBB-FOR, FF) ha un totale (cx-grand); la loro somma = banner. =====
+const grands = []; let gm; const gre = /cx-grand[^>]*>([\d.]+)<\/td>/g;
+while ((gm = gre.exec(eout))) grands.push(parseFloat(gm[1]));
+check('Somme: presenti i totali di riga/colonna (cx-sum) e generale (cx-grand)',
+  (eout.match(/cx-sum/g) || []).length >= 2 && grands.length === 2);
+check('Somme: i totali delle matrici (OF+FF) sommano al banner (' + grands.join('+') + '=' + bannerTot + ')',
+  grands.reduce((a, b) => a + b, 0) === bannerTot);
+
 console.log('\nRISULTATO: ' + pass + ' pass, ' + fail + ' fail');
 process.exit(fail ? 1 : 0);

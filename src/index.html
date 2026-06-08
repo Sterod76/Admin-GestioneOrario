@@ -255,6 +255,10 @@
   .cx-table:not(.clm-table) th.cx-corner { width: 64px; min-width: 64px; max-width: 64px; height: 64px; }
   .cx-table td.cx-diag { background: #e8eaed; font-weight: 700; color: #202124; }
   .cx-table td.cx-na { background: #fff; color: #ddd; }
+  /* Somme di riga (a destra) / colonna (in basso) + totale generale (angolo) */
+  .cx-table td.cx-sum { background: #eef1f4; color: #202124; font-weight: 700; text-align: center; font-size: 11px; min-width: 36px; max-width: 56px; padding: 0 5px; white-space: nowrap; }
+  .cx-table th.cx-sumhdr { background: #eceff1; color: #5f6368; font-weight: 700; text-align: center; font-size: 12px; min-width: 36px; padding: 0 5px; writing-mode: horizontal-tb; }
+  .cx-table td.cx-sum.cx-grand { background: #d2e3fc; color: #0b5394; }
   .cx-table td.cx-n { color: #5a3300; }
   /* Sotto soglia: sfondo BIANCO pieno e numero sbiadito → come le celle vuote */
   .cx-table td.cx-n-low { background: #fff !important; color: #ddd; }
@@ -2493,10 +2497,6 @@ var _editActive = !!EDIT_MODE;
       }
       let maxCost = 0; Object.keys(cells).forEach(ck => { if (cells[ck].pos) maxCost = Math.max(maxCost, cells[ck].cost); });
       const cellAt = (r, c) => bip ? cells[r + '||' + c] : (cells[r + '||' + c] || cells[c + '||' + r]);
-      // Matrice simmetrica (FF): mostra SOLO la parte SOPRA la diagonale (l'altra
-      // metà è il duplicato speculare e non serve). Righe=colonne nello stesso
-      // ordine: la cella (r,c) è "sopra" se pos(c) > pos(r). Si tolgono poi le
-      // righe/colonne rimaste interamente vuote per un triangolo compatto.
       let _idx = null;
       if (!bip) {
         // Matrice QUADRATA: gli STESSI codici su righe e colonne, ma valorizzata
@@ -2511,11 +2511,16 @@ var _editActive = !!EDIT_MODE;
       const rowBg = bip ? (vc.OBB || '#ffcfc9') : (vc.FOR || '#ffe5a0');
       const colBg = (vc.FOR || '#ffe5a0');
       const sel = _collSel[key];
+      // Somme di colonna (riga in basso) e totale generale (angolo). Le celle
+      // speculari OBB-FOR contano METÀ (cl.dup → cost/2), così le somme sono
+      // additive e il totale coincide col contributo di questa matrice nel banner.
+      const colSum = {}; let grand = 0;
       let t = '<div class="cx-scroll"><table class="cx-table clm-table"><thead><tr><th class="cx-corner"></th>';
       cols.forEach(c => { t += '<th class="cx-ch" style="background:' + colBg + '"><span class="cx-chl">' + esc(c) + '</span></th>'; });
-      t += '</tr></thead><tbody>';
+      t += '<th class="cx-sumhdr" title="Somma di riga">Σ</th></tr></thead><tbody>';
       rows.forEach(r => {
         t += '<tr><th class="cx-rh" style="background:' + rowBg + '">' + esc(r) + '</th>';
+        let rsum = 0;
         cols.forEach(c => {
           if (!bip) {
             if (_idx[c] === _idx[r]) { t += '<td class="cx-diag"></td>'; return; } // diagonale (r===c)
@@ -2523,6 +2528,8 @@ var _editActive = !!EDIT_MODE;
           }
           const cl = cellAt(r, c);
           if (!cl || !cl.pos) { t += '<td class="cx-na"></td>'; return; } // costo 0/n/d → vuota
+          const eff = cl.dup ? cl.cost / 2 : cl.cost; // speculari OBB-FOR: metà per casella
+          rsum += eff; colSum[c] = (colSum[c] || 0) + eff; grand += eff;
           // Selezione condivisa: una cella è evidenziata se è quella scelta o la sua
           // speculare (FF simmetrica, oppure coppia OBB-FOR "dup").
           const isSel = sel && ((sel.r === r && sel.c === c) || ((!bip || cl.dup) && sel.r === c && sel.c === r));
@@ -2534,9 +2541,12 @@ var _editActive = !!EDIT_MODE;
           const valTxt = String(Math.round(cl.cost)) + (cl.dup ? '<span class="clm-half">/2</span>' : '');
           t += '<td class="' + cls + '" data-k="' + key + '" data-r="' + esc(r) + '" data-c="' + esc(c) + '" style="' + style + '" title="' + tip + '">' + valTxt + '</td>';
         });
-        t += '</tr>';
+        t += '<td class="cx-sum" title="Totale riga ' + esc(r) + '">' + (rsum ? fmtCost(rsum) : '') + '</td></tr>';
       });
-      t += '</tbody></table></div>';
+      // Riga finale: somme di colonna + totale generale (angolo in basso a destra).
+      t += '</tbody><tfoot><tr><th class="cx-rh cx-sumhdr" title="Somme di colonna">Σ</th>';
+      cols.forEach(c => { const cs = colSum[c] || 0; t += '<td class="cx-sum" title="Totale colonna ' + esc(c) + '">' + (cs ? fmtCost(cs) : '') + '</td>'; });
+      t += '<td class="cx-sum cx-grand" title="Totale costo di questa matrice">' + fmtCost(grand) + '</td></tr></tfoot></table></div>';
       // Dettaglio a DESTRA della matrice (più spazio).
       const selCell = sel ? cellAt(sel.r, sel.c) : null;
       let side;
