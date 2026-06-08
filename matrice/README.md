@@ -32,22 +32,27 @@ costo collisione = ore_sovrapposte_a_settimana × N      [ore·studente/settiman
 ## Dati di partenza
 
 Export Esse3 **`FISICA_MONIT_CAR_TAB.csv`** (carriere/esami completo,
-pipe-delimited, Latin-1). Sta sul PC di chi gestisce i dati e si ri-esporta
-quando serve aggiornare la matrice. Colonne usate: `MATRICOLA`, `COD`,
-`AA_SUP_ID`, `TIPO_CORSO_COD`.
+pipe-delimited, Latin-1, una riga per esame sostenuto). Sta sul PC di chi gestisce
+i dati e si ri-esporta quando serve aggiornare la matrice. Colonne usate dal tool:
+`MATRICOLA`, `COD`, `AA_SUP_ID` (+ `AA_IMM1` per il filtro coorti).
+
+> 📄 **Specifiche complete del CSV sorgente** — formato, encoding, tutte le 52
+> colonne, valori reali (es. `TIPO_CORSO_COD` = `L2` triennale / `LM` magistrale) e
+> snippet Python di lettura: **[`CSV_SORGENTE.md`](CSV_SORGENTE.md)**. Contiene dati
+> personali → **non committarlo**, tenerlo solo in locale.
 
 Filtri applicati dal tool:
 - **solo** AA di superamento **2022, 2023, 2024** (= 2022/23 … 2024/25);
 - **coorti** opzionali (`AA_IMM1` = AA di immatricolazione): se imposti la
   costante `COORTI` in cima allo script o passi `--coorti=2021,2022`, vengono
   considerati **solo** gli studenti di quelle coorti; vuoto = tutte le coorti;
-- codici che **terminano in B** (es. `0001B`, `042BB`) presi dalle **carriere
-  LM** (`TIPO_CORSO_COD == 'LM'`); scartati gli altri (`.`, `_`, suffissi che non
-  finiscono per B, prove parziali, voci anomale);
+- codici che **terminano in B** (es. `0001B`, `042BB`), su **tutte le carriere**
+  (triennale `L2` + magistrale `LM`: il dataset è completo, *non* ristretto alla
+  LM); scartati gli altri (`.`, `_`, suffissi che non finiscono per B, `PROVA
+  FINALE`, voci anomale);
 - **eccezioni** in `EXTRA_CODES` (es. `244CC`, codici LT opzionali): ammesse
-  **anche** se non terminano in B e **anche** se non LM — scavalcano sia il
-  formato sia la restrizione LM. Per aggiungerne altre, modifica l'insieme
-  `EXTRA_CODES` in cima allo script.
+  **anche** se non terminano in B — scavalcano il vincolo di formato del codice.
+  Per aggiungerne altre, modifica l'insieme `EXTRA_CODES` in cima allo script.
 
 I codici nella matrice (riga 1 / colonna A) sono ordinati per **E decrescente**
 (più esami in alto a sinistra). Gli studenti "stessi" sono identificati dalla
@@ -118,4 +123,5 @@ Note pratiche:
 |---|---|
 | `genera_matrice_esami_lm.py` | Tool che genera la matrice LM dal CSV completo |
 | `MatriceEsamiLM.csv` | Output (creato quando esegui il tool) |
+| `CSV_SORGENTE.md` | Specifiche del CSV Esse3 di partenza (per analisi/estrazioni) |
 | `README.md` | Questo file |

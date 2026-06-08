@@ -11,6 +11,16 @@ npm-debug.log*
 __pycache__/
 *.pyc
 
+# Dati studenti (PII / pseudonimi) — MAI nel repo.
+# (niente commenti in coda alle righe: in .gitignore non sono supportati)
+# export Esse3 completo (dati personali):
+FISICA_MONIT_CAR_TAB*.csv
+# output di scripts/strip_exams.py:
+*_stripped.csv
+# chiave di anonimizzazione (segreta) + dataset esami pseudonimi:
+analisi/.anon_salt
+analisi/*_anon.csv
+
 # Build artifacts temporanei
 .tmp_*
 *.bak
