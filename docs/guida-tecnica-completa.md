@@ -225,7 +225,7 @@ Definisce `onOpen()` che crea il menu **🕒 Orario** nello Spreadsheet con ques
 
 - 🎯 Assegna vincolo da PdS
 - 🏛 Genera tabella aule
-- 📅 Aggiorna Web Calendar
+- 📅 Vai al Web Calendar
 - ───
 - ✨ Normalizza celle calendario
 - 🔄 Ricarica formato tabella
@@ -474,7 +474,7 @@ Una pagina HTML pubblica all'URL `/exec` con la griglia settimanale dell'orario,
 
 Il flusso:
 
-1. Utente: 🕒 Orario → 📅 **Aggiorna Web Calendar**.
+1. Utente: 🕒 Orario → 📅 **Vai al Web Calendar**.
 2. Lo script chiama `getOrarioData()`, serializza in JSON, splitta in chunk, salva in `DocumentProperties`.
 3. Toast di conferma con conteggio.
 4. Quando un visitatore apre `/exec`, `doGet` legge i chunk, ricompone il JSON, lo inietta nell'HTML come bootstrap iniziale.
@@ -510,7 +510,7 @@ In questo repo: `npm run deploy` chiama `scripts/deploy.js` che fa `clasp push` 
 3. Opzionale: 🕒 Orario → 🎯 **Assegna vincolo da PdS** — aggiorna col G del foglio LM in base al PdS.
 4. 🕒 Orario → 🏛 **Genera tabella aule** — rigenera `S1AULE` / `S2AULE`, segnala conflitti.
 5. Risolvi eventuali conflitti, ripeti finché clean.
-6. 🕒 Orario → 📅 **Aggiorna Web Calendar** — pubblica snapshot.
+6. 🕒 Orario → 📅 **Vai al Web Calendar** — pubblica snapshot.
 7. Se hai modificato il codice (file `.gs` o `index.html`): `npm run deploy` per aggiornare l'URL pubblico.
 
 ---

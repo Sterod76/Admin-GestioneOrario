@@ -96,9 +96,12 @@ function assegnaVincoliDaPds() {
       return [v];
     });
 
-    // Le note hanno una larghezza determinata dalla riga piu' lunga.
-    // Mettiamo un separatore lungo per evitare che i nomi PdS vadano a capo.
-    const NOTE_SEP = '─'.repeat(50);
+    // Per forzare il popup di hover ad essere largo, accodiamo all'header
+    // ("OBB"/"FOR"/"OPZ") una sequenza di NBSP (  = non-breaking space):
+    // questi caratteri non si collassano (a differenza degli spazi normali)
+    // e impediscono il wrap, quindi la riga viene mostrata su una sola
+    // riga, allargando il popup. Niente separatori visibili di trattini.
+    const PAD = ' '.repeat(120);
     const newNotes = codes.map((r, i) => {
       const codeRaw = r[0];
       if (!codeRaw) return [''];
@@ -108,19 +111,18 @@ function assegnaVincoliDaPds() {
       const classByPds = classByCodeByPds[code];
       if (!classByPds) return [''];
 
-      // Raggruppa i PdS per vincolo
       const byVinc = { OBB: [], FOR: [], OPZ: [] };
       Object.keys(classByPds).sort().forEach(pdsName => {
         const cls = classByPds[pdsName];
         if (byVinc[cls]) byVinc[cls].push(pdsName);
       });
 
-      // Blocchi: HEADER \n ─── \n PdS <nome>...
+      // Header con padding NBSP (forza popup largo) + elenco puntato di PdS.
       const blocks = [];
       ['OBB', 'FOR', 'OPZ'].forEach(vc => {
         if (byVinc[vc].length === 0) return;
-        const lines = [vc, NOTE_SEP];
-        byVinc[vc].forEach(p => lines.push('PdS ' + p));
+        const lines = [vc + PAD];
+        byVinc[vc].forEach(p => lines.push('  • ' + p));
         blocks.push(lines.join('\n'));
       });
       return [blocks.join('\n\n')];
@@ -128,6 +130,14 @@ function assegnaVincoliDaPds() {
 
     sh.getRange(HEADER_ROWS + 1, COL_VINCOLO, codes.length, 1).setValues(newVinc);
     sh.getRange(HEADER_ROWS + 1, COL_VINCOLO, codes.length, 1).setNotes(newNotes);
+    // Reset sfondo della cella vincolo in base al valore assegnato:
+    // OBB→rosa, FOR→giallo, OPZ→verde. Cancella eventuali sfondi residui
+    // (es. giallo lasciato da un precedente FOR diventato OPZ).
+    const newBgs = newVinc.map(r => {
+      const v = String(r[0] || '').trim().toUpperCase();
+      return [VINCOLO_FALLBACK_COLORS[v] || VINCOLO_DEFAULT_COLOR];
+    });
+    sh.getRange(HEADER_ROWS + 1, COL_VINCOLO, codes.length, 1).setBackgrounds(newBgs);
   });
 
   ss.toast(

@@ -71,6 +71,30 @@ function tabellaAule(opts) {
   const unavailItems = preReadOut
     ? readUnavailability(preReadOut, nDays, nSlots)
     : [];
+
+  // Merge edit NON DISPONIBILE dalla web app: rimozioni + aggiunte.
+  // extraUnavail/removedUnavail usano minuti (start/end); converto in slotIdx/span.
+  if (opts && opts.removedUnavail && opts.removedUnavail.length) {
+    const rm = {};
+    opts.removedUnavail.forEach(u => {
+      const si = Math.round((u.start - SLOT_START_MIN) / SLOT_STEP_MIN);
+      rm[u.room + '|' + u.day + '|' + si] = true;
+    });
+    for (let i = unavailItems.length - 1; i >= 0; i--) {
+      const it = unavailItems[i];
+      if (rm[it.room + '|' + it.dayIdx + '|' + it.slotIdx]) unavailItems.splice(i, 1);
+    }
+  }
+  if (opts && opts.extraUnavail && opts.extraUnavail.length) {
+    opts.extraUnavail.forEach(u => {
+      const slotIdx = Math.round((u.start - SLOT_START_MIN) / SLOT_STEP_MIN);
+      const span = Math.max(1, Math.round((u.end - u.start) / SLOT_STEP_MIN));
+      if (slotIdx >= 0 && slotIdx < nSlots) {
+        unavailItems.push({ room: u.room, dayIdx: u.day, slotIdx: slotIdx, span: span, text: u.text || 'NON DISPONIBILE' });
+      }
+    });
+  }
+
   const unavailMap = {};
   unavailItems.forEach(it => {
     if (!unavailMap[it.room]) {
@@ -89,11 +113,17 @@ function tabellaAule(opts) {
   const occ = {};
   const conflicts = [];
   const conflictCells = {}; // sheetName -> Set di A1
+  const conflictSlotSet = {}; // `${room}|${d}|${i}` → [descrizioni]
   const parseIssues = [];
 
   function markConflict(sheetName, a1) {
     if (!conflictCells[sheetName]) conflictCells[sheetName] = {};
     conflictCells[sheetName][a1] = true;
+  }
+  function markConflictSlot(room, d, i, desc) {
+    const k = room + '|' + d + '|' + i;
+    if (!conflictSlotSet[k]) conflictSlotSet[k] = [];
+    if (desc) conflictSlotSet[k].push(desc);
   }
 
   sources.forEach(sheet => {
@@ -160,11 +190,12 @@ function tabellaAule(opts) {
             if (slotStart >= s.start && slotEnd <= s.end) {
               const unav = unavailMap[s.room] && unavailMap[s.room][d] && unavailMap[s.room][d][i];
               if (unav) {
+                const desc = `${unav.text} (SxAULE) vs "${tag}" (${origin})`;
                 conflicts.push(
-                  `${s.room} • ${DAYS_LABELS[d]} ${fmtMin(slotStart)}-${fmtMin(slotEnd)}: ` +
-                  `${unav.text} (S1AULE) vs "${tag}" (${origin})`
+                  `${s.room} • ${DAYS_LABELS[d]} ${fmtMin(slotStart)}-${fmtMin(slotEnd)}: ${desc}`
                 );
                 markConflict(origin.split('!')[0], origin.split('!')[1]);
+                markConflictSlot(s.room, d, i, desc);
                 continue;
               }
               if (!occ[s.room][d][i]) occ[s.room][d][i] = { entries: [] };
@@ -178,15 +209,17 @@ function tabellaAule(opts) {
               }
               if (alreadySameTag) continue;
               if (conflict) {
-                conflicts.push(
-                  `${s.room} • ${DAYS_LABELS[d]} ${fmtMin(slotStart)}-${fmtMin(slotEnd)}: ` +
+                const desc =
                   `"${conflict.tag}"${conflict.periodo ? ' [' + conflict.periodo + ']' : ''} (${conflict.origin}) vs ` +
-                  `"${tag}"${periodoStr ? ' [' + periodoStr + ']' : ''} (${origin})`
+                  `"${tag}"${periodoStr ? ' [' + periodoStr + ']' : ''} (${origin})`;
+                conflicts.push(
+                  `${s.room} • ${DAYS_LABELS[d]} ${fmtMin(slotStart)}-${fmtMin(slotEnd)}: ${desc}`
                 );
                 const [shA, a1A] = conflict.origin.split('!');
                 const [shB, a1B] = origin.split('!');
                 markConflict(shA, a1A);
                 markConflict(shB, a1B);
+                markConflictSlot(s.room, d, i, desc);
                 continue;
               }
               entries.push(newEntry);
@@ -197,6 +230,10 @@ function tabellaAule(opts) {
     });
   });
 
+  // Evidenzia in rosso le celle sorgente in conflitto (sempre, anche se
+  // proseguiamo a costruire SxAULE). Per gli slot in conflitto in SxAULE
+  // viene tenuta la prima entry rilevata e gli slot vengono tracciati in
+  // `conflictSlotMap` per essere marcati visivamente sotto.
   if (conflicts.length) {
     Object.keys(conflictCells).forEach(sheetName => {
       const sh = ss.getSheetByName(sheetName);
@@ -206,15 +243,6 @@ function tabellaAule(opts) {
       });
     });
     Logger.log(conflicts.join('\n'));
-    if (interactive) {
-      showConflictsDialog(conflicts, parseIssues);
-      return;
-    } else {
-      // Webapp context: niente dialog. Propaga errore al chiamante.
-      throw new Error('Conflitti rilevati (' + conflicts.length + '):\n' +
-        conflicts.slice(0, 5).join('\n') +
-        (conflicts.length > 5 ? '\n…' : ''));
-    }
   }
 
   // Read existing rooms from S1AULE.
@@ -380,6 +408,11 @@ function tabellaAule(opts) {
             if (span > 1) range.merge();
             const slotFrom = fmtMin(slots[i]);
             const slotTo = fmtMin(slots[j - 1] + SLOT_STEP_MIN);
+            // Almeno uno slot di questo run è in conflitto?
+            let slotHasConflict = false;
+            for (let k = i; k < j; k++) {
+              if (conflictSlotSet[room + '|' + d + '|' + k]) { slotHasConflict = true; break; }
+            }
 
             // Build display single-line:
             //   "CODICE1 [G1] / CODICE2 [G2] Titolo1 / Titolo2"
@@ -396,14 +429,20 @@ function tabellaAule(opts) {
               namesArr.push(e.name);
             });
             const namesBlock = namesArr.join(' / ');
-            const displayText = namesBlock ? `${codesBlock} ${namesBlock}` : codesBlock;
+            const baseText = namesBlock ? `${codesBlock} ${namesBlock}` : codesBlock;
+            // Prefisso di warning visibile per slot in conflitto
+            const warnPrefix = slotHasConflict ? '⚠ ' : '';
+            const displayText = warnPrefix + baseText;
+            const codesStart = warnPrefix.length;
+            const codesEnd = codesStart + codesBlock.length;
             const boldStyle = SpreadsheetApp.newTextStyle().setBold(true).build();
             const normalStyle = SpreadsheetApp.newTextStyle().setBold(false).build();
             const rtb = SpreadsheetApp.newRichTextValue()
               .setText(displayText)
-              .setTextStyle(0, codesBlock.length, boldStyle);
-            if (displayText.length > codesBlock.length) {
-              rtb.setTextStyle(codesBlock.length, displayText.length, normalStyle);
+              .setTextStyle(codesStart, codesEnd, boldStyle);
+            if (warnPrefix) rtb.setTextStyle(0, warnPrefix.length, boldStyle);
+            if (displayText.length > codesEnd) {
+              rtb.setTextStyle(codesEnd, displayText.length, normalStyle);
             }
 
             // Note (hover): blocchi separati per ogni entry
@@ -420,11 +459,30 @@ function tabellaAule(opts) {
               if (mutLista && mutLista.length) lines.push(`Mutuazione: ${formatMutuanti(mutLista)}`);
               return lines.join('\n');
             });
-            const noteText = noteBlocks.join('\n— — —\n');
+            // Se questo slot ha conflitti, raccogli le descrizioni uniche
+            // (dei vari slot dello span) e mettile in testa alla note.
+            let noteText = noteBlocks.join('\n— — —\n');
+            if (slotHasConflict) {
+              const seenDesc = {};
+              const conflictDescs = [];
+              for (let k = i; k < j; k++) {
+                const arr = conflictSlotSet[room + '|' + d + '|' + k] || [];
+                arr.forEach(desc => {
+                  if (seenDesc[desc]) return;
+                  seenDesc[desc] = true;
+                  conflictDescs.push(desc);
+                });
+              }
+              const header = '⚠ CONFLITTO ⚠\n' + conflictDescs.map(d => '  • ' + d).join('\n');
+              noteText = header + (noteText ? '\n— — —\n' + noteText : '');
+            }
 
             const firstEntry = sortedEntries[0];
             range.setRichTextValue(rtb.build());
-            range.setBackground(firstEntry.bg || VINCOLO_DEFAULT_COLOR);
+            // Sfondo: rosso conflitto se in conflitto, altrimenti colore vincolo
+            range.setBackground(slotHasConflict
+              ? CONFLICT_BG
+              : (firstEntry.bg || VINCOLO_DEFAULT_COLOR));
             range.setFontColor(firstEntry.fg || TAB_DEFAULT_FG);
             range.setHorizontalAlignment('left');
             range.setVerticalAlignment('middle');
@@ -515,11 +573,17 @@ function tabellaAule(opts) {
   const unusedCount = rooms.filter(r => !occ[r]).length;
   ss.toast(
     `Aule: ${rooms.length} (di cui ${unusedCount} non usate)` +
+    (conflicts.length ? ` • ⚠ conflitti: ${conflicts.length}` : '') +
     (ignoredRooms.length ? ` • ignorate: ${ignoredRooms.length}` : '') +
     (parseIssues.length ? ` • parsing: ${parseIssues.length}` : ''),
     'Tabella aule',
-    5
+    7
   );
+
+  // Dialog non bloccante coi conflitti (mostrato DOPO la build, non blocca l'output)
+  if (conflicts.length && interactive) {
+    showConflictsDialog(conflicts, parseIssues);
+  }
 }
 
 function showConflictsDialog(conflicts, parseIssues) {
@@ -529,10 +593,14 @@ function showConflictsDialog(conflicts, parseIssues) {
     : '';
   const html =
     '<div style="font-family:Arial,sans-serif;font-size:13px">' +
-    `<p><b>Esecuzione bloccata:</b> trovati ${conflicts.length} conflitti aula/orario.</p>` +
+    `<p><b>⚠ Trovati ${conflicts.length} conflitti aula/orario.</b></p>` +
+    `<p>La tabella aule è stata generata comunque, mantenendo per ogni slot in conflitto ` +
+    `la prima occorrenza incontrata. Gli slot in conflitto sono evidenziati in rosso ` +
+    `con un'icona ⚠ e una nota dettagliata. Le celle sorgente sono anch'esse marcate ` +
+    `in rosso.</p>` +
     `<ul style="padding-left:18px">${items}</ul>` +
     parseBlock +
-    '<p>Risolvi i conflitti nei fogli sorgente, poi ri-esegui "Tabella aule".</p>' +
+    '<p>Risolvi i conflitti nei fogli sorgente e ri-esegui "Tabella aule" per pulire.</p>' +
     '</div>';
   const out = HtmlService.createHtmlOutput(html).setWidth(720).setHeight(480);
   SpreadsheetApp.getUi().showModalDialog(out, 'Conflitti aule');

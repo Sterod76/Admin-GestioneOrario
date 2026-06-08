@@ -5,7 +5,8 @@
   "description": "Apps Script per la gestione dell'orario didattico, tabella aule, web calendar.",
   "scripts": {
     "setup": "node scripts/setup.js",
-    "push": "clasp push -f",
+    "push": "node scripts/push.js",
+    "push:single": "clasp push -f",
     "pull": "clasp pull",
     "deploy": "node scripts/deploy.js",
     "deployments": "clasp list-deployments",

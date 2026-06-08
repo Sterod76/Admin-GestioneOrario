@@ -1,0 +1,121 @@
+# Matrice co-esami (LM)
+
+Questa cartella contiene il necessario per costruire e aggiornare la **matrice
+co-esami della Magistrale**, usata dalla Web App dell'orario per stimare il
+"costo" delle sovrapposizioni d'orario fra insegnamenti.
+
+## Cosa rappresenta
+
+Per ogni coppia di insegnamenti LM misuriamo **quanti studenti li sostengono
+entrambi**: se due corsi molto "condivisi" finiscono in sovrapposizione oraria,
+il danno è grande; se non li segue quasi nessuno in comune, è trascurabile.
+
+Due grandezze, entrambe **somme** sugli AA **2022/23, 2023/24, 2024/25** (conteggi
+totali sui 3 anni, senza media né arrotondamento):
+
+- **E** — per ogni codice: numero **totale** di studenti distinti che **superano**
+  quell'esame nei 3 AA. (Sta sulla **diagonale** della matrice.)
+- **N (studenti in comune)** — per ogni coppia di codici: numero **totale** di
+  studenti che superano **entrambi** nello **stesso AA**, sommato sui 3 AA. (Sta
+  **fuori diagonale**.)
+
+Nella Web App (tab **📊 Co-esami LM** e tab **💥 Collisioni**):
+
+```
+costo collisione = ore_sovrapposte_a_settimana × N      [ore·studente/settimana]
+```
+
+- coppia **assente** in matrice fra due codici presenti → **0 studenti in comune
+  osservati** → **costo 0** (nessuna stima);
+- codice **non presente** in matrice → **n/d** (contribuisce 0 al totale).
+
+## Dati di partenza
+
+Export Esse3 **`FISICA_MONIT_CAR_TAB.csv`** (carriere/esami completo,
+pipe-delimited, Latin-1). Sta sul PC di chi gestisce i dati e si ri-esporta
+quando serve aggiornare la matrice. Colonne usate: `MATRICOLA`, `COD`,
+`AA_SUP_ID`, `TIPO_CORSO_COD`.
+
+Filtri applicati dal tool:
+- **solo** AA di superamento **2022, 2023, 2024** (= 2022/23 … 2024/25);
+- **coorti** opzionali (`AA_IMM1` = AA di immatricolazione): se imposti la
+  costante `COORTI` in cima allo script o passi `--coorti=2021,2022`, vengono
+  considerati **solo** gli studenti di quelle coorti; vuoto = tutte le coorti;
+- codici che **terminano in B** (es. `0001B`, `042BB`) presi dalle **carriere
+  LM** (`TIPO_CORSO_COD == 'LM'`); scartati gli altri (`.`, `_`, suffissi che non
+  finiscono per B, prove parziali, voci anomale);
+- **eccezioni** in `EXTRA_CODES` (es. `244CC`, codici LT opzionali): ammesse
+  **anche** se non terminano in B e **anche** se non LM — scavalcano sia il
+  formato sia la restrizione LM. Per aggiungerne altre, modifica l'insieme
+  `EXTRA_CODES` in cima allo script.
+
+I codici nella matrice (riga 1 / colonna A) sono ordinati per **E decrescente**
+(più esami in alto a sinistra). Gli studenti "stessi" sono identificati dalla
+**matricola**.
+
+## Il tool
+
+`genera_matrice_esami_lm.py` — fa tutto in un passaggio (strip + filtri +
+calcolo) e produce `MatriceEsamiLM.csv`.
+
+```bash
+python matrice/genera_matrice_esami_lm.py                      # path di default, tutte le coorti
+python matrice/genera_matrice_esami_lm.py <csv_completo>       # path esplicito
+python matrice/genera_matrice_esami_lm.py --coorti=2021,2022   # solo coorti 2021/22 e 2022/23
+```
+
+### Output: `MatriceEsamiLM.csv` (matrice quadrata)
+
+- `A1` = etichetta `COEX` (ignorata);
+- **riga 1** e **colonna A** = elenco codici LM, ordinati per **E decrescente**
+  (il più "frequente" in alto a sinistra);
+- **diagonale** = E (totale studenti sui 3 AA); **fuori diagonale** (triangolo superiore) = N;
+- celle vuote fuori diagonale = 0 studenti in comune.
+
+I valori E ed N sono **somme intere** sui 3 AA (niente media né arrotondamento):
+così all'import in Google Sheets non ci sono ambiguità di locale (niente decimali
+col punto interpretati come testo/date).
+
+### Flag (in cima allo script)
+
+- `flag_dividiAA = True` → divide E ed N per il **numero di AA usati** (`len(YEARS)`),
+  cioè la **media annua** invece della somma.
+- `flag_round = True` → **arrotonda** E ed N all'intero più vicino.
+
+Default entrambi `False` (somme intere). ⚠️ Con `flag_dividiAA` **senza** `flag_round`
+escono valori **decimali** (col punto) → in Google Sheets possono dare problemi di
+locale: in genere conviene attivare anche `flag_round`. Le celle che risultano 0
+(anche per arrotondamento) restano vuote.
+
+## Flusso di aggiornamento
+
+```
+FISICA_MONIT_CAR_TAB.csv (export Esse3)
+        │  python matrice/genera_matrice_esami_lm.py
+        ▼
+matrice/MatriceEsamiLM.csv  (matrice quadrata LM)
+        │  incolla / importa
+        ▼
+gsheet FISSO della matrice  (un solo file, condiviso — cambia di rado)
+        │  =IMPORTRANGE(...)  in A1 del foglio "MATRICE"
+        ▼
+foglio "MATRICE" in ciascun gsheet-orario
+        │  getOrarioData → readCoexamMatrix_
+        ▼
+Web App  (tab 📊 Co-esami LM, costo nel tab 💥 Collisioni)
+```
+
+Note pratiche:
+- l'`IMPORTRANGE` va **autorizzato una volta** per ogni gsheet-orario;
+- dopo aver aggiornato la matrice, fare **Carica / Pubblica** nell'orario per
+  rigenerare lo snapshot della Web App;
+- il foglio `MATRICE` è **di sola lettura** (alimentato da IMPORTRANGE): non
+  scriverci a mano e non usare le vecchie voci di menu Importa/Genera co-esami.
+
+## File in questa cartella
+
+| File | Cosa |
+|---|---|
+| `genera_matrice_esami_lm.py` | Tool che genera la matrice LM dal CSV completo |
+| `MatriceEsamiLM.csv` | Output (creato quando esegui il tool) |
+| `README.md` | Questo file |

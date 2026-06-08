@@ -42,8 +42,9 @@ function run(cmd, args) {
   const r = spawnSync(cmd, args, { stdio: 'inherit', cwd: ROOT, shell: true });
   if (r.status !== 0) {
     console.error('\nERR: comando fallito (exit ' + r.status + ').');
-    process.exit(r.status || 1);
+    return false;
   }
+  return true;
 }
 
 function captureRun(cmd, args) {
@@ -70,6 +71,63 @@ if (!cfg) {
   console.error('ERR: config/local.json non trovato. Esegui prima `npm run setup`.');
   process.exit(1);
 }
+
+// Multi-target: se `targets` definito, deploya ciascuno con il proprio
+// scriptId/deploymentId. Skippa target senza deploymentId.
+if (Array.isArray(cfg.targets) && cfg.targets.length > 0) {
+  const CLASP_PATH = path.join(ROOT, '.clasp.json');
+  const originalClasp = readJson(CLASP_PATH);
+  if (!originalClasp) { console.error('ERR: .clasp.json non trovato.'); process.exit(1); }
+  const rootDir = originalClasp.rootDir || 'src';
+
+  // Preflight account
+  const loggedAccount = getLoggedAccount();
+  const expected = cfg.expectedAccount || '';
+  if (!loggedAccount) { console.error('ERR: nessun account clasp loggato.'); process.exit(1); }
+  console.log('Account clasp attivo: ' + loggedAccount);
+  if (expected && loggedAccount.toLowerCase() !== expected.toLowerCase()) {
+    console.error('⚠ ABORT: account loggato ≠ expectedAccount.');
+    process.exit(2);
+  }
+
+  const cliDesc = process.argv[2];
+  const results = [];
+  let allOk = true;
+  try {
+    for (let i = 0; i < cfg.targets.length; i++) {
+      const t = cfg.targets[i];
+      const label = t.label || ('target #' + i);
+      if (!t.scriptId) {
+        console.error('SKIP ' + label + ': scriptId mancante');
+        allOk = false; results.push({ label, status: 'no-scriptId' }); continue;
+      }
+      console.log('\n=== Deploy → ' + label + ' ===');
+      fs.writeFileSync(CLASP_PATH, JSON.stringify({ scriptId: t.scriptId, rootDir }, null, 2) + '\n', 'utf8');
+      if (!run('clasp', ['push', '-f'])) { allOk = false; results.push({ label, status: 'push-fail' }); continue; }
+      if (!t.deploymentId) {
+        console.log('  (nessun deploymentId: push fatto ma deploy saltato)');
+        results.push({ label, status: 'push-only', scriptId: t.scriptId });
+        continue;
+      }
+      const desc = (cliDesc && cliDesc.trim()) || t.deploymentDescription || cfg.deploymentDescription || 'WebApp';
+      const out = captureRun('clasp', ['deploy', '-i', t.deploymentId, '-d', '"' + desc.replace(/"/g, '\\"') + '"']);
+      const vMatch = out.match(/@(\d+)/);
+      results.push({ label, status: 'deployed', scriptId: t.scriptId, deploymentId: t.deploymentId, version: vMatch ? vMatch[1] : '?', url: t.webappUrl || '' });
+    }
+  } finally {
+    fs.writeFileSync(CLASP_PATH, JSON.stringify(originalClasp, null, 2) + '\n', 'utf8');
+  }
+  console.log('\n======================================================');
+  console.log(' Deploy multi-target');
+  console.log('------------------------------------------------------');
+  results.forEach(r => {
+    const tag = r.status === 'deployed' ? ('@' + r.version) : ('[' + r.status + ']');
+    console.log('  ' + tag + ' ' + r.label + (r.url ? '  → ' + r.url : ''));
+  });
+  console.log('======================================================');
+  process.exit(allOk ? 0 : 1);
+}
+
 if (!cfg.deploymentId) {
   console.error('ERR: deploymentId non impostato in config/local.json.');
   console.error('');

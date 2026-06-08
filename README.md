@@ -117,7 +117,7 @@ I valori vengono scritti in `config/local.json` e `.clasp.json` (entrambi gitign
 2. Menu **🕒 Orario → ✨ Normalizza celle calendario** — uniforma orari/aule e applica title-case ai nomi corso.
 3. Menu **🎯 Assegna vincolo da PdS** — popola la colonna Vincolo di tutti i fogli LM dai dati del foglio `PdS`.
 4. Menu **🏛 Genera tabella aule** — costruisce `S1AULE` / `S2AULE`. Se rileva conflitti dipinge le celle sorgenti di rosso e blocca.
-5. Menu **📅 Aggiorna Web Calendar** — pubblica lo snapshot per il web. Toast di conferma con conteggio.
+5. Menu **📅 Vai al Web Calendar** — pubblica lo snapshot per il web. Toast di conferma con conteggio.
 6. (Solo dopo modifiche al codice) `npm run deploy` — aggiorna l'URL `/exec` con il codice nuovo.
 
 ## VS Code (consigliato per sviluppo)
@@ -184,7 +184,7 @@ Schema replicabile per altri progetti amministrativi:
 
 **Web app mostra "Sorry, unable to open the file"** → l'utente è loggato con un account diverso da quello del deploy. Apri in incognito.
 
-**Web app mostra "Snapshot non ancora pubblicato"** → menu `📅 Aggiorna Web Calendar` per generare lo snapshot.
+**Web app mostra "Snapshot non ancora pubblicato"** → menu `📅 Vai al Web Calendar` per generare lo snapshot.
 
 **Modifiche al codice non visibili sull'URL `/exec`** → `npm run deploy` (le modifiche pushate vivono solo su HEAD finché non riallinei il deployment).
 

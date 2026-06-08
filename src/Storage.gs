@@ -1,92 +1,93 @@
 /**
- * Export/Import JSON dei fogli sorgente SxLT / SxLM (e qualsiasi altro
- * sheet che inizia per S<n> escluso SxAULE). Il file vive nello STESSO
- * folder del gsheet, con nome fisso "orarioS1.json" o "orarioS2.json"
- * a seconda del semestre attivo.
+ * Export/Import JSON dei fogli sorgente SxLT / SxLM.
  *
- * Il foglio PdS NON è incluso nell'export e viene ignorato in import
- * (anche se presente nel JSON per qualche ragione).
+ * NB: NESSUN uso di DriveApp e NESSUN uso di google.script.run a runtime.
+ * Lo script funziona anche con admin Workspace restrittivi.
  *
- * Formato JSON (invariato rispetto alla versione precedente, meno PdS):
- *   {
- *     "version": 1,
- *     "semester": "S1" | "S2",
- *     "exportedAt": "2026-05-13T20:30:00.000Z",
- *     "S1LT": {
- *       "tabColor": "#ffff00",
- *       "header": ["Anno","Sem","Codice", ...],
- *       "rows": [ { "Anno":"1", "Sem":"1", "Codice":"0044B", ... }, ... ]
- *     },
- *     "S1LM": { ... }
- *   }
+ *   EXPORT: HTML dialog. Il JSON viene SERIALIZZATO lato server e
+ *           EMBEDDATO nell'HTML al rendering (via scriptlet template).
+ *           Il browser triggera il download via Blob. Niente RPC.
  *
- * Import:
- *   - se data.semester == "S1" → vengono cancellati tutti i fogli S2*
- *   - se data.semester == "S2" → cancellati tutti i fogli S1*
- *   - i fogli del semestre importato vengono creati/sovrascritti.
- *   - PdS NON viene mai toccato.
+ *   IMPORT: ui.prompt() nativo (no HtmlService). L'utente incolla il JSON
+ *           nella textbox e il server lo riceve via getResponseText().
+ *
+ * Il foglio PdS NON è incluso nell'export e viene ignorato in import.
+ *
+ * Formato JSON (v2, include "fmt" per roundtrip della formattazione):
+ *   { version, semester, exportedAt, S1LT: {tabColor, header, rows, fmt}, ... }
  */
 
-const STORAGE_VERSION = 1;
+const STORAGE_VERSION = 2;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EXPORT — HTML dialog con JSON embedded (no google.script.run runtime)
+// ─────────────────────────────────────────────────────────────────────────────
 
 function exportToJson() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const cfg = detectAuleConfig();
   const ui = SpreadsheetApp.getUi();
-
+  const cfg = detectAuleConfig();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sources = ss.getSheets().filter(s => {
     const n = s.getName();
     return n.toUpperCase().startsWith(cfg.prefix) && n !== cfg.output;
   });
   if (!sources.length) {
-    ui.alert('Export', 'Nessun foglio "' + cfg.prefix + '*" trovato da esportare.', ui.ButtonSet.OK);
+    ui.alert('Export', 'Nessun foglio "' + cfg.prefix + '*" trovato.', ui.ButtonSet.OK);
     return;
   }
 
+  // Niente prompt: il file ha lo STESSO nome del gsheet con estensione .json.
   const out = {
     version: STORAGE_VERSION,
     semester: cfg.prefix,
+    year: String(new Date().getFullYear()),
     exportedAt: new Date().toISOString()
   };
   sources.forEach(sh => out[sh.getName()] = serializeSheet_(sh));
-  // PdS NON incluso
-
+  // Non-disponibilità aule: vivono su SxAULE come celle unite e NON sono nei fogli
+  // sopra → le salvo a parte come lista {room, day, start, end, text}.
+  let nUnavail = 0;
+  try { const un = getOrarioData().unavail || []; out._unavail = un; nUnavail = un.length; } catch (e) { out._unavail = []; }
+  // PdS (settings dei piani) e MATRICE (co-esami): salvati per backup. La MATRICE è
+  // alimentata via IMPORTRANGE → in import NON viene reimportata; il PdS sì.
+  let hasPds = false, hasCoex = false;
+  const pdsSheet = ss.getSheetByName(PDS_SHEET_NAME);
+  if (pdsSheet) { out[PDS_SHEET_NAME] = serializeSheet_(pdsSheet); hasPds = true; }
+  const coexSheet = ss.getSheetByName(COEX_SHEET_NAME);
+  if (coexSheet) { out[COEX_SHEET_NAME] = serializeSheet_(coexSheet); hasCoex = true; }
   const json = JSON.stringify(out, null, 2);
-  const fname = 'orario' + cfg.prefix + '.json';
+  const fname = ss.getName() + '.json';
+  const sizeKb = Math.round(json.length / 1024);
 
-  // Trova il folder parent del gsheet
+  // Scrivi nel folder Drive del gsheet (stesso folder).
   let folder;
   try {
-    const ssFile = DriveApp.getFileById(ss.getId());
-    const parents = ssFile.getParents();
+    const parents = DriveApp.getFileById(ss.getId()).getParents();
     if (!parents.hasNext()) {
-      ui.alert('Export', 'Il gsheet non è in un folder Drive accessibile (es. root drive).\n' +
-        'Sposta lo Spreadsheet in un folder per usare l\'export.', ui.ButtonSet.OK);
+      ui.alert('Esporta JSON',
+        'Il gsheet non è in un folder Drive accessibile.\nSposta lo Spreadsheet in un folder.', ui.ButtonSet.OK);
       return;
     }
     folder = parents.next();
   } catch (e) {
-    ui.alert('Export', 'Errore accesso Drive: ' + e.message, ui.ButtonSet.OK);
+    ui.alert('Esporta JSON',
+      'Errore accesso Drive: ' + e.message + '\n\n(Possibile blocco scope Drive da parte dell\'admin Workspace.)',
+      ui.ButtonSet.OK);
     return;
   }
 
   // Sovrascrivi se esiste, altrimenti crea
   const existing = folder.getFilesByName(fname);
   let action;
-  if (existing.hasNext()) {
-    const file = existing.next();
-    file.setContent(json);
-    action = 'sovrascritto';
-  } else {
-    folder.createFile(fname, json, MimeType.PLAIN_TEXT);
-    action = 'creato';
-  }
-  const sizeKb = Math.round(json.length / 1024);
-  ui.alert('Export completato',
-    'File ' + action + ':\n  ' + fname +
-    '\nFolder: ' + folder.getName() +
-    '\nFogli: ' + sources.length + '  (' + sources.map(s => s.getName()).join(', ') + ')' +
-    '\nDimensione: ' + sizeKb + ' KB',
+  if (existing.hasNext()) { existing.next().setContent(json); action = 'sovrascritto'; }
+  else { folder.createFile(fname, json, MimeType.PLAIN_TEXT); action = 'creato'; }
+  ui.alert('Esporta JSON',
+    'File ' + action + ':\n  ' + fname + '\n' +
+    'Folder: ' + folder.getName() + '\n' +
+    'Fogli: ' + sources.map(s => s.getName()).join(', ') + '\n' +
+    'Non-disponibilità aule: ' + nUnavail + '\n' +
+    'PdS: ' + (hasPds ? 'incluso' : '—') + ' · MATRICE: ' + (hasCoex ? 'inclusa (solo backup)' : '—') + '\n' +
+    'Dimensione: ' + sizeKb + ' KB',
     ui.ButtonSet.OK);
 }
 
@@ -96,139 +97,325 @@ function serializeSheet_(sh) {
   const tabColor = (function () {
     try { return sh.getTabColor() || null; } catch (e) { return null; }
   })();
-  if (lastRow < 1 || lastCol < 1) return { tabColor: tabColor, header: [], rows: [] };
-  const all = sh.getRange(1, 1, lastRow, lastCol).getValues();
+  if (lastRow < 1 || lastCol < 1) {
+    return { tabColor: tabColor, header: [], rows: [] };
+  }
+  const range = sh.getRange(1, 1, lastRow, lastCol);
+  const all = range.getValues();
   const header = all[0].map(h => String(h == null ? '' : h));
-  const rows = all.slice(1).map(row => {
-    const obj = {};
-    header.forEach((h, i) => {
-      const v = row[i];
-      obj[h] = (v === null || v === undefined) ? '' : (typeof v === 'string' ? v : String(v));
-    });
-    return obj;
-  });
-  return { tabColor: tabColor, header: header, rows: rows };
+  // Righe POSIZIONALI (array di valori, in ordine di colonna): round-trip esatto
+  // anche con header VUOTI o DUPLICATI (es. colonne calendario LUN-SAB senza
+  // intestazione). Il vecchio formato a oggetti {header: valore} faceva collassare
+  // le colonne con lo stesso header (es. tutte "") perdendo i dati del calendario.
+  const rows = all.slice(1).map(row =>
+    row.map(v => (v === null || v === undefined) ? '' : (typeof v === 'string' ? v : String(v)))
+  );
+  const colWidths = [];
+  for (let c = 1; c <= lastCol; c++) colWidths.push(sh.getColumnWidth(c));
+  const fmt = {
+    nRows: lastRow,
+    nCols: lastCol,
+    colWidths: colWidths,
+    backgrounds: range.getBackgrounds(),
+    fontWeights: range.getFontWeights(),
+    fontColors: range.getFontColors(),
+    horizontalAlignments: range.getHorizontalAlignments(),
+    verticalAlignments: range.getVerticalAlignments(),
+    wraps: range.getWraps(),
+    numberFormats: range.getNumberFormats(),
+    frozenRows: sh.getFrozenRows(),
+    frozenCols: sh.getFrozenColumns()
+  };
+  return { tabColor: tabColor, header: header, rows: rows, fmt: fmt };
 }
 
-function importFromJson() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const cfg = detectAuleConfig();
-  const ui = SpreadsheetApp.getUi();
-  const fname = 'orario' + cfg.prefix + '.json';
+// ─────────────────────────────────────────────────────────────────────────────
+// IMPORT — ui.prompt() nativo (single-line textbox, accetta paste lungo)
+// ─────────────────────────────────────────────────────────────────────────────
 
-  // Trova il file nel folder parent del gsheet
-  let folder, file;
+function importFromJson() {
+  const ui = SpreadsheetApp.getUi();
   try {
-    const ssFile = DriveApp.getFileById(ss.getId());
-    const parents = ssFile.getParents();
-    if (!parents.hasNext()) {
-      ui.alert('Import', 'Il gsheet non è in un folder Drive accessibile.', ui.ButtonSet.OK);
+    // Niente prompt: si carica il file con lo STESSO nome del gsheet (.json).
+    const cfg = detectAuleConfig();
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const fname = ss.getName() + '.json';
+
+    // Carica file dal folder Drive del gsheet
+    let folder;
+    try {
+      const parents = DriveApp.getFileById(ss.getId()).getParents();
+      if (!parents.hasNext()) {
+        ui.alert('Importa JSON', 'Il gsheet non è in un folder accessibile.\nSposta lo Spreadsheet in un folder Drive.', ui.ButtonSet.OK);
+        return;
+      }
+      folder = parents.next();
+    } catch (e) {
+      ui.alert('Importa JSON', 'Errore accesso Drive: ' + e.message + '\n\n(Possibile blocco scope Drive da parte dell\'admin Workspace.)', ui.ButtonSet.OK);
       return;
     }
-    folder = parents.next();
     const files = folder.getFilesByName(fname);
     if (!files.hasNext()) {
-      ui.alert('Import',
-        'File "' + fname + '" non trovato nel folder "' + folder.getName() + '".\n\n' +
-        'Esegui prima un export per crearlo, oppure copialo manualmente nel folder.',
+      ui.alert('Importa JSON',
+        'File "' + fname + '" non trovato nel folder "' + folder.getName() + '".\n\nEsporta prima con "Esporta JSON" (crea un file con lo stesso nome del gsheet).',
         ui.ButtonSet.OK);
       return;
     }
-    file = files.next();
+    const text = files.next().getBlob().getDataAsString();
+    if (!text || !/^\{/.test(text.trim())) {
+      ui.alert('Importa JSON', 'File "' + fname + '" non sembra contenere JSON valido.', ui.ButtonSet.OK);
+      return;
+    }
+
+    let data;
+    try { data = JSON.parse(text); }
+    catch (e) { throw new Error('JSON malformato: ' + e.message); }
+    // Semestre = quello dichiarato nel file (è l'export di QUESTO gsheet); fallback al rilevato.
+    const semester = (data.semester ? String(data.semester).toUpperCase() : cfg.prefix);
+    if (!data.semester) data.semester = semester;
+
+    // Conferma esplicita: mostra quali fogli verranno sostituiti
+    const metaKeys = ['version', 'semester', 'year', 'exportedAt'];
+    const sheetKeys = Object.keys(data).filter(k =>
+      metaKeys.indexOf(k) === -1 &&
+      k !== PDS_SHEET_NAME &&
+      k.toUpperCase().indexOf(semester) === 0 &&
+      data[k] && typeof data[k] === 'object' &&
+      Array.isArray(data[k].header) && Array.isArray(data[k].rows));
+    if (!sheetKeys.length) {
+      ui.alert('Importa JSON', 'Nessun foglio "' + semester + '*" valido nel file.', ui.ButtonSet.OK);
+      return;
+    }
+    const sheetInfo = sheetKeys.map(k => '  • ' + k + ' (' + data[k].rows.length + ' righe)').join('\n');
+    const hasPdsInFile = !!(data[PDS_SHEET_NAME] && data[PDS_SHEET_NAME].header && data[PDS_SHEET_NAME].rows);
+    const nUn = Array.isArray(data._unavail) ? data._unavail.length : 0;
+    const extra =
+      (hasPdsInFile ? '  • ' + PDS_SHEET_NAME + ' (settings dei piani)\n' : '') +
+      (nUn ? '  • non-disponibilità aule (' + nUn + ')\n' : '');
+    const confirm = ui.alert('Conferma import da "' + fname + '"',
+      'Verranno SOSTITUITI (vecchi dati cancellati, nuovi scritti):\n' +
+      sheetInfo + '\n' + extra + '\n' +
+      'Bordi e formattazione preservati. La MATRICE co-esami NON viene importata\n' +
+      '(è alimentata da IMPORTRANGE). Altri fogli/semestri non toccati.\n\nProcedere?',
+      ui.ButtonSet.OK_CANCEL);
+    if (confirm !== ui.Button.OK) return;
+
+    const msg = applyImportFromJson(JSON.stringify(data));
+    // Dopo l'import: rigenera SxAULE dalle sessioni appena importate (+ ripristina le
+    // non-disponibilità) e RISCRIVE lo snapshot della web app — altrimenti il sito,
+    // che legge lo snapshot, continuerebbe a mostrare i dati vecchi.
+    let extraMsg = '';
+    const un = Array.isArray(data._unavail) ? data._unavail : [];
+    try {
+      tabellaAule({ ss: ss, interactive: false, extraUnavail: un, removedUnavail: [] });
+      const d = getOrarioData(); d.pendingEdits = []; _writeSnapshot_(d);
+      extraMsg = '\nSxAULE rigenerato e snapshot Web App aggiornato' +
+        (un.length ? ' (non-disponibilità ripristinate: ' + un.length + ')' : '') + '.' +
+        '\n→ Ricarica la web app (o premi 📥 Carica) per vedere i dati.';
+    } catch (e) { extraMsg = '\n⚠ Rigenerazione/snapshot non riuscita: ' + ((e && e.message) || e); }
+    ui.alert('Import completato (' + fname + ')', msg + extraMsg, ui.ButtonSet.OK);
   } catch (e) {
-    ui.alert('Import', 'Errore accesso Drive: ' + e.message, ui.ButtonSet.OK);
-    return;
-  }
-
-  const json = file.getBlob().getDataAsString();
-  const sizeKb = Math.round(json.length / 1024);
-
-  const res = ui.alert('Import',
-    'Importare da "' + fname + '" (' + sizeKb + ' KB)?\n\n' +
-    '⚠ Verranno CANCELLATI tutti i fogli del semestre opposto e sovrascritti quelli del semestre importato.\n' +
-    '(Il foglio PdS non viene toccato.)',
-    ui.ButtonSet.OK_CANCEL);
-  if (res !== ui.Button.OK) return;
-
-  try {
-    const result = applyImportFromJson(json);
-    ui.alert('Import completato', result, ui.ButtonSet.OK);
-  } catch (e) {
-    ui.alert('Import fallito', e.message, ui.ButtonSet.OK);
+    const msg = (e && e.message) ? e.message : String(e);
+    Logger.log('ERROR importFromJson: ' + msg + '\n' + (e && e.stack ? e.stack : ''));
+    try { ui.alert('Import fallito', msg + '\n\n(Vedi log: Estensioni → Apps Script → Esecuzioni)', ui.ButtonSet.OK); } catch (e2) {}
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// IMPORT — core logic (chiamato da importFromJson)
+// ─────────────────────────────────────────────────────────────────────────────
 
 function applyImportFromJson(jsonText) {
   let data;
   try { data = JSON.parse(jsonText); }
   catch (e) { throw new Error('JSON malformato: ' + e.message); }
-  if (!data || typeof data !== 'object') throw new Error('JSON non valido (atteso oggetto).');
+  if (!data || typeof data !== 'object') throw new Error('JSON non valido.');
   if (!data.version) throw new Error('Campo "version" mancante.');
-  if (!data.semester) throw new Error('Campo "semester" mancante (atteso "S1" o "S2").');
+  if (!data.semester) throw new Error('Campo "semester" mancante.');
 
   const newPrefix = String(data.semester).toUpperCase();
   if (newPrefix !== 'S1' && newPrefix !== 'S2') {
-    throw new Error('semester non valido: "' + data.semester + '" (atteso "S1" o "S2").');
+    throw new Error('semester non valido: "' + data.semester + '"');
   }
-  const oppositePrefix = newPrefix === 'S1' ? 'S2' : 'S1';
-
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
-  // 1. Cancella tutti i fogli del semestre opposto (incluso AULE).
-  const toDelete = ss.getSheets().filter(s => s.getName().toUpperCase().startsWith(oppositePrefix));
-  let deleted = 0;
-  toDelete.forEach(sh => {
-    if (ss.getSheets().length === 1) return;
-    ss.deleteSheet(sh);
-    deleted++;
+  // Identifica i fogli presenti nel JSON (es. solo S1LM, oppure S1LT+S1LM)
+  const metaKeys = ['version', 'semester', 'year', 'exportedAt'];
+  const sheetKeys = Object.keys(data).filter(k =>
+    metaKeys.indexOf(k) === -1 &&
+    k !== PDS_SHEET_NAME &&
+    k.toUpperCase().indexOf(newPrefix) === 0 &&
+    data[k] && typeof data[k] === 'object' &&
+    Array.isArray(data[k].header) && Array.isArray(data[k].rows));
+
+  if (!sheetKeys.length) {
+    throw new Error('Nessun foglio "' + newPrefix + '*" valido trovato nel JSON.');
+  }
+
+  // Se i fogli del semestre opposto esistono ma quelli del semestre target no,
+  // rinominali (es. S2LT → S1LT) così formato/bordi/larghezze vengono ereditati.
+  const oppositePrefix = newPrefix === 'S1' ? 'S2' : 'S1';
+  const renamed = [];
+  ss.getSheets().forEach(sh => {
+    const n = sh.getName();
+    if (n.toUpperCase().indexOf(oppositePrefix) === 0) {
+      const suffix = n.substring(2);
+      const targetName = newPrefix + suffix;
+      if (!ss.getSheetByName(targetName)) {
+        try {
+          sh.setName(targetName);
+          renamed.push(n + ' → ' + targetName);
+        } catch (e) {}
+      }
+    }
   });
 
-  // 2. Per ogni foglio in data: skip PdS, meta, e qualsiasi non-Sx*
-  const metaKeys = ['version', 'semester', 'exportedAt'];
-  let written = 0;
+  // Aggiorna SOLO i fogli presenti nel JSON. NON cancella nient'altro
+  // (né siblings del semestre, né l'altro semestre, né PdS).
   const writtenNames = [];
-  Object.keys(data).forEach(key => {
-    if (metaKeys.indexOf(key) !== -1) return;
-    if (key === PDS_SHEET_NAME) return;                       // PdS ignorato
-    if (key.toUpperCase().indexOf(newPrefix) !== 0) return;   // safety: solo Sx*
-    const sd = data[key];
-    if (!sd || typeof sd !== 'object') return;
-    if (!Array.isArray(sd.header) || !Array.isArray(sd.rows)) return;
-    let sh = ss.getSheetByName(key);
-    if (!sh) sh = ss.insertSheet(key);
-    try {
-      sh.getRange(1, 1, sh.getMaxRows(), sh.getMaxColumns()).breakApart();
-    } catch (e) {}
-    sh.clear();
-    sh.clearNotes();
-    const header = sd.header.map(h => String(h == null ? '' : h));
-    if (header.length === 0) { writtenNames.push(key); written++; return; }
-    sh.getRange(1, 1, 1, header.length).setValues([header]).setFontWeight('bold');
-    if (sd.rows.length > 0) {
-      const values = sd.rows.map(row => header.map(h => {
-        const v = row[h];
-        return (v === null || v === undefined) ? '' : v;
-      }));
-      sh.getRange(2, 1, values.length, header.length).setValues(values);
-    }
-    if (sd.tabColor) {
-      try { sh.setTabColor(sd.tabColor); } catch (e) {}
-    }
+  sheetKeys.forEach(key => {
+    importSheetData_(ss, key, data[key]);
     writtenNames.push(key);
-    written++;
   });
 
-  return 'Cancellati ' + deleted + ' fogli "' + oppositePrefix + '*", ' +
-         'importati ' + written + ' fogli "' + newPrefix + '*": ' + writtenNames.join(', ') +
-         '\n(PdS non toccato.)';
+  // PdS: importato SE presente nel JSON (settings dei piani). La MATRICE invece
+  // NON si importa mai (è alimentata da IMPORTRANGE): se nel file c'è, si ignora.
+  let pdsImported = false;
+  const pdsData = data[PDS_SHEET_NAME];
+  if (pdsData && typeof pdsData === 'object' && Array.isArray(pdsData.header) && Array.isArray(pdsData.rows)) {
+    importSheetData_(ss, PDS_SHEET_NAME, pdsData);
+    pdsImported = true;
+  }
+
+  // Identifica gli altri fogli esistenti del SEMESTRE corrente, preservati
+  const allCurrSheets = ss.getSheets()
+    .map(s => s.getName())
+    .filter(n => n.toUpperCase().startsWith(newPrefix));
+  const preservedSame = allCurrSheets.filter(n => writtenNames.indexOf(n) === -1);
+
+  // Identifica fogli dell'altro semestre (anch'essi preservati)
+  const preservedOpp = ss.getSheets()
+    .map(s => s.getName())
+    .filter(n => n.toUpperCase().startsWith(oppositePrefix));
+
+  let msg = '';
+  if (renamed.length) {
+    msg += '🏷️ Rinominati (semestre cambiato):\n  ' + renamed.join('\n  ') + '\n';
+  }
+  msg += '🔄 Sostituiti (vecchi dati cancellati, nuovi scritti):\n  ' +
+         writtenNames.join(', ');
+  if (preservedSame.length) {
+    msg += '\n📋 Non toccati (' + newPrefix + '*, non nel JSON):\n  ' + preservedSame.join(', ');
+  }
+  if (preservedOpp.length) {
+    msg += '\n📋 Non toccati (' + oppositePrefix + '*, altro semestre):\n  ' + preservedOpp.join(', ');
+  }
+  msg += pdsImported
+    ? '\n🔄 PdS: importato (settings ripristinati).'
+    : '\n📋 PdS: non presente nel file → non toccato.';
+  return msg;
 }
 
-// Utility legacy (rimossa da export ma utile se chiamata altrove)
-function escapeHtml(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+function importSheetData_(ss, sheetName, sd) {
+  let sh = ss.getSheetByName(sheetName);
+  const isNew = !sh;
+  if (isNew) sh = ss.insertSheet(sheetName);
+
+  const header = sd.header.map(h => String(h == null ? '' : h));
+  const ncols = header.length;
+  const rowCount = sd.rows.length;
+  const newTotalRows = 1 + rowCount;
+  if (ncols === 0) return;
+
+  // Costruisci la matrice dei valori (header + rows). Supporta entrambi i formati:
+  // - posizionale (nuovo): row è un ARRAY di valori in ordine di colonna;
+  // - a oggetti (file vecchi): row è { header: valore } (fragile con header dup/vuoti).
+  const dataMatrix = [header];
+  sd.rows.forEach(row => {
+    if (Array.isArray(row)) {
+      const arr = [];
+      for (let i = 0; i < ncols; i++) { const v = row[i]; arr.push((v === null || v === undefined) ? '' : v); }
+      dataMatrix.push(arr);
+    } else {
+      dataMatrix.push(header.map(h => { const v = row[h]; return (v === null || v === undefined) ? '' : v; }));
+    }
+  });
+
+  if (isNew) {
+    // Foglio nuovo: scrivi tutto + applica formato dal JSON se presente
+    try { sh.getRange(1, 1, sh.getMaxRows(), sh.getMaxColumns()).breakApart(); } catch (e) {}
+    sh.clear();
+    sh.clearNotes();
+    sh.getRange(1, 1, newTotalRows, ncols).setValues(dataMatrix);
+    if (!sd.fmt) sh.getRange(1, 1, 1, ncols).setFontWeight('bold');
+    if (sd.fmt) applySheetFormat_(sh, sd.fmt, newTotalRows, ncols);
+    if (sd.tabColor) try { sh.setTabColor(sd.tabColor); } catch (e) {}
+    return;
+  }
+
+  // Foglio esistente: PRESERVA totalmente bordi, conditional formatting,
+  // larghezze colonne, font, sfondi, ecc.
+  // Strategia: niente clear*, riempi le vecchie celle di "" (cancella contenuto
+  // ma mantiene formato), poi sovrascrivi con i nuovi dati, poi rimuovi le
+  // righe in eccesso.
+  try { sh.getRange(1, 1, sh.getMaxRows(), sh.getMaxColumns()).breakApart(); } catch (e) {}
+  const oldLastRow = sh.getLastRow();
+  const oldLastCol = sh.getLastColumn();
+  const wipeCols = Math.max(oldLastCol, ncols);
+
+  // 1. cancella i contenuti (riempi di "")
+  if (oldLastRow > 0 && wipeCols > 0) {
+    const blank = [];
+    for (let i = 0; i < oldLastRow; i++) blank.push(new Array(wipeCols).fill(''));
+    sh.getRange(1, 1, oldLastRow, wipeCols).setValues(blank);
+  }
+  sh.clearNotes();
+
+  // 2. scrivi header + righe del JSON
+  sh.getRange(1, 1, newTotalRows, ncols).setValues(dataMatrix);
+
+  // 3. rimuovi le righe in eccesso (se il foglio era più lungo dei nuovi dati)
+  if (oldLastRow > newTotalRows) {
+    sh.deleteRows(newTotalRows + 1, oldLastRow - newTotalRows);
+  }
+
+  // Tab color: aggiornalo se diverso (è una proprietà del foglio, non del contenuto)
+  if (sd.tabColor) {
+    try { sh.setTabColor(sd.tabColor); } catch (e) {}
+  }
+}
+
+function applySheetFormat_(sh, fmt, dataRows, dataCols) {
+  if (Array.isArray(fmt.colWidths)) {
+    fmt.colWidths.slice(0, dataCols).forEach((w, i) => {
+      if (w && w > 0) {
+        try { sh.setColumnWidth(i + 1, w); } catch (e) {}
+      }
+    });
+  }
+  const fmtRows = fmt.backgrounds ? Math.min(fmt.backgrounds.length, dataRows) : dataRows;
+  const fmtCols = dataCols;
+  if (fmtRows < 1) return;
+  const r = sh.getRange(1, 1, fmtRows, fmtCols);
+
+  function slice2D(m) {
+    if (!Array.isArray(m)) return null;
+    return m.slice(0, fmtRows).map(row =>
+      Array.isArray(row) ? row.slice(0, fmtCols) : new Array(fmtCols).fill(''));
+  }
+  let arr;
+  if ((arr = slice2D(fmt.backgrounds))) r.setBackgrounds(arr);
+  if ((arr = slice2D(fmt.fontWeights))) r.setFontWeights(arr);
+  if ((arr = slice2D(fmt.fontColors))) r.setFontColors(arr);
+  if ((arr = slice2D(fmt.horizontalAlignments))) r.setHorizontalAlignments(arr);
+  if ((arr = slice2D(fmt.verticalAlignments))) r.setVerticalAlignments(arr);
+  if ((arr = slice2D(fmt.wraps))) r.setWraps(arr);
+  if ((arr = slice2D(fmt.numberFormats))) r.setNumberFormats(arr);
+
+  if (typeof fmt.frozenRows === 'number') {
+    try { sh.setFrozenRows(fmt.frozenRows); } catch (e) {}
+  }
+  if (typeof fmt.frozenCols === 'number') {
+    try { sh.setFrozenColumns(fmt.frozenCols); } catch (e) {}
+  }
 }

@@ -31,22 +31,33 @@ La copia eredita il codice Apps Script come copia statica:
 
 ### A3. Crea il deployment Web app
 
-1. Editor Apps Script → **Deploy → New deployment** (in alto a destra).
-2. Click sull'**ingranaggio** ⚙ accanto a "Select type" → scegli **Web app**.
+Il deployment va creato **una volta** dall'editor (l'Apps Script API per crearlo da
+codice non funziona sugli script *bound*: usano un progetto Cloud nascosto su cui
+l'API non è abilitabile). L'**URL `/exec`** poi finisce in `CONFIG!C2` **da solo**.
+
+1. Sul gsheet copia: **Estensioni → Apps Script**.
+2. Editor → **Deploy → New deployment** → ⚙ accanto a "Select type" → **Web app**.
 3. Nel dialog:
    - **Description**: es. `BozzaOrario CdS XYZ`.
    - **Execute as**: `Me (tuo@unipi.it)`.
-   - **Who has access**: `Anyone with Google account` (consigliato).
-4. **Deploy**. Al primo deploy ti chiederà di autorizzare gli scope OAuth. Accetta.
-5. Apparirà un dialog con due valori — **copiali da qualche parte**:
-   - **Deployment ID** (es. `AKfycb...`)
-   - **Web app URL** (`https://script.google.com/a/macros/unipi.it/s/.../exec`)
+   - **Who has access**: `Anyone within unipi.it` (DOMAIN; come da manifest — coerente
+     col modello a 3 livelli: l'utente UniPi vede solo il calendario).
+4. **Deploy** → autorizza gli scope OAuth → ottieni **Deployment ID** + **Web app URL**.
+5. **Incolla l'URL `/exec` in `CONFIG!C2`**: copia il "Web app URL" del **deployment**
+   (formato `…/a/macros/unipi.it/s/…/exec`) dal dialog di deploy e incollalo in C2.
+   Da quel momento il menu **🕒 Orario → 📅 Vai al Web Calendar** pubblica lo
+   snapshot e apre il sito leggendo l'URL **da C2**.
+   > ⚠️ `ScriptApp.getService().getUrl()` **non** è affidabile: restituisce un URL
+   > HEAD/legacy diverso (`…/a/unipi.it/macros/s/…/exec`), che spesso non funziona →
+   > per questo l'URL va incollato a mano dal dialog di deploy, non rilevato in automatico.
 
 ### A4. Pubblica i dati per la web app
 
 1. Sul gsheet copia, ricarica la pagina del browser. Comparirà il menu **🕒 Orario**.
-2. **🕒 Orario → 📅 Aggiorna Web Calendar**. Genera lo snapshot iniziale.
-3. Apri l'URL `/exec` copiato → vedi il Web Calendar della copia.
+2. **🕒 Orario → 📅 Vai al Web Calendar**. Genera lo snapshot iniziale.
+   (Le ScriptProperties con lo snapshot LT/LM/PDS **non** si copiano col gsheet: vanno
+   rigenerate qui. I ruoli editor/auditor invece stanno nel foglio CONFIG → già copiati.)
+3. Apri l'URL `/exec` (quello in `CONFIG!C2`) → vedi il Web Calendar della copia.
 
 ### A5. Aggiornamenti futuri
 
@@ -185,7 +196,7 @@ Si apre l'editor Apps Script. Vai su **Deploy → Manage deployments** → click
 
 ### B8. Pubblica i dati per la web app
 
-Sul gsheet duplicato (browser), ricarica la pagina, lancia menu **🕒 Orario → 📅 Aggiorna Web Calendar**.
+Sul gsheet duplicato (browser), ricarica la pagina, lancia menu **🕒 Orario → 📅 Vai al Web Calendar**.
 
 Apri l'URL `/exec`: dovresti vedere il Web Calendar della copia.
 
