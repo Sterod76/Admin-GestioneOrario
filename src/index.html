@@ -924,6 +924,9 @@
   .cs-foot button:hover { background: #f1f3f4; }
   /* Permessi: auditor/public (non-editor) → niente Log modifiche, Carica/Salva, Parking */
   body:not(.role-editor) #logMod, body:not(.role-editor) #parking { display: none; }
+  /* Creazione/eliminazione slot (Nuovo slot / Cestino): solo l'editor in edit.
+     Revisore e Consultazione vedono il tab Slot ma in sola lettura (selezione sì). */
+  body:not(.role-editor) .slot-template, body:not(.role-editor) .slot-trash { display: none; }
   /* Visibilità "in redazione" (utente generico): header visibile ma controlli
      disattivati, viste nascoste, messaggio al posto del calendario. */
   #draftNotice { display: none; }
@@ -1300,7 +1303,8 @@ var _editActive = !!EDIT_MODE;
   // Ruolo EFFETTIVO della UI: editor col lock → 'editor'; editor SENZA lock →
   // 'auditor' (sola lettura, tutti i tab); altrimenti il ruolo vero.
   const _effRole = EDIT_MODE ? 'editor' : (_isRealEditor ? 'auditor' : ((typeof ROLE !== 'undefined' && ROLE) || 'public'));
-  const _showTabs = (_effRole !== 'public');   // editor/revisore vedono tutti i tab
+  const _isPublic = (_effRole === 'public');   // Consultazione: vede Calendario + Slot
+  const _showTabs = !_isPublic;                // editor/revisore: tutti i tab
   document.body.classList.add('role-' + _effRole);
   // "In redazione" (solo utente generico): header visibile ma disattivato + messaggio
   // al posto del calendario (CSS body.draft). I dati arrivano già svuotati dal server.
@@ -1311,20 +1315,17 @@ var _editActive = !!EDIT_MODE;
     if (auleTab) auleTab.style.display = 'none';
     const auleView = document.getElementById('viewRooms');
     if (auleView) auleView.style.display = 'none';
-    // Pubblico: un solo tab → nascondi l'intera barra tab.
-    const tabsBar = document.querySelector('.view-tabs');
-    if (tabsBar) tabsBar.style.display = 'none';
+    // NB: la barra tab NON si nasconde: il public vede Calendario + Slot.
   } else if (auleTab && EDIT_MODE) {  // badge solo per gli editor
     auleTab.classList.add('edit-on');
     auleTab.innerHTML = '🏛 Aule <span class="edit-tag">GRAPHICAL EDIT</span>';
     auleTab.title = 'Modalità edit attiva per ' + (USER_EMAIL || 'utente loggato');
   }
+  // Il tab Slot è visibile a TUTTI, anche al public/Consultazione: sola lettura,
+  // ma con SELEZIONE degli slot e info dettagliate (drag/resize solo in edit).
+  // Solo l'editor in modalità edit ha il badge "GRAPHICAL EDIT".
   const slotsTab = document.querySelector('.view-tab[data-view="slots"]');
-  if (!_showTabs) {
-    if (slotsTab) slotsTab.style.display = 'none';
-    const slotsView = document.getElementById('viewSlots');
-    if (slotsView) slotsView.style.display = 'none';
-  } else if (slotsTab && EDIT_MODE) {
+  if (slotsTab && EDIT_MODE) {
     slotsTab.classList.add('edit-on-orange');
     slotsTab.innerHTML = '🕐 Slot <span class="edit-tag orange">GRAPHICAL EDIT</span>';
     slotsTab.title = 'Modalità edit attiva per ' + (USER_EMAIL || 'utente loggato');
@@ -1384,6 +1385,9 @@ var _editActive = !!EDIT_MODE;
       anchor = v;
     });
   })();
+  // Public/Consultazione: oltre ad Aule/Collisioni/ecc. nascondi anche i tab
+  // "mirror" dei fogli — restano solo Calendario + Slot.
+  if (_isPublic) document.querySelectorAll('.view-tab.tab-mirror').forEach(tb => { tb.style.display = 'none'; });
 
   // Popover suggerimenti sul tab Collisioni: hover sulla cella costo (.cl-cost).
   (function setupCollisionPopover() {
@@ -2495,20 +2499,13 @@ var _editActive = !!EDIT_MODE;
       // righe/colonne rimaste interamente vuote per un triangolo compatto.
       let _idx = null;
       if (!bip) {
-        // _idx = posizione nell'ordine CONDIVISO (righe=colonne) calcolato sull'insieme
-        // COMPLETO. Resta valido dopo il filtro perché togliamo solo righe/colonne
-        // INTERE: l'ordine relativo (e quindi il confronto _idx[c] > _idx[r]) non cambia.
+        // Matrice QUADRATA: gli STESSI codici su righe e colonne, ma valorizzata
+        // SOLO nella sopra-diagonale (la metà inferiore è il duplicato speculare).
+        // NON si tolgono righe/colonne: ogni codice compare su entrambi gli assi
+        // (così la prima colonna e l'ultima riga restano senza celle valorizzate).
+        // _idx = posizione nell'ordine condiviso; la cella (r,c) è "sopra" se
+        // _idx[c] > _idx[r].
         _idx = {}; rows.forEach((x, i) => { _idx[x] = i; });
-        const _shown = (r, c) => { const cl = cellAt(r, c); return !!(cl && cl.pos && _idx[c] > _idx[r]); };
-        // Un solo passaggio basta: se _shown(r,c) allora r entra in _dr e c entra in
-        // _dc, quindi ogni riga/colonna tenuta ha almeno una cella mostrata (niente
-        // linee vuote residue).
-        const _dr = rows.filter(r => cols.some(c => _shown(r, c)));
-        const _dc = cols.filter(c => rows.some(r => _shown(r, c)));
-        rows = _dr; cols = _dc;
-        if (!rows.length || !cols.length) {
-          return '<div class="cl-section"><h3>' + title + '</h3><div class="cl-none">— nessuna collisione con costo —</div></div>';
-        }
       }
       const vc = data.vincoloColors || {};
       const rowBg = bip ? (vc.OBB || '#ffcfc9') : (vc.FOR || '#ffe5a0');

@@ -334,9 +334,10 @@ check('Per-gruppo: drill-down accorpa le varianti (1 clash, non 2)', (function (
 })());
 check('Per-gruppo: banner conta 1 collisione (non 2)', gout.indexOf('su 1 collision') !== -1);
 
-// ===== Triangolo FF SPARSO: F1-F2 e F3-F4 collidono, nient'altro. Verifica che
-// il filtro single-pass NON lasci righe/colonne vuote residue (la metà inferiore
-// e la diagonale sono nascoste, ma niente linee completamente vuote). =====
+// ===== FF matrice QUADRATA: F1-F2 e F3-F4 collidono, nient'altro. Gli stessi
+// codici compaiono su entrambi gli assi (4×4), ma è valorizzata SOLO la
+// sopra-diagonale (2 celle: F1>F2, F3>F4). La prima colonna e l'ultima riga
+// restano senza celle valorizzate, ma le intestazioni ci sono comunque. =====
 data.equiv = {};
 data.pds = [{ name: 'PS', codes: ['F1', 'F2', 'F3', 'F4'], vincoloByCode: { F1: 'FOR', F2: 'FOR', F3: 'FOR', F4: 'FOR' } }];
 data.sessions = [
@@ -349,12 +350,12 @@ _collView = 'matrix';
 renderCollisions();
 const sout = captures['collisionsBody'];
 const sff = cellsOf(sout, 'ff');
-check('FF sparse: esattamente 2 celle (F1>F2, F3>F4)', sff.length === 2 && sff.indexOf('F1>F2') !== -1 && sff.indexOf('F3>F4') !== -1);
+check('FF quadrata: solo 2 celle valorizzate (sopra-diagonale: F1>F2, F3>F4)', sff.length === 2 && sff.indexOf('F1>F2') !== -1 && sff.indexOf('F3>F4') !== -1);
 // Isola la sezione FF in modo robusto: è il chunk che contiene celle data-k="ff".
 const ffSec = (sout.split('<div class="cl-section">').find(s => s.indexOf('data-k="ff"') !== -1)) || '';
 // NB: /cx-ch"/ per non matchare anche "cx-chl" (lo span interno dell'header).
 const nRh = (ffSec.match(/cx-rh"/g) || []).length, nCh = (ffSec.match(/cx-ch"/g) || []).length;
-check('FF sparse: nessuna riga/colonna vuota residua (2 righe-header, 2 colonne-header)', nRh === 2 && nCh === 2);
+check('FF quadrata: stessi codici su entrambi gli assi (4 righe, 4 colonne)', nRh === 4 && nCh === 4);
 
 // ===== Bipartita OBB-FOR speculare: AA è OBB nel PdS PA e FOR nel PdS PB; BB è
 // FOR in PA e OBB in PB. Lo stesso clash AA-BB compare sia in (AA-obbligo,

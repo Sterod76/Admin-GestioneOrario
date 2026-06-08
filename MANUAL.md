@@ -121,7 +121,7 @@ email è sulla stessa riga dell'etichetta, le altre nelle righe sotto con B vuot
 |---|---|---|
 | **WebEditors** | redattori dell'orario | tutto: vede tutti i tab, **drag&drop**, **Carica/Salva**, badge GRAPHICAL EDIT |
 | **WebAuditors** *(o `WebRevisori` / `WebReviewers`)* | **Revisori** | vedono **tutti i tab** ma in **sola lettura** (niente drag, niente Carica/Salva) |
-| *(chiunque altro)* | utente UniPi generico | vede **solo il Calendario**, con i filtri (un Piano di Studi / anno alla volta) — non l'intera Magistrale né LT+LM insieme |
+| *(chiunque altro)* | utente UniPi generico (**Consultazione**) | vede il **Calendario** e il tab **Slot** (gli altri tab no). Lo Slot è in **sola lettura** ma gli slot restano **selezionabili**: cliccandoli si vedono le **informazioni dettagliate** (collisioni/capienza); niente drag/resize né creazione/eliminazione slot. Con i filtri (un Piano di Studi / anno alla volta) |
 
 > Retro-compatibilità: l'etichetta dei revisori può essere **`WebAuditors`**,
 > **`WebRevisori`** o **`WebReviewers`** (tutte valide). Se il CONFIG non ha
@@ -132,7 +132,7 @@ email è sulla stessa riga dell'etichetta, le altre nelle righe sotto con B vuot
 
 Dal gsheet, menu **🕒 Orario → 👁️ Visibilità** con due voci a spunta (`●` = attiva):
 
-- **Pubblicato** (default) — l'utente generico vede il Calendario.
+- **Pubblicato** (default) — l'utente generico vede il Calendario e il tab Slot.
 - **In redazione** — l'utente generico vede l'**intestazione** (titolo + controlli
   disattivati, così sa di essere nel posto giusto) e, al posto del calendario, il
   messaggio **"Calendario in fase di redazione"** (i dati dell'orario non gli vengono
@@ -165,7 +165,7 @@ viene mostrata né inviata all'utente.
 
 ![Accesso Revisore (sola lettura) — tutti i tab](docs/img/11-auditor.png)
 
-![Accesso pubblico — solo Calendario](docs/img/12-public.png)
+![Accesso pubblico (Consultazione) — Calendario + tab Slot](docs/img/12-public.png)
 
 ---
 
@@ -232,9 +232,10 @@ cella costo** appare un popover con gli spostamenti che ridurrebbero il costo.
 
 **Vista Matrice** (default): due matrici **codice × codice**, una per
 **OBBLIGHI–FORCHETTE** (obblighi sulle righe, forchette sulle colonne) e una per
-**FORCHETTE–FORCHETTE**. Quest'ultima è simmetrica, perciò ne viene mostrata
-**solo la parte sopra la diagonale** (la metà inferiore è il duplicato speculare):
-ogni coppia compare una volta sola. L'ordine dei codici non conta (la collisione
+**FORCHETTE–FORCHETTE**. Quest'ultima è una **matrice quadrata** con gli **stessi
+codici su righe e colonne**, ma valorizzata **solo nella parte sopra la diagonale**
+(la metà inferiore è il duplicato speculare; la prima colonna e l'ultima riga
+restano quindi senza valori): ogni coppia compare una volta sola. L'ordine dei codici non conta (la collisione
 è la stessa); il **giorno** invece sì: variazioni su giorni/orari diversi sono
 *varianti distinte*. Ogni cella mostra il **costo totale** `N × ore` (somma delle
 varianti), con heatmap ambra e **rosso se N≥5**. Vengono riportate **solo le
