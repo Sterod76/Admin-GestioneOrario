@@ -859,12 +859,6 @@
   .slot-hover-info .shi-cap { font-size: 12px; margin: 4px 0; color: #444; }
   .slot-hover-info .shi-cap.shi-cap-over { color: #a50e0e; background: #fce8e6; border-radius: 3px; padding: 2px 6px; }
   .slot-hover-info .shi-cap.shi-cap-na { color: var(--muted); font-style: italic; }
-  /* Suggerimenti di spostamento */
-  .slot-hover-info .shi-sugg-h { font-size: 12px; font-weight: 700; color: #137333; margin: 4px 0 3px; }
-  .slot-hover-info .shi-sugg { display: flex; align-items: baseline; gap: 8px; font-size: 12px; padding: 2px 0; }
-  .slot-hover-info .shi-sugg .shi-sugg-delta { flex: 0 0 52px; font-weight: 700; color: #137333; text-align: right; }
-  .slot-hover-info .shi-sugg .shi-sugg-pos { color: var(--text); }
-  .slot-hover-info .shi-sugg .shi-sugg-warn { color: #a50e0e; font-size: 11px; }
   /* MER (giorno, bold) a sinistra su due righe; a destra orario (bold) sopra,
      aula in corsivo sotto — come le celle del gsheet. */
   .slot-hover-info .shi-self {
@@ -2122,20 +2116,8 @@ var _editActive = !!EDIT_MODE;
       .sort((a, b) => (a.day - b.day) || (a.start - b.start));
     if (others.length) others.forEach(o => { html += _slotRow(o, dayLabel, false); });
     else html += '<div class="shi-empty">Nessun altro slot per questo codice.</div>';
-    // 4) suggerimenti di spostamento (singolo slot) che riducono il costo
-    const sugg = suggestMoves(s);
-    if (sugg.length) {
-      html += '<div class="shi-sep"></div>';
-      html += '<div class="shi-sugg-h">💡 Spostamenti che riducono il costo (questo slot):</div>';
-      sugg.forEach(m => {
-        html += '<div class="shi-sugg">' +
-          '<span class="shi-sugg-delta">−' + fmtCost(-m.delta) + '</span>' +
-          '<span class="shi-sugg-pos">' + esc(dayLabel[m.day] || '?') + ' ' + fmt(m.start) + '-' + fmt(m.end) +
-            ' · <b>' + esc(m.room) + '</b></span>' +
-          (m.over ? '<span class="shi-sugg-warn" title="aula sopra capienza">⚠ capienza</span>' : '') +
-        '</div>';
-      });
-    }
+    // NB: i suggerimenti di spostamento NON vengono più mostrati qui (richiesta
+    // utente). suggestMoves() resta in uso dal popover del tab Collisioni.
     box.innerHTML = html;
   }
 

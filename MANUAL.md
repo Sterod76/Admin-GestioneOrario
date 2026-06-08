@@ -200,8 +200,9 @@ espandi tutto. Nel blocco, sotto codice e titolo, si mostrano i **CFU** (l'orari
 ovvio dalla posizione; durante un drag/resize il blocco mostra però l'orario live).
 Gli slot che **superano l'80% della capienza** sono evidenziati (bordo rosso + ⚠,
 vedi §5). Selezionando uno slot, nel pannello in basso compaiono il dettaglio del
-codice — con **ore/settimana** (LEZ + LAB) e **CFU** — le sue collisioni, la capienza
-e i **suggerimenti di spostamento** che abbassano il costo.
+codice — con **ore/settimana** (LEZ + LAB) e **CFU** — le sue collisioni e la
+capienza. *(I suggerimenti di spostamento restano disponibili nel **popover** del
+tab Collisioni, passando sopra la cella costo.)*
 
 > Anche in **VIEW / Revisore** (e per gli editor non in EDIT) gli slot restano
 > **selezionabili** — il pannello collisioni/capienza in basso funziona; è bloccato
