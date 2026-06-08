@@ -366,6 +366,10 @@
   .clm-table td.clm-cell:hover { outline: 2px solid #aecbfa; outline-offset: -2px; }
   .clm-table td.clm-cell.clm-hi { color: #a50e0e; }
   .clm-table td.clm-cell.clm-sel { outline: 2px solid #1967d2; outline-offset: -2px; }
+  /* Cella speculare OBB-FOR (stessa collisione mostrata in 2 caselle, valore /2) */
+  .clm-table td.clm-cell.clm-dup { text-decoration: underline dotted rgba(90,51,0,.45); }
+  .clm-table td.clm-cell .clm-half { font-size: .72em; opacity: .6; font-weight: 400; }
+  .clm-detail .clm-dupnote { font-weight: 400; color: var(--muted); font-size: 11px; }
   /* Matrice OPZIONALI × TUTTI (non valorizzata): celle verdi, badge totale colonna */
   .clm-table td.clm-cell.clm-opz { color: #1b5e20; }
   .clm-coltot { display: block; font-size: 10px; font-weight: 700; color: #1b5e20; margin-top: 1px; }
@@ -2389,23 +2393,22 @@ var _editActive = !!EDIT_MODE;
       const fr = pdsSet(pds, 'FOR');
       if (fr.size >= 2) collect(ffMap, pairsWithin(sessByCodes(fr)), 'ff', pds.name);
     });
-    // ── Niente doppi conteggi fra sezioni ─────────────────────────────────────
-    // Una STESSA collisione (giorno|overlap|coppia di codici) può ricadere in
-    // categorie diverse a seconda del PdS: es. un codice è OBBLIGO in un PdS e
-    // FORCHETTA in un altro. La assegniamo a UNA sola categoria con precedenza
-    // OBB-OBB > OBB-FOR > FF: se è già negli obblighi (o negli obblighi-forchette)
-    // non viene ripetuta nelle forchette-forchette. Le tre sezioni diventano così
-    // mutuamente esclusive A LIVELLO DI COLLISIONE, come il totale del banner che
-    // conta ogni collisione una sola volta. (Resta la non-additività PER-GRUPPO
-    // già segnalata dal banner: le varianti per gruppo nelle liste sono separate;
-    // nelle matrici è di fatto assente perché le forchette non hanno gruppi.)
-    // _collKey normalizza l'ordine dei codici (min|max), quindi è robusta a
-    // prescindere da come collect() assegna lo/hi (per 'of' mette l'obbligo per
-    // primo, non in ordine alfabetico). Stessa chiave di computeTotalCost().
+    // ── Niente doppi conteggi: ogni collisione UNA volta sola ─────────────────
+    // _collKey identifica una collisione fisica indipendentemente da direzione,
+    // gruppo e PdS: giorno|overlap|coppia di codici (min|max). È la STESSA chiave
+    // di computeTotalCost(), così la somma delle celle = totale del banner.
     function _collKey(it) {
       const a = (it.lo.code || '').toUpperCase(), b = (it.hi.code || '').toUpperCase();
       return it.day + '|' + it.ovS + '|' + it.ovE + '|' + (a <= b ? a : b) + '|' + (a <= b ? b : a);
     }
+    // Precedenza OBB-OBB > OBB-FOR > FF: una collisione già contata negli obblighi
+    // (o negli obblighi-forchette) non si ripete nelle forchette-forchette.
+    // ECCEZIONE VISIVA: dentro la matrice bipartita OBB-FOR le coppie SPECULARI
+    // X-Y / Y-X (un codice obbligo in un PdS e forchetta in un altro) restano
+    // ENTRAMBE — la matrice le mostra in due caselle, ognuna col valore dimezzato
+    // ("/2"), con selezione e dettaglio condivisi: la somma resta additiva ma la
+    // collisione si vede in entrambe le posizioni. Perciò il loop su ofMap cancella
+    // SOLO ciò che è già OBB-OBB, NON le speculari interne (le gestisce la matrice).
     const _claimed = {};
     Object.keys(obbMap).forEach(k => { _claimed[_collKey(obbMap[k])] = true; });
     Object.keys(ofMap).forEach(k => { if (_claimed[_collKey(ofMap[k])]) delete ofMap[k]; });
@@ -2466,6 +2469,10 @@ var _editActive = !!EDIT_MODE;
       });
       // "Riportata" solo se costo > 0 (escluse le coppie a costo 0 e le n/d).
       Object.keys(cells).forEach(ck => { cells[ck].pos = cells[ck].hasCost && cells[ck].cost > 0; });
+      // Coppie SPECULARI nella bipartita OBB-FOR: la stessa collisione X-Y può
+      // comparire come (X-obbligo, Y-forchetta) E (Y-obbligo, X-forchetta). Le
+      // marchiamo "dup": mostrate in 2 caselle, ciascuna a metà ("/2").
+      if (bip) Object.keys(cells).forEach(ck => { const cl = cells[ck]; const m = cells[cl.c + '||' + cl.r]; cl.dup = !!(cl.pos && m && m.pos); });
       const rowTot = {}, colTot = {}, allTot = {}, keepR = {}, keepC = {}, keepAll = {};
       Object.keys(cells).forEach(ck => {
         const cl = cells[ck]; if (!cl.pos) return;
@@ -2519,12 +2526,16 @@ var _editActive = !!EDIT_MODE;
           }
           const cl = cellAt(r, c);
           if (!cl || !cl.pos) { t += '<td class="cx-na"></td>'; return; } // costo 0/n/d → vuota
-          const isSel = sel && ((sel.r === r && sel.c === c) || (!bip && sel.r === c && sel.c === r));
-          let cls = 'clm-cell'; if (cl.n != null && cl.n >= 5) cls += ' clm-hi'; if (isSel) cls += ' clm-sel';
+          // Selezione condivisa: una cella è evidenziata se è quella scelta o la sua
+          // speculare (FF simmetrica, oppure coppia OBB-FOR "dup").
+          const isSel = sel && ((sel.r === r && sel.c === c) || ((!bip || cl.dup) && sel.r === c && sel.c === r));
+          let cls = 'clm-cell'; if (cl.n != null && cl.n >= 5) cls += ' clm-hi'; if (cl.dup) cls += ' clm-dup'; if (isSel) cls += ' clm-sel';
           const tt = maxCost > 0 ? Math.min(1, cl.cost / maxCost) : 0;
           const style = 'background:rgba(179,89,0,' + (0.10 + 0.55 * tt).toFixed(2) + ')';
-          const tip = esc(r) + ' × ' + esc(c) + ': costo ' + fmtCost(cl.cost) + (cl.n != null ? ' · N=' + cl.n : '') + ' · ' + cl.items.length + ' var.';
-          t += '<td class="' + cls + '" data-k="' + key + '" data-r="' + esc(r) + '" data-c="' + esc(c) + '" style="' + style + '" title="' + tip + '">' + String(Math.round(cl.cost)) + '</td>';
+          const tip = esc(r) + ' × ' + esc(c) + ': costo ' + fmtCost(cl.cost) + (cl.n != null ? ' · N=' + cl.n : '') + ' · ' + cl.items.length + ' var.' +
+            (cl.dup ? ' · compare anche come ' + esc(c) + ' × ' + esc(r) + ' (stessa collisione: /2 per casella)' : '');
+          const valTxt = String(Math.round(cl.cost)) + (cl.dup ? '<span class="clm-half">/2</span>' : '');
+          t += '<td class="' + cls + '" data-k="' + key + '" data-r="' + esc(r) + '" data-c="' + esc(c) + '" style="' + style + '" title="' + tip + '">' + valTxt + '</td>';
         });
         t += '</tr>';
       });
@@ -2533,10 +2544,19 @@ var _editActive = !!EDIT_MODE;
       const selCell = sel ? cellAt(sel.r, sel.c) : null;
       let side;
       if (selCell && selCell.pos) {
-        selCell.items.sort(_byCostDesc);
-        side = '<div class="clm-detail"><div class="clm-detail-h">' + esc(sel.r) + ' ✕ ' + esc(sel.c) +
-          ' — ' + selCell.items.length + (selCell.items.length === 1 ? ' variante' : ' varianti') + '</div>' +
-          selCell.items.map(renderVariantCard).join('') + '</div>';
+        // Per le celle "dup" mostriamo ASSIEME le varianti di entrambe le caselle
+        // speculari (X-obbligo×Y-forchetta e viceversa): stessa collisione vista dai
+        // due PdS. Contate /2 per casella, quindi un solo conteggio complessivo.
+        let detItems = selCell.items.slice(), dupNote = '';
+        if (bip && selCell.dup) {
+          const mir = cells[sel.c + '||' + sel.r];
+          if (mir && mir.items) detItems = detItems.concat(mir.items);
+          dupNote = ' <span class="clm-dupnote">· anche ' + esc(sel.c) + ' × ' + esc(sel.r) + ' (stessa collisione, /2 per casella)</span>';
+        }
+        detItems.sort(_byCostDesc);
+        side = '<div class="clm-detail"><div class="clm-detail-h">' + esc(sel.r) + ' ✕ ' + esc(sel.c) + dupNote +
+          ' — ' + detItems.length + (detItems.length === 1 ? ' variante' : ' varianti') + '</div>' +
+          detItems.map(renderVariantCard).join('') + '</div>';
       } else {
         side = '<div class="clm-side-hint">Seleziona una cella della matrice per vedere le varianti della collisione.</div>';
       }

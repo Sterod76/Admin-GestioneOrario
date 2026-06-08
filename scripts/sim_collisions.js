@@ -356,5 +356,59 @@ const ffSec = (sout.split('<div class="cl-section">').find(s => s.indexOf('data-
 const nRh = (ffSec.match(/cx-rh"/g) || []).length, nCh = (ffSec.match(/cx-ch"/g) || []).length;
 check('FF sparse: nessuna riga/colonna vuota residua (2 righe-header, 2 colonne-header)', nRh === 2 && nCh === 2);
 
+// ===== Bipartita OBB-FOR speculare: AA è OBB nel PdS PA e FOR nel PdS PB; BB è
+// FOR in PA e OBB in PB. Lo stesso clash AA-BB compare sia in (AA-obbligo,
+// BB-forchetta) sia in (BB-obbligo, AA-forchetta): vengono mostrate ENTRAMBE le
+// caselle, ciascuna marcata "/2" (metà), così la somma resta additiva ma si vede
+// la collisione in entrambe le posizioni. Il banner la conta una volta. =====
+data.equiv = {};
+data.pds = [
+  { name: 'PA', codes: ['AA', 'BB'], vincoloByCode: { AA: 'OBB', BB: 'FOR' } },
+  { name: 'PB', codes: ['AA', 'BB'], vincoloByCode: { AA: 'FOR', BB: 'OBB' } }
+];
+data.sessions = [S('AA', 'S1LM', 'OBB', '', '', 0, 540, 660), S('BB', 'S1LM', 'OBB', '', '', 0, 540, 660)];
+data.coexam = { codes: ['AA', 'BB'], perCode: { AA: 5, BB: 5 }, pairs: { 'AA|BB': 4 }, count: 1 };
+_collSel = { of: null, ff: null, opz: null };
+_collView = 'matrix';
+renderCollisions();
+const bout = captures['collisionsBody'];
+const bof = cellsOf(bout, 'of').filter(p => { const x = p.split('>'); return x.indexOf('AA') !== -1 && x.indexOf('BB') !== -1; });
+check('Bipartita: AA-BB mostrata in DUE celle speculari', bof.length === 2 && bof.indexOf('AA>BB') !== -1 && bof.indexOf('BB>AA') !== -1);
+check('Bipartita: entrambe le celle marcate "/2" (clm-half ×2)', (bout.match(/clm-half/g) || []).length === 2);
+check('Bipartita: entrambe le celle "dup" (clm-dup ×2)', (bout.match(/clm-dup/g) || []).length === 2);
+check('Bipartita: banner conta la collisione UNA sola volta (su 1 collision)', bout.indexOf('su 1 collision') !== -1);
+// Drill-down condiviso: selezionando AA×BB compaiono le varianti di ENTRAMBE le
+// caselle speculari (stessa collisione vista dai due PdS) con la nota dup.
+_collSel = { of: { r: 'AA', c: 'BB' }, ff: null, opz: null };
+renderCollisions();
+const bout2 = captures['collisionsBody'];
+check('Bipartita: drill-down mostra le 2 orientazioni assieme (2 varianti + nota)',
+  bout2.indexOf('2 varianti') !== -1 && bout2.indexOf('clm-dupnote') !== -1);
+
+// ===== Additività END-TO-END: la somma dei valori delle celle (OBB-FOR + FF)
+// eguaglia il totale del banner. Dataset senza OBB-OBB così che banner = of+ff.
+// AA-BB compare anche al rovescio (PA/PB) e CC-DD è una FF: niente doppi conteggi. =====
+data.equiv = {};
+data.pds = [
+  { name: 'PA', codes: ['AA', 'BB'], vincoloByCode: { AA: 'OBB', BB: 'FOR' } },
+  { name: 'PB', codes: ['AA', 'BB'], vincoloByCode: { AA: 'FOR', BB: 'OBB' } },
+  { name: 'PC', codes: ['CC', 'DD'], vincoloByCode: { CC: 'FOR', DD: 'FOR' } }
+];
+data.sessions = [
+  S('AA', 'S1LM', 'OBB', '', '', 0, 540, 660), S('BB', 'S1LM', 'OBB', '', '', 0, 540, 660),
+  S('CC', 'S1LM', 'FOR', '', '', 1, 540, 660), S('DD', 'S1LM', 'FOR', '', '', 1, 540, 660)
+];
+data.coexam = { codes: ['AA', 'BB', 'CC', 'DD'], perCode: { AA: 5, BB: 5, CC: 5, DD: 5 }, pairs: { 'AA|BB': 4, 'CC|DD': 4 }, count: 2 };
+_collSel = { of: null, ff: null, opz: null };
+_collView = 'matrix';
+renderCollisions();
+const eout = captures['collisionsBody'];
+// Somma dup-aware: le celle speculari (clm-dup) contano METÀ ("/2"), le altre intere.
+let cellSum = 0, mm, cre = /<td class="([^"]*clm-cell[^"]*)" data-k="(?:of|ff)"[^>]*?>(\d+)/g;
+while ((mm = cre.exec(eout))) { const v = parseInt(mm[2], 10); cellSum += /clm-dup/.test(mm[1]) ? v / 2 : v; }
+const bm = eout.match(/overlap totale\):[\s\S]*?<b>(\d+)<\/b>/);
+const bannerTot = bm ? parseInt(bm[1], 10) : -1;
+check('Additività E2E: somma celle (' + cellSum + ') = totale banner (' + bannerTot + ')', cellSum === bannerTot && bannerTot === 16);
+
 console.log('\nRISULTATO: ' + pass + ' pass, ' + fail + ' fail');
 process.exit(fail ? 1 : 0);

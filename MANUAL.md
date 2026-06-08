@@ -257,8 +257,19 @@ su righe distinte (codice + titolo, e aula · orario).
 > Inoltre, dentro ogni **cella** della matrice le **varianti per-gruppo** dello
 > stesso clash (stesso giorno/orario) vengono **accorpate**: hanno la stessa `N`,
 > quindi contano una volta sola (contarle due volte raddoppierebbe gli stessi
-> studenti). Così la **somma delle celle** coincide col **totale del banner**. Le
-> singole righe per-gruppo restano visibili solo nelle **liste**, come dettaglio.
+> studenti). Le singole righe per-gruppo restano visibili solo nelle **liste**,
+> come dettaglio.
+>
+> **Caselle speculari "/2".** La matrice OBBLIGHI–FORCHETTE è bipartita (obblighi
+> sulle righe, forchette sulle colonne), ma un codice può essere **obbligo in un
+> PdS e forchetta in un altro**. Quando questo vale per *entrambi* i codici di un
+> clash, lo stesso scontro `X·Y` comparirebbe in due caselle speculari —
+> `X-obbligo × Y-forchetta` **e** `Y-obbligo × X-forchetta`. Le mostriamo
+> **entrambe** (è la stessa collisione vista da due curricula), ma ognuna riporta
+> il valore **dimezzato** con la notazione **`/2`** (es. `2/2`): così la **somma
+> delle celle coincide col totale del banner**. Le due caselle sono **collegate**:
+> selezionandone una si evidenzia anche l'altra e il pannello a destra elenca
+> **assieme** le varianti delle due orientazioni.
 
 ![Collisioni — matrice](docs/img/09-collisioni-matrice.png)
 
