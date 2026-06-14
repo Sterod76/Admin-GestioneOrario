@@ -74,6 +74,12 @@ esame al canonico **prima** di contare → il codice attuale porta lo **storico
 completo**. (Le **mutuazioni** LT↔LM, es. `0024B`↔`289BB`, restano gestite a valle
 dall'Orario e **non** vanno qui.)
 
+Le classi coprono **sia la Magistrale sia la Triennale** (LT): in tutto **56 classi**
+(es. `248BB`←`030BB` *Fisica 3*, `258BB`←`036BB,283BB` *Meccanica Quantistica*,
+`175BB`←`038BB` *Metodi Matematici 2*). Sono **esclusi** per scelta conservativa i
+codici **esteri/Erasmus** (`CATANIA 11`, `BARCEL. 2`, `BELFAST 2`, `LEUVEN 2`), i
+**placeholder** di integrazione (`AD_INT`) e codici anomali (`22065`, `ZW899`).
+
 `build_equiv_classes.py` rigenera i **candidati** dal CSV (raggruppa i codici con lo
 stesso titolo normalizzato; canonico suggerito = codice con l'AA di superamento più
 recente). Va **rivisto a mano**: alcuni casi (due codici entrambi ancora attivi) li

@@ -1,20 +1,414 @@
 {
-  "_nota": "Classi di equivalenza dei codici esame: codici-variante STORICI dello stesso insegnamento (rinomini negli anni, alternative IT/EN, versioni long/short 'S', varianti 'A') unificati al codice CANONICO = quello usato OGGI nei Piani di Studio. genera_matrice_esami_lm.py rimappa ogni esame al canonico PRIMA di contare E ed N, così i conteggi non si spezzano fra varianti (matrice molto meno 'sguarnita'). I suffissi spuri '.' '_' sono gestiti a parte (strip) dal tool. Rigenera i candidati con build_equiv_classes.py, poi cura a mano questa lista. NB: le MUTUAZIONI LT<->LM (es. 0024B<->289BB) NON vanno qui: le gestisce gia' l'Orario (child->parent).",
+  "_nota": "Classi di equivalenza dei codici esame: codici-variante STORICI dello stesso insegnamento (rinomini negli anni, alternative IT/EN, versioni long/short 'S', varianti 'A'/'I') unificati al codice CANONICO = quello usato OGGI nei Piani di Studio. genera_matrice_esami_lm.py rimappa ogni esame al canonico PRIMA di contare E ed N. Triennale (L2) + Magistrale (LM). I suffissi spuri '.' '_' sono gestiti a parte (strip). Rigenera i candidati con build_equiv_classes.py, poi cura a mano. NB: le MUTUAZIONI LT<->LM (es. 0024B<->289BB) NON vanno qui: le gestisce gia' l'Orario (child->parent). I codici esteri/Erasmus (CATANIA/BARCEL/BELFAST/LEUVEN), i placeholder (AD_INT) e i codici 22065/ZW899 sono ESCLUSI per scelta conservativa.",
   "classi": [
-    { "canonical": "368BB", "aliases": ["288BB"], "titolo": "Astrofisica Generale" },
-    { "canonical": "274BB", "aliases": ["275BB"], "titolo": "Cosmologia del primo universo (+ variante 'A')" },
-    { "canonical": "192BB", "aliases": ["063BB"], "titolo": "Astroparticelle (+ variante 'A')" },
-    { "canonical": "211BB", "aliases": ["098BB"], "titolo": "Fisica Stellare (+ variante 'A')" },
-    { "canonical": "302BB", "aliases": ["373BB"], "titolo": "Fisica delle Particelle (long / short 'S')" },
-    { "canonical": "205BB", "aliases": ["381BB"], "titolo": "Fisica Medica (+ 'I')" },
-    { "canonical": "369BB", "aliases": ["045BB"], "titolo": "Astrofisica Extragalattica e Cosmologia" },
-    { "canonical": "0046B", "aliases": ["0047B", "256BB", "257BB"], "titolo": "Fisica delle Onde Gravitazionali (IT/EN, long/short)" },
-    { "canonical": "201BB", "aliases": ["081BB", "371BB"], "titolo": "Fisica ai Collisionatori Adronici (long / short 'S')" },
-    { "canonical": "213BB", "aliases": ["099BB"], "titolo": "Fisica Teorica 1 / Quantum field theory (cod. vecchio dismesso)" },
-    { "canonical": "207BB", "aliases": ["097BB"], "titolo": "Fisica Statistica / Statistical physics (cod. vecchio dismesso)" },
-    { "canonical": "228BB", "aliases": ["123BB"], "titolo": "Relativita Generale / General relativity (cod. vecchio dismesso)" },
-    { "canonical": "214BB", "aliases": ["166BB"], "titolo": "Fisica Teorica 2 / Advanced QFT (cod. vecchio dismesso)" },
-    { "canonical": "193BB", "aliases": ["044BB"], "titolo": "Analisi Statistica dei Dati / Statistical data analysis (cod. vecchio)" },
-    { "canonical": "204BB", "aliases": ["093BB"], "titolo": "Fisica dello Stato Solido / Solid state physics (cod. vecchio dismesso)" }
+    {
+      "canonical": "368BB",
+      "aliases": [
+        "288BB"
+      ],
+      "titolo": "Astrofisica Generale"
+    },
+    {
+      "canonical": "274BB",
+      "aliases": [
+        "275BB"
+      ],
+      "titolo": "Cosmologia del primo universo (+ variante 'A')"
+    },
+    {
+      "canonical": "192BB",
+      "aliases": [
+        "063BB"
+      ],
+      "titolo": "Astroparticelle (+ variante 'A')"
+    },
+    {
+      "canonical": "211BB",
+      "aliases": [
+        "098BB"
+      ],
+      "titolo": "Fisica Stellare (+ variante 'A')"
+    },
+    {
+      "canonical": "302BB",
+      "aliases": [
+        "373BB"
+      ],
+      "titolo": "Fisica delle Particelle (long / short 'S')"
+    },
+    {
+      "canonical": "205BB",
+      "aliases": [
+        "094BB",
+        "381BB"
+      ],
+      "titolo": "Fisica Medica (+ 'I', + cod. storico 094BB)"
+    },
+    {
+      "canonical": "369BB",
+      "aliases": [
+        "045BB"
+      ],
+      "titolo": "Astrofisica Extragalattica e Cosmologia"
+    },
+    {
+      "canonical": "0046B",
+      "aliases": [
+        "0047B",
+        "256BB",
+        "257BB"
+      ],
+      "titolo": "Fisica delle Onde Gravitazionali (IT/EN, long/short)"
+    },
+    {
+      "canonical": "201BB",
+      "aliases": [
+        "081BB",
+        "371BB"
+      ],
+      "titolo": "Fisica ai Collisionatori Adronici (long / short 'S')"
+    },
+    {
+      "canonical": "213BB",
+      "aliases": [
+        "099BB"
+      ],
+      "titolo": "Fisica Teorica 1 / Quantum field theory (cod. vecchio dismesso)"
+    },
+    {
+      "canonical": "207BB",
+      "aliases": [
+        "097BB"
+      ],
+      "titolo": "Fisica Statistica / Statistical physics (cod. vecchio dismesso)"
+    },
+    {
+      "canonical": "228BB",
+      "aliases": [
+        "123BB"
+      ],
+      "titolo": "Relativita Generale / General relativity (cod. vecchio dismesso)"
+    },
+    {
+      "canonical": "214BB",
+      "aliases": [
+        "166BB"
+      ],
+      "titolo": "Fisica Teorica 2 / Advanced QFT (cod. vecchio dismesso)"
+    },
+    {
+      "canonical": "193BB",
+      "aliases": [
+        "044BB"
+      ],
+      "titolo": "Analisi Statistica dei Dati / Statistical data analysis (cod. vecchio)"
+    },
+    {
+      "canonical": "204BB",
+      "aliases": [
+        "093BB"
+      ],
+      "titolo": "Fisica dello Stato Solido / Solid state physics (cod. vecchio dismesso)"
+    },
+    {
+      "canonical": "0001B",
+      "aliases": [
+        "BB137"
+      ],
+      "titolo": "Relativita (+ cod. legacy)"
+    },
+    {
+      "canonical": "027BB",
+      "aliases": [
+        "171BB",
+        "BB242"
+      ],
+      "titolo": "FISICA MUSICALE"
+    },
+    {
+      "canonical": "034BB",
+      "aliases": [
+        "284BB"
+      ],
+      "titolo": "LABORATORIO 3"
+    },
+    {
+      "canonical": "042BB",
+      "aliases": [
+        "285BB"
+      ],
+      "titolo": "TECNOLOGIE DIGITALI"
+    },
+    {
+      "canonical": "091BB",
+      "aliases": [
+        "278BB"
+      ],
+      "titolo": "FISICA DELLE STELLE COMPATTE A"
+    },
+    {
+      "canonical": "108BB",
+      "aliases": [
+        "BB139"
+      ],
+      "titolo": "Metodi Algebrici della MQ (+ cod. legacy)"
+    },
+    {
+      "canonical": "111BB",
+      "aliases": [
+        "BB197"
+      ],
+      "titolo": "Modellistica per Sistemi Complessi (+ cod. legacy)"
+    },
+    {
+      "canonical": "142BB",
+      "aliases": [
+        "BB135"
+      ],
+      "titolo": "TRANSIZIONI DI FASE E FENOMENI CRITICI"
+    },
+    {
+      "canonical": "175BB",
+      "aliases": [
+        "038BB"
+      ],
+      "titolo": "METODI MATEMATICI 2"
+    },
+    {
+      "canonical": "181BB",
+      "aliases": [
+        "090BB"
+      ],
+      "titolo": "Fisica dell'Atmosfera"
+    },
+    {
+      "canonical": "195BB",
+      "aliases": [
+        "165BB",
+        "194BB",
+        "BB023"
+      ],
+      "titolo": "ASTROFISICA A"
+    },
+    {
+      "canonical": "196BB",
+      "aliases": [
+        "064BB"
+      ],
+      "titolo": "BIOFISICA"
+    },
+    {
+      "canonical": "197BB",
+      "aliases": [
+        "074BB"
+      ],
+      "titolo": "CROMODINAMICA QUANTISTICA"
+    },
+    {
+      "canonical": "198BB",
+      "aliases": [
+        "077BB"
+      ],
+      "titolo": "DOSIMETRIA"
+    },
+    {
+      "canonical": "199BB",
+      "aliases": [
+        "079BB"
+      ],
+      "titolo": "Elaborazione dei Segnali"
+    },
+    {
+      "canonical": "206BB",
+      "aliases": [
+        "096BB"
+      ],
+      "titolo": "FISICA NUCLEARE"
+    },
+    {
+      "canonical": "216BB",
+      "aliases": [
+        "106BB",
+        "184BB"
+      ],
+      "titolo": "LABORATORIO DI OTTICA QUANTISTICA A"
+    },
+    {
+      "canonical": "217BB",
+      "aliases": [
+        "107BB"
+      ],
+      "titolo": "MACCHINE ACCELERATRICI"
+    },
+    {
+      "canonical": "219BB",
+      "aliases": [
+        "112BB"
+      ],
+      "titolo": "MODELLO STANDARD DELLE INTERAZIONI FONDAMENTALI"
+    },
+    {
+      "canonical": "220BB",
+      "aliases": [
+        "113BB"
+      ],
+      "titolo": "OTTICA QUANTISTICA"
+    },
+    {
+      "canonical": "222BB",
+      "aliases": [
+        "114BB"
+      ],
+      "titolo": "PARTICELLE ELEMENTARI 1"
+    },
+    {
+      "canonical": "226BB",
+      "aliases": [
+        "169BB"
+      ],
+      "titolo": "PROCESSI ASTROFISICI"
+    },
+    {
+      "canonical": "227BB",
+      "aliases": [
+        "122BB"
+      ],
+      "titolo": "REAZIONI NUCLEARI DI INTERESSE ASTROFISICO"
+    },
+    {
+      "canonical": "232BB",
+      "aliases": [
+        "129BB"
+      ],
+      "titolo": "STRUTTURA DELLA MATERIA 2"
+    },
+    {
+      "canonical": "233BB",
+      "aliases": [
+        "131BB"
+      ],
+      "titolo": "TECNICHE ASTROFISICHE 1"
+    },
+    {
+      "canonical": "235BB",
+      "aliases": [
+        "139BB",
+        "BB100"
+      ],
+      "titolo": "TEORIA QUANTISTICA DEI SOLIDI"
+    },
+    {
+      "canonical": "248BB",
+      "aliases": [
+        "030BB"
+      ],
+      "titolo": "FISICA 3"
+    },
+    {
+      "canonical": "251BB",
+      "aliases": [
+        "140BB",
+        "173BB"
+      ],
+      "titolo": "TEORIE DELLA GRAVITAZIONE"
+    },
+    {
+      "canonical": "258BB",
+      "aliases": [
+        "036BB",
+        "283BB"
+      ],
+      "titolo": "MECCANICA QUANTISTICA"
+    },
+    {
+      "canonical": "276BB",
+      "aliases": [
+        "087BB"
+      ],
+      "titolo": "Fisica dei Sistemi a Molticorpi (+ variante 'A')"
+    },
+    {
+      "canonical": "286BB",
+      "aliases": [
+        "287BB"
+      ],
+      "titolo": "TEORIA DEI GRUPPI"
+    },
+    {
+      "canonical": "289BB",
+      "aliases": [
+        "167BB",
+        "188II",
+        "215BB"
+      ],
+      "titolo": "FLUIDODINAMICA"
+    },
+    {
+      "canonical": "306BB",
+      "aliases": [
+        "307BB"
+      ],
+      "titolo": "METODOLOGIE SPERIMENTALI PER LA FISICA DELLE ASTROPARTICELLE"
+    },
+    {
+      "canonical": "326BB",
+      "aliases": [
+        "374BB"
+      ],
+      "titolo": "METODI NUMERICI PER LA FISICA"
+    },
+    {
+      "canonical": "342BB",
+      "aliases": [
+        "040BB"
+      ],
+      "titolo": "Storia Concettuale della Fisica"
+    },
+    {
+      "canonical": "355BB",
+      "aliases": [
+        "117BB"
+      ],
+      "titolo": "Plasmi - Teoria Cinetica"
+    },
+    {
+      "canonical": "358BB",
+      "aliases": [
+        "404BB"
+      ],
+      "titolo": "Aspetti non perturbativi delle TCQ (long/short 'S')"
+    },
+    {
+      "canonical": "360BB",
+      "aliases": [
+        "365BB"
+      ],
+      "titolo": "COMPUTING METHODS FOR EXPERIMENTAL PHYSICS AND DATA ANALYSIS"
+    },
+    {
+      "canonical": "411BB",
+      "aliases": [
+        "412BB"
+      ],
+      "titolo": "Lab. Fisica della Materia e Nanotecnologie (long/short 'S')"
+    },
+    {
+      "canonical": "413BB",
+      "aliases": [
+        "105BB",
+        "183BB",
+        "237BB",
+        "414BB"
+      ],
+      "titolo": "LABORATORIO INTERAZIONI FONDAMENTALI"
+    },
+    {
+      "canonical": "416BB",
+      "aliases": [
+        "240BB",
+        "320BB"
+      ],
+      "titolo": "LA FISICA DI TUTTI I GIORNI"
+    }
   ]
 }
