@@ -58,6 +58,32 @@ I codici nella matrice (riga 1 / colonna A) sono ordinati per **E decrescente**
 (più esami in alto a sinistra). Gli studenti "stessi" sono identificati dalla
 **matricola**.
 
+## Classi di equivalenza (perché la matrice non sia "sguarnita")
+
+Lo stesso insegnamento, negli anni, **cambia codice** (rinomini, alternative IT/EN,
+versioni *long/short* con suffisso `S`, varianti `A`). Esempi reali: *Astrofisica
+Generale* è stata `288BB` e `368BB`; *Fisica Medica* `381BB` poi `205BB`;
+*Astroparticelle* `063BB`/`192BB`; *Cosmologia* `274BB`/`275BB`. Se **non** li
+unifichi, i conteggi E ed N si **spezzano fra le varianti** e il codice attuale del
+PdS risulta quasi vuoto (matrice "sguarnita"): es. `205BB` aveva **0** co-esami
+perché i dati erano sotto `381BB`.
+
+`matrice/equiv_classes.json` elenca queste classi (`canonical` = codice **attuale**
+del PdS, `aliases` = codici-variante). `genera_matrice_esami_lm.py` rimappa ogni
+esame al canonico **prima** di contare → il codice attuale porta lo **storico
+completo**. (Le **mutuazioni** LT↔LM, es. `0024B`↔`289BB`, restano gestite a valle
+dall'Orario e **non** vanno qui.)
+
+`build_equiv_classes.py` rigenera i **candidati** dal CSV (raggruppa i codici con lo
+stesso titolo normalizzato; canonico suggerito = codice con l'AA di superamento più
+recente). Va **rivisto a mano**: alcuni casi (due codici entrambi ancora attivi) li
+decide la persona.
+
+```bash
+python matrice/build_equiv_classes.py            # -> equiv_classes_candidates.json (da rivedere)
+# poi cura matrice/equiv_classes.json e rilancia genera_matrice_esami_lm.py
+```
+
 ## Il tool
 
 `genera_matrice_esami_lm.py` — fa tutto in un passaggio (strip + filtri +
@@ -121,7 +147,9 @@ Note pratiche:
 
 | File | Cosa |
 |---|---|
-| `genera_matrice_esami_lm.py` | Tool che genera la matrice LM dal CSV completo |
+| `genera_matrice_esami_lm.py` | Tool che genera la matrice LM dal CSV completo (applica le classi di equivalenza) |
+| `equiv_classes.json` | Classi di equivalenza curate: codice-variante → codice canonico attuale |
+| `build_equiv_classes.py` | Rigenera i candidati alle classi di equivalenza dal CSV (da rivedere) |
 | `MatriceEsamiLM.csv` | Output (creato quando esegui il tool) |
 | `CSV_SORGENTE.md` | Specifiche del CSV Esse3 di partenza (per analisi/estrazioni) |
 | `README.md` | Questo file |

@@ -20,6 +20,13 @@ Filtri:
   - ECCEZIONI in EXTRA_CODES (es. 244CC, codici LT opzionali): ammesse ANCHE se
     non terminano in B (override sul formato del codice).
 
+Classi di equivalenza (equiv_classes.json): i codici-variante STORICI dello stesso
+insegnamento (rinomini negli anni, alternative IT/EN, versioni long/short 'S',
+varianti 'A') vengono unificati al codice CANONICO (quello attuale del PdS) PRIMA
+del conteggio. Senza questo passo i conteggi E/N si spezzano fra le varianti e la
+matrice risulta molto "sguarnita". (Le mutuazioni LT<->LM restano gestite a valle
+dall'Orario.) Rigenera i candidati con build_equiv_classes.py.
+
 Output: matrice/MatriceEsamiLM.csv — MATRICE QUADRATA
   A1 = 'COEX' ; riga 1 e colonna A = codici (ordinati per E totale decrescente)
   DIAGONALE  = E = SOMMA sui 3 AA degli studenti distinti che superano il codice
@@ -31,6 +38,7 @@ Questo CSV va incollato nel gsheet FISSO della matrice; da lì un IMPORTRANGE lo
 porta nel foglio "MATRICE" dell'orario, che la Web App legge.
 """
 import csv
+import json
 import os
 import re
 import sys
@@ -94,6 +102,24 @@ COL_AASUP = 'AA_SUP_ID'
 COL_TIPO = 'TIPO_CORSO_COD'
 COL_IMM = 'AA_IMM1'           # AA di immatricolazione (coorte)
 
+# Classi di equivalenza: alias (codice-variante storico) -> canonico (codice attuale).
+EQUIV = os.path.join(HERE, 'equiv_classes.json')
+
+
+def _load_alias_map():
+    """{ALIAS_UPPER: CANONICAL_UPPER} da equiv_classes.json (vuoto se assente)."""
+    amap = {}
+    if os.path.exists(EQUIV):
+        with open(EQUIV, encoding='utf-8') as f:
+            ej = json.load(f)
+        for cl in ej.get('classi', []):
+            canon = str(cl.get('canonical', '')).strip().upper()
+            if not canon:
+                continue
+            for a in cl.get('aliases', []):
+                amap[str(a).strip().upper()] = canon
+    return amap
+
 
 def main():
     # Argomenti: [percorso_csv]  e/o  --coorti=2021,2022
@@ -115,6 +141,8 @@ def main():
     # per anno: code -> set(matricole) che hanno superato quel codice quell'AA
     by_year = {y: {} for y in YEARS}
     kept, dropped, n_rows = set(), set(), 0
+    alias_map = _load_alias_map()
+    n_aliased = 0
     # Esse3: pipe-delimited, quotato, Latin-1
     with open(src, encoding='latin-1', newline='') as f:
         reader = csv.DictReader(f, delimiter='|')
@@ -135,6 +163,10 @@ def main():
             mat = (row.get(COL_MATRICOLA) or '').strip()
             if not code or not mat:
                 continue
+            code = re.sub(r'[._]+$', '', code)   # via suffissi spuri . _
+            if code in alias_map:                # unifica i codici-variante al canonico
+                code = alias_map[code]
+                n_aliased += 1
             is_exc = code in EXTRA_CODES
             # Formato: il codice deve TERMINARE in B (es. 0001B, 042BB), salvo eccezioni
             if not (CODE_RE.match(code) or is_exc):
@@ -198,6 +230,7 @@ def main():
     print('coorti (AA_IMM1):', ', '.join(sorted(coorti)) if coorti else 'TUTTE')
     print('flag: dividiAA=%s (/%d AA), round=%s' % (flag_dividiAA, nAA, flag_round))
     print('righe esami tenute (AA superam. 2022-2024):', n_rows)
+    print('esami riassegnati al codice canonico (classi equiv.):', n_aliased, '(' + str(len(alias_map)) + ' alias)')
     print('codici tenuti:', len(kept))
     print('codici scartati (formato):', len(dropped), sorted(dropped)[:10])
     print('coppie con N>0:', len(pairN))

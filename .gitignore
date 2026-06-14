@@ -38,3 +38,6 @@ Thumbs.db
 # I file utente personali stanno fuori (es. .vscode/launch.local.json):
 .vscode/launch.local.json
 .vscode/*.local.json
+
+# Candidati classi equivalenza (rigenerabili da build_equiv_classes.py)
+matrice/equiv_classes_candidates.json

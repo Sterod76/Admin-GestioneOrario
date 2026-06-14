@@ -1,0 +1,20 @@
+{
+  "_nota": "Classi di equivalenza dei codici esame: codici-variante STORICI dello stesso insegnamento (rinomini negli anni, alternative IT/EN, versioni long/short 'S', varianti 'A') unificati al codice CANONICO = quello usato OGGI nei Piani di Studio. genera_matrice_esami_lm.py rimappa ogni esame al canonico PRIMA di contare E ed N, così i conteggi non si spezzano fra varianti (matrice molto meno 'sguarnita'). I suffissi spuri '.' '_' sono gestiti a parte (strip) dal tool. Rigenera i candidati con build_equiv_classes.py, poi cura a mano questa lista. NB: le MUTUAZIONI LT<->LM (es. 0024B<->289BB) NON vanno qui: le gestisce gia' l'Orario (child->parent).",
+  "classi": [
+    { "canonical": "368BB", "aliases": ["288BB"], "titolo": "Astrofisica Generale" },
+    { "canonical": "274BB", "aliases": ["275BB"], "titolo": "Cosmologia del primo universo (+ variante 'A')" },
+    { "canonical": "192BB", "aliases": ["063BB"], "titolo": "Astroparticelle (+ variante 'A')" },
+    { "canonical": "211BB", "aliases": ["098BB"], "titolo": "Fisica Stellare (+ variante 'A')" },
+    { "canonical": "302BB", "aliases": ["373BB"], "titolo": "Fisica delle Particelle (long / short 'S')" },
+    { "canonical": "205BB", "aliases": ["381BB"], "titolo": "Fisica Medica (+ 'I')" },
+    { "canonical": "369BB", "aliases": ["045BB"], "titolo": "Astrofisica Extragalattica e Cosmologia" },
+    { "canonical": "0046B", "aliases": ["0047B", "256BB", "257BB"], "titolo": "Fisica delle Onde Gravitazionali (IT/EN, long/short)" },
+    { "canonical": "201BB", "aliases": ["081BB", "371BB"], "titolo": "Fisica ai Collisionatori Adronici (long / short 'S')" },
+    { "canonical": "213BB", "aliases": ["099BB"], "titolo": "Fisica Teorica 1 / Quantum field theory (cod. vecchio dismesso)" },
+    { "canonical": "207BB", "aliases": ["097BB"], "titolo": "Fisica Statistica / Statistical physics (cod. vecchio dismesso)" },
+    { "canonical": "228BB", "aliases": ["123BB"], "titolo": "Relativita Generale / General relativity (cod. vecchio dismesso)" },
+    { "canonical": "214BB", "aliases": ["166BB"], "titolo": "Fisica Teorica 2 / Advanced QFT (cod. vecchio dismesso)" },
+    { "canonical": "193BB", "aliases": ["044BB"], "titolo": "Analisi Statistica dei Dati / Statistical data analysis (cod. vecchio)" },
+    { "canonical": "204BB", "aliases": ["093BB"], "titolo": "Fisica dello Stato Solido / Solid state physics (cod. vecchio dismesso)" }
+  ]
+}
