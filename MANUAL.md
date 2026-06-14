@@ -208,6 +208,17 @@ tab Collisioni, passando sopra la cella costo.)*
 > **selezionabili** — il pannello collisioni/capienza in basso funziona; è bloccato
 > solo il **trascinamento/ridimensionamento** (e creazione/cestino).
 
+> **Guida durante il drag (solo editor).** Mentre **trascini** uno slot, due aiuti
+> visivi compaiono e spariscono al rilascio:
+> - sulla colonna **«Ora»** (a sinistra) si colorano di **rosso** gli orari in cui
+>   il/i **docente/i** del corso trascinato sono già impegnati (collisione docente):
+>   così vedi subito **dove conviene non spostarlo**;
+> - i **titoli** dei corsi con cui andresti in **collisione co-esame** (stesso
+>   livello, orari sovrapposti — gli stessi del pannello collisioni) diventano
+>   **rossi**, aggiornandosi in base alla posizione candidata sotto il puntatore.
+
+![Slot — guida durante il drag (orari docente occupato + corsi in collisione)](docs/img/14-slot-drag.png)
+
 ![Slot](docs/img/03-slot.png)
 
 ### Collisioni
@@ -342,7 +353,15 @@ dettagli del corso (titolo, docenti, settore, E…).
   esami sostenuti** e l'elenco «*fra questi studenti, molti hanno anche sostenuto…*»
   (gli altri esami con il numero di studenti in comune, in ordine).
 
-![Co-esami LM — codice selezionato](docs/img/06-coesami.png)
+Lo spazio a destra è diviso in **due colonne**: a sinistra il pannello dettaglio
+qui sopra, a destra **«Piani di studio attivi»** con una **checkbox per ogni PdS**
+(più i pulsanti *Tutti* / *Nessuno*). Deselezionando dei PdS, ogni esame che **non
+è più citato da alcun PdS attivo** viene **spento** nella matrice: **riga, colonna
+e intestazioni diventano grigie** (i valori restano, ma de-enfatizzati). Gli esami
+non citati da nessun PdS (presenti per altra via) non si spengono. *Funzione della
+sola matrice LM* (la LT non usa i Piani di Studio).
+
+![Co-esami LM — pannello PdS attivi + dettaglio](docs/img/06-coesami.png)
 
 ### Co-esami LT
 

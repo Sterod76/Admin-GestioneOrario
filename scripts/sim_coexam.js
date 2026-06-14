@@ -19,10 +19,11 @@ const fnSrc = extractFn('canon') + '\n' + extractFn('_coexSync') + '\n' + extrac
   extractFn('renderCoexamMatrixLT') + '\n' + extractFn('coexCodeInfoHtml') + '\n' + extractFn('docentiHtml');
 
 const captures = {};
-const document = { getElementById: (id) => ({ set innerHTML(v) { captures[id] = v; }, get innerHTML() { return captures[id] || ''; }, addEventListener: function () {}, querySelectorAll: () => [], value: '2' }) };
+const document = { getElementById: (id) => ({ set innerHTML(v) { captures[id] = v; }, get innerHTML() { return captures[id] || ''; }, addEventListener: function () {}, querySelectorAll: () => [], querySelector: () => null, value: '2' }) };
 function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 let _cxThresh = 2, _cxThreshLT = 2;
 let _cxSel = { LM: null, LT: null };
+let _cxActivePds = null;
 let _cfuCache = null, _cfuCacheRef = null;
 let _coexCache = { ref: null, eref: null, pairs: {}, perCode: {}, codes: new Set() };
 let data = {};
@@ -178,6 +179,48 @@ check('Mutuazione: docenti dal master (Rossi, sottolineato)', infoMut.indexOf('<
 check('Mutuazione: co-docente dal master (Bianchi)', infoMut.indexOf('Bianchi') !== -1);
 check('Mutuazione: nome dal master (Fluidodinamica)', infoMut.indexOf('Fluidodinamica') !== -1);
 check('Mutuazione: header mostra il codice mostrato (0024B)', infoMut.indexOf('0024B') !== -1);
+
+// ===== PdS attivi (checkbox a destra) + spegnimento codici — matrice LM =====
+// P1 cita AAA(OBB) e BBB(FOR); P2 cita BBB(OBB) e DDD(FOR). Disattivando un PdS,
+// un codice citato SOLO da PdS spenti diventa grigio (cx-dim) su header/riga/colonna.
+data.equiv = {};
+data.codesLM = ['AAA', 'BBB', 'DDD'];
+data.codesLT = [];
+data.courses = [
+  { code: 'AAA', name: 'A', vincolo: 'OBB', sheet: 'S1LM' },
+  { code: 'BBB', name: 'B', vincolo: 'FOR', sheet: 'S1LM' },
+  { code: 'DDD', name: 'D', vincolo: 'OBB', sheet: 'S1LM' }
+];
+data.sessions = [];
+data.coexam = { perCode: { AAA: 120, BBB: 60, DDD: 200 }, pairs: { 'AAA|BBB': 30, 'BBB|DDD': 5 }, codes: ['AAA', 'BBB', 'DDD'] };
+data.pds = [
+  { name: 'P1', vincoloByCode: { AAA: 'OBB', BBB: 'FOR' } },
+  { name: 'P2', vincoloByCode: { BBB: 'OBB', DDD: 'FOR' } }
+];
+_cxActivePds = null; _cxSel.LM = null;
+renderCoexamMatrix();
+const outPdsDef = captures['coexamBody'] || '';
+check('PdS: pannello checkbox (cx-pds) + lato destro a due colonne (cx-side2)', outPdsDef.indexOf('cx-pds') !== -1 && outPdsDef.indexOf('cx-side2') !== -1);
+check('PdS: P1 e P2 come checkbox', outPdsDef.indexOf('data-pds="P1"') !== -1 && outPdsDef.indexOf('data-pds="P2"') !== -1);
+check('PdS: default tutti attivi → checked, nessun codice spento',
+  outPdsDef.indexOf('cx-dim') === -1 && outPdsDef.indexOf('data-pds="P1" checked') !== -1 && outPdsDef.indexOf('data-pds="P2" checked') !== -1);
+
+_cxActivePds = new Set(['P2']);   // P1 spento
+renderCoexamMatrix();
+const outP1off = captures['coexamBody'] || '';
+check('PdS: P1 spento → AAA (solo P1) grigio su header (cx-dim)', outP1off.indexOf('cx-dim" data-code="AAA"') !== -1);
+check('PdS: P1 spento → BBB NON grigio (anche in P2)', outP1off.indexOf('cx-dim" data-code="BBB"') === -1);
+check('PdS: P1 spento → DDD NON grigio (in P2)', outP1off.indexOf('cx-dim" data-code="DDD"') === -1);
+check('PdS: P1 spento → checkbox P1 non checked, P2 checked', outP1off.indexOf('data-pds="P1" checked') === -1 && outP1off.indexOf('data-pds="P2" checked') !== -1);
+
+_cxActivePds = new Set();          // nessun PdS attivo
+renderCoexamMatrix();
+const outAllOff = captures['coexamBody'] || '';
+check('PdS: nessuno attivo → AAA, BBB, DDD tutti grigi',
+  outAllOff.indexOf('cx-dim" data-code="AAA"') !== -1 && outAllOff.indexOf('cx-dim" data-code="BBB"') !== -1 && outAllOff.indexOf('cx-dim" data-code="DDD"') !== -1);
+_cxActivePds = null;
+
+check('LT: niente pannello PdS (la matrice LT non usa i Piani di Studio)', outLT.indexOf('cx-pds') === -1 && outLT.indexOf('cx-side2') === -1);
 
 console.log('\nRISULTATO: ' + pass + ' pass, ' + fail + ' fail');
 process.exit(fail ? 1 : 0);

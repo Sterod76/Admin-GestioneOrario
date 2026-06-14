@@ -262,6 +262,9 @@
   .cx-table td.cx-n { color: #5a3300; }
   /* Sotto soglia: sfondo BIANCO pieno e numero sbiadito → come le celle vuote */
   .cx-table td.cx-n-low { background: #fff !important; color: #ddd; }
+  /* Codice "spento": non citato da alcun PdS attivo (matrice LM) → riga/colonna/
+     header grigi. !important per scavalcare lo sfondo heatmap inline e il vincolo. */
+  .cx-table th.cx-dim, .cx-table td.cx-dim { background: #eceff1 !important; color: #b9bdc2 !important; }
   /* Celle/header selezionabili nel tab co-esami + pannello dettaglio a destra */
   .cx-table th.cx-ch, .cx-table th.cx-rh, .cx-table td.cx-pick { cursor: pointer; }
   .cx-table td.cx-pick:hover { outline: 2px solid #aecbfa; outline-offset: -2px; }
@@ -382,6 +385,15 @@
   .clm-wrap .cx-scroll { flex: 0 0 auto; }
   .clm-side { flex: 1 1 320px; min-width: 300px; }
   .clm-side-hint { color: var(--muted); font-style: italic; font-size: 12px; padding: 8px 4px; }
+  /* Co-esami LM: lato destro su DUE colonne (dettaglio | PdS attivi) */
+  .cx-side2 { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; }
+  .cx-side2 .cx-detail { flex: 1 1 260px; min-width: 220px; }
+  .cx-side2 .cx-pds { flex: 0 0 200px; border-left: 1px solid var(--border); padding-left: 12px; }
+  .cx-pds .cx-pds-h { font-weight: 700; font-size: 12px; color: #5f6368; margin-bottom: 5px; }
+  .cx-pds .cx-pds-row { display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 2px 0; cursor: pointer; }
+  .cx-pds .cx-pds-act { margin-top: 8px; display: flex; gap: 6px; }
+  .cx-pds .cx-pds-act button { font-size: 11px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 5px; background: #fff; cursor: pointer; }
+  .cx-pds .cx-pds-act button:hover { background: #f3f6fb; }
   .clm-detail { border: 1px solid var(--border); border-radius: 6px; background: #fafafa; padding: 4px 8px 6px; margin: 0; }
   .clm-detail .clm-detail-h { font-size: 12px; font-weight: 700; color: #5f6368; margin: 2px 0 4px; }
   .clm-detail .cl-list { margin: 0; }
@@ -799,6 +811,11 @@
     line-height: 1; white-space: nowrap;
   }
   .slot-tick.hour { color: var(--text); font-weight: 700; font-size: 9.5px; }
+  /* Durante un drag (vista Slot): banda ROSSA sulla colonna "Ora" negli orari in
+     cui il DOCENTE del corso trascinato è già impegnato (collisione docente); e
+     titoli ROSSI dei corsi in collisione CO-ESAME alla posizione candidata. */
+  .slot-busy-band { position: absolute; left: 0; right: 0; background: rgba(234,67,53,.22); pointer-events: none; z-index: 0; }
+  .sblock.sblock-coex-hit .sblock-name { color: #c5221f; font-weight: 700; }
   /* Blocchi sessione nel tab Slot: posizionati verticalmente */
   .sblock {
     position: absolute; left: 2px; right: 2px;
@@ -2809,6 +2826,9 @@ var _editActive = !!EDIT_MODE;
   let _cxThreshLT = _thLoad('orarioCoexThreshLT', 2);
   // Selezione nel tab co-esami (per matrice): {type:'cell',r,c} | {type:'code',code}
   let _cxSel = { LM: null, LT: null };
+  // PdS attivi nella matrice LM (checkbox a destra). null = tutti attivi; altrimenti
+  // un Set di nomi PdS. Un codice non citato da alcun PdS attivo viene "spento" (grigio).
+  let _cxActivePds = null;
   // CFU per codice (dal grid rawSheets, colonna CFU/Crediti). Cache per ref.
   let _cfuCache = null, _cfuCacheRef = null;
   function cfuByCode() {
@@ -2923,34 +2943,69 @@ var _editActive = !!EDIT_MODE;
         (nm ? '<span class="cxd-name">' + esc(nm) + '</span>' : '') +
         (cf ? '<span class="cxd-cfu">' + esc(cf) + ' CFU</span>' : '') + '</div>';
     }
+    // ── PdS attivi (solo matrice LM) + "spegnimento" dei codici ───────────────
+    // pdsByCanon: classe di equivalenza (canon) → PdS che la citano con vincolo
+    // ammesso. Serve per: (a) le checkbox dei PdS a destra; (b) rendere GRIGI
+    // riga/colonna/header di un codice non più citato da ALCUN PdS attivo.
+    const showPds = !!cfg.usePds;
+    const pdsByCanon = {};
+    if (showPds) {
+      (data.pds || []).forEach(p => {
+        const vb = p.vincoloByCode || {};
+        Object.keys(vb).forEach(k0 => {
+          const v = vb[k0], k = String(k0).toUpperCase();
+          if (cfg.vincoli[v] && semCodes[k] && levelCodes[k]) {
+            const cc = canon(k);
+            (pdsByCanon[cc] = pdsByCanon[cc] || {})[p.name] = true;
+          }
+        });
+      });
+    }
+    // Solo i PdS che citano almeno un codice MOSTRATO compaiono fra le checkbox.
+    const relevantPds = {};
+    if (showPds) codes.forEach(c => { const m = pdsByCanon[canon(c)]; if (m) Object.keys(m).forEach(n => { relevantPds[n] = true; }); });
+    const pdsNames = Object.keys(relevantPds).sort((a, b) => a.localeCompare(b, 'it', { numeric: true }));
+    const isActivePds = n => !_cxActivePds || _cxActivePds.has(n);
+    // dim[code] = true se il codice ERA citato da qualche PdS ma da NESSUNO attivo
+    // (i codici mai citati da PdS non si spengono: default = tutto acceso).
+    const dim = {};
+    if (showPds) codes.forEach(c => {
+      const m = pdsByCanon[canon(c)];
+      if (!m) return;
+      if (!Object.keys(m).some(isActivePds)) dim[c] = true;
+    });
+
     let h = '<div class="cx-top"><span class="cx-hint">' + cfg.title + '</span>' +
       '<span class="cx-ctrl">colore da N ≥ <input id="' + cfg.inputId + '" type="number" min="0" step="1" value="' + T + '"></span></div>';
     let tableH = '<div class="cx-scroll"><table class="cx-table"><thead><tr><th class="cx-corner"></th>';
     codes.forEach(c => {
       const sc = (sel && sel.type === 'code' && sel.code === c) ? ' cx-hsel' : '';
-      tableH += '<th class="cx-ch' + sc + '" data-code="' + esc(c) + '" style="background:' + (vc[relC[c]] || '#f5f6f7') + '"><span class="cx-chl">' + esc(c) + '</span></th>';
+      const dc = dim[c] ? ' cx-dim' : '';
+      tableH += '<th class="cx-ch' + sc + dc + '" data-code="' + esc(c) + '" style="background:' + (vc[relC[c]] || '#f5f6f7') + '"><span class="cx-chl">' + esc(c) + '</span></th>';
     });
     tableH += '</tr></thead><tbody>';
     codes.forEach(a => {
       const sr = (sel && sel.type === 'code' && sel.code === a) ? ' cx-hsel' : '';
-      tableH += '<tr><th class="cx-rh' + sr + '" data-code="' + esc(a) + '" style="background:' + (vc[relC[a]] || '#f5f6f7') + '">' + esc(a) + '</th>';
+      const da = dim[a] ? ' cx-dim' : '';
+      tableH += '<tr><th class="cx-rh' + sr + da + '" data-code="' + esc(a) + '" style="background:' + (vc[relC[a]] || '#f5f6f7') + '">' + esc(a) + '</th>';
       codes.forEach(b => {
+        const dd = (dim[a] || dim[b]) ? ' cx-dim' : '';   // riga o colonna spenta → cella grigia
         if (a === b) {
           const e = coexamE(a);
           const sd = (sel && sel.type === 'code' && sel.code === a) ? ' cx-csel' : '';
-          tableH += '<td class="cx-diag cx-pick' + sd + '" data-code="' + esc(a) + '" title="' + tip(a) + ': esami (clic per dettagli)">' + (e != null ? Math.round(e) : '') + '</td>';
+          tableH += '<td class="cx-diag cx-pick' + sd + dd + '" data-code="' + esc(a) + '" title="' + tip(a) + ': esami (clic per dettagli)">' + (e != null ? Math.round(e) : '') + '</td>';
         } else {
           const v = Nval(a, b);
-          if (v == null || v === 0) { tableH += '<td class="cx-na"></td>'; return; } // n/d o 0 → vuoto
+          if (v == null || v === 0) { tableH += '<td class="cx-na' + dd + '"></td>'; return; } // n/d o 0 → vuoto
           const isSel = sel && sel.type === 'cell' && ((sel.r === a && sel.c === b) || (sel.r === b && sel.c === a));
           const ss = isSel ? ' cx-csel' : '';
           if (v < T) {
-            tableH += '<td class="cx-n cx-n-low cx-pick' + ss + '" data-r="' + esc(a) + '" data-c="' + esc(b) + '" title="' + esc(a) + ' × ' + esc(b) + ': ' + v + ' studenti in comune">' + Math.round(v) + '</td>';
+            tableH += '<td class="cx-n cx-n-low cx-pick' + ss + dd + '" data-r="' + esc(a) + '" data-c="' + esc(b) + '" title="' + esc(a) + ' × ' + esc(b) + ': ' + v + ' studenti in comune">' + Math.round(v) + '</td>';
           } else {
             const denom = (maxN > T) ? (maxN - T) : 1;
             const t = Math.min(1, (v - T) / denom);
             const bg = 'rgba(179,89,0,' + (0.06 + 0.6 * t).toFixed(2) + ')';
-            tableH += '<td class="cx-n cx-pick' + ss + '" data-r="' + esc(a) + '" data-c="' + esc(b) + '" style="background:' + bg + '" title="' + esc(a) + ' × ' + esc(b) + ': ' + v + ' studenti in comune">' + Math.round(v) + '</td>';
+            tableH += '<td class="cx-n cx-pick' + ss + dd + '" data-r="' + esc(a) + '" data-c="' + esc(b) + '" style="background:' + bg + '" title="' + esc(a) + ' × ' + esc(b) + ': ' + v + ' studenti in comune">' + Math.round(v) + '</td>';
           }
         }
       });
@@ -2977,7 +3032,17 @@ var _editActive = !!EDIT_MODE;
     } else {
       side = '<div class="clm-side-hint">Seleziona una <b>casella</b> (coppia di esami) o un <b>codice</b> (riga/colonna) per i dettagli.</div>';
     }
-    h += '<div class="clm-wrap">' + tableH + '<div class="clm-side">' + side + '</div></div>';
+    // Lato destro: per la matrice LM su DUE colonne (dettaglio | PdS attivi).
+    if (showPds) {
+      const rowsH = pdsNames.length
+        ? pdsNames.map(n => '<label class="cx-pds-row"><input type="checkbox" data-pds="' + esc(n) + '"' + (isActivePds(n) ? ' checked' : '') + '> ' + esc(n) + '</label>').join('')
+        : '<div class="clm-side-hint">Nessun Piano di Studi.</div>';
+      const pdsPanel = '<div class="cx-pds"><div class="cx-pds-h">Piani di studio attivi</div>' + rowsH +
+        '<div class="cx-pds-act"><button type="button" data-pds-all>Tutti</button><button type="button" data-pds-none>Nessuno</button></div></div>';
+      h += '<div class="clm-wrap">' + tableH + '<div class="clm-side cx-side2"><div class="cx-detail">' + side + '</div>' + pdsPanel + '</div></div>';
+    } else {
+      h += '<div class="clm-wrap">' + tableH + '<div class="clm-side">' + side + '</div></div>';
+    }
     box.innerHTML = h;
     const inp = document.getElementById(cfg.inputId);
     if (inp) inp.addEventListener('change', () => {
@@ -2999,6 +3064,19 @@ var _editActive = !!EDIT_MODE;
         setSel((cur && cur.type === 'cell' && cur.r === r && cur.c === c) ? null : { type: 'cell', r: r, c: c });
       });
     });
+    // Checkbox PdS attivi (matrice LM): aggiorna _cxActivePds e ri-renderizza.
+    box.querySelectorAll('.cx-pds input[type="checkbox"]').forEach(cb => {
+      cb.addEventListener('change', () => {
+        const active = new Set();
+        box.querySelectorAll('.cx-pds input[type="checkbox"]').forEach(x => { if (x.checked) active.add(x.dataset.pds); });
+        _cxActivePds = active;
+        cfg.render();
+      });
+    });
+    const _bAll = box.querySelector('[data-pds-all]');
+    if (_bAll) _bAll.addEventListener('click', () => { _cxActivePds = null; cfg.render(); });
+    const _bNone = box.querySelector('[data-pds-none]');
+    if (_bNone) _bNone.addEventListener('click', () => { _cxActivePds = new Set(); cfg.render(); });
   }
   function renderCoexamMatrix() {
     _renderCoexMatrix({
@@ -3282,6 +3360,64 @@ var _editActive = !!EDIT_MODE;
   // Drag/resize robusto: listener su `document` (sopravvivono ai re-render e ai
   // bordi dell'iframe), soglia di 4px prima di iniziare (un click non crea
   // ghost), fallback su lastDrop se elementFromPoint non trova il track.
+  // ── Evidenziazione durante il drag (vista Slot) ─────────────────────────────
+  // (1) Intervalli del giorno in cui il/i DOCENTE/I del corso trascinato sono già
+  //     impegnati (altro slot, codice/classe diverso, escluso lo slot stesso).
+  //     Pura → testabile; usata per le bande rosse della colonna "Ora".
+  function _teacherBusyIntervals(session, sessions, day) {
+    const teachers = teachersOfSess(session);
+    if (!teachers.length) return [];
+    const tset = {}; teachers.forEach(t => { tset[t] = 1; });
+    const myCanon = canon(session.code);
+    const mySig = session.src ? sigOf(session.src) : null;
+    const out = [];
+    (sessions || []).forEach(o => {
+      if (o.day !== day) return;
+      if (mySig && o.src && sigOf(o.src) === mySig) return;  // se stesso
+      if (canon(o.code) === myCanon) return;                 // stesso esame → falso positivo
+      if (teachersOfSess(o).some(t => tset[t])) out.push({ start: o.start, end: o.end, code: o.code });
+    });
+    return out;
+  }
+  // Disegna le bande rosse (collisione docente) sulla colonna "Ora". Statiche per
+  // tutto il drag: gli impegni del docente non dipendono da dove trascini.
+  function _dragShowTeacherBusy(session) {
+    const grid = document.getElementById('slotGrid'); if (!grid) return;
+    const ticks = grid.querySelector('.slot-time-col .slot-ticks'); if (!ticks) return;
+    _dragClearTeacherBusy();
+    _teacherBusyIntervals(session, data.sessions || [], currentSlotDay).forEach(iv => {
+      const band = document.createElement('div');
+      band.className = 'slot-busy-band';
+      band.style.top = ((iv.start - slotStart) / data.slotStepMin * SLOT_H) + 'px';
+      band.style.height = ((iv.end - iv.start) / data.slotStepMin * SLOT_H) + 'px';
+      band.title = 'Docente occupato (' + esc(iv.code) + ' ' + fmt(iv.start) + '-' + fmt(iv.end) + ')';
+      ticks.insertBefore(band, ticks.firstChild);  // dietro alle etichette ora
+    });
+  }
+  function _dragClearTeacherBusy() {
+    const grid = document.getElementById('slotGrid'); if (!grid) return;
+    grid.querySelectorAll('.slot-busy-band').forEach(b => b.remove());
+  }
+  // (2) Titoli ROSSI dei corsi in collisione CO-ESAME alla posizione candidata
+  //     (stesso giorno, stesso livello, codice diverso, orari sovrapposti — come il
+  //     pannello collisioni dello slot). Dinamica: segue il fantasma del drag.
+  function _dragShowCoex(session, candStart, candEnd, draggedBlock) {
+    const grid = document.getElementById('slotGrid'); if (!grid) return;
+    const lvl = slotLevelOf(session.sheet);
+    const myCode = (session.code || '').toUpperCase();
+    grid.querySelectorAll('.slot-room-track .sblock').forEach(b => {
+      const code = (b.dataset.code || '').toUpperCase();
+      const bs = parseInt(b.dataset.start, 10), be = parseInt(b.dataset.end, 10);
+      const hit = (candStart != null) && b !== draggedBlock && code && code !== myCode &&
+        slotLevelOf(b.dataset.sheet) === lvl && candStart < be && bs < candEnd;
+      b.classList.toggle('sblock-coex-hit', !!hit);
+    });
+  }
+  function _dragClearCoex() {
+    const grid = document.getElementById('slotGrid'); if (!grid) return;
+    grid.querySelectorAll('.sblock.sblock-coex-hit').forEach(b => b.classList.remove('sblock-coex-hit'));
+  }
+
   function attachSlotEditHandlers(block, session) {
     const step = data.slotStepMin;
     const snapStep = m => Math.round(m / step) * step;
@@ -3332,6 +3468,7 @@ var _editActive = !!EDIT_MODE;
         document.body.appendChild(g);
         st.ghost = g;
         block.style.opacity = '0.25';
+        _dragShowTeacherBusy(session);   // bande rosse colonna "Ora" = docente occupato
       }
     }
 
@@ -3354,6 +3491,17 @@ var _editActive = !!EDIT_MODE;
         // Evidenzia il cestino quando ci passi sopra
         const tb = document.getElementById('slotTrash');
         if (tb) tb.classList.toggle('drop-hot', !!trash);
+        // Titoli rossi = collisioni co-esame alla posizione candidata (segue il fantasma)
+        if (track) {
+          const tr = track.getBoundingClientRect();
+          let sft = Math.round((e.clientY - tr.top - st.offY) / SLOT_H);
+          if (sft < 0) sft = 0;
+          const dur = st.origEnd - st.origStart;
+          const maxS = (slotEnd - slotStart - dur) / step;
+          if (sft > maxS) sft = maxS;
+          const cs = slotStart + sft * step;
+          _dragShowCoex(session, cs, cs + dur, block);
+        } else { _dragShowCoex(session, null, null, block); }
         return;
       }
       // Resize verticale
@@ -3391,6 +3539,7 @@ var _editActive = !!EDIT_MODE;
       if (st && st.ghost && st.ghost.parentNode) st.ghost.parentNode.removeChild(st.ghost);
       block.style.opacity = '';
       block.classList.remove('dragging');
+      _dragClearTeacherBusy(); _dragClearCoex();   // via le evidenziazioni del drag
     }
     function onCancel(e) {
       if (st && e && e.pointerId != null && e.pointerId !== st.pointerId) return;
