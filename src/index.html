@@ -824,7 +824,7 @@
     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
     z-index: 6; pointer-events: none;
     display: inline-flex; align-items: center; gap: 3px;
-    padding: 1px 3px; background: rgba(255,255,255,.92);
+    padding: 4px 5px; background: rgba(255,255,255,.92);
     border-radius: 4px; box-shadow: 0 0 0 1px rgba(0,0,0,.25);
   }
   .sblock .sblock-coex-ov .coex-dot {
@@ -4098,28 +4098,14 @@ var _editActive = !!EDIT_MODE;
       st.started = true;
       block.classList.add('dragging');
       if (st.mode === 'move') {
-        const w = st.wasParked ? (st.origEnd - st.origStart) * PX_PER_MIN_AULE - 2 : st.rectW;
-        const g = block.cloneNode(true);
-        g.querySelectorAll('.resize-handle').forEach(el => el.remove());
-        g.classList.remove('in-parking');
-        g.classList.add('drag-ghost');
-        g.style.position = 'fixed'; g.style.left = '0px'; g.style.top = '0px';
-        g.style.width = Math.max(w, 60) + 'px'; g.style.height = st.rectH + 'px';
-        g.style.margin = '0'; g.style.pointerEvents = 'none'; g.style.zIndex = '9999';
-        g.style.opacity = '0.9'; g.style.outline = '2px solid #1a73e8';
-        g.style.boxShadow = '0 6px 16px rgba(0,0,0,0.3)'; g.style.willChange = 'transform';
-        document.body.appendChild(g);
-        st.ghost = g;
-        st._auleW = g.style.width; st._auleH = g.style.height;  // forma Aule (per ripristino)
-        block.style.opacity = '0.25';
-        // Costo + anteprima: attivi SOLO sopra la griglia Slot (reinserimento dal parcheggio);
-        // la vista Aule resta invariata. Baseline costo = posizione attuale o PRE-parcheggio.
+        // Sessione (per il costo e per il ghost in forma Slot del parcheggiato).
         let bsrc; try { bsrc = JSON.parse(block.dataset.src || 'null'); } catch (e2) { bsrc = null; }
         st._srcOk = !!bsrc;
+        let sess = null;
         if (bsrc) {
           st._srcSheet = bsrc.sheet; st._srcRow = bsrc.row;
           st._sig = sigOf(bsrc);
-          const sess = (data.sessions || []).find(o => o.src && sigOf(o.src) === st._sig);
+          sess = (data.sessions || []).find(o => o.src && sigOf(o.src) === st._sig);
           if (sess) {
             st._base = { sheet: sess.sheet, code: sess.code, vincolo: sess.vincolo, anno: sess.anno, group: sess.group };
             st._live = (data.sessions || []).filter(o => !(o.src && parkedItems[sigOf(o.src)]));
@@ -4128,8 +4114,34 @@ var _editActive = !!EDIT_MODE;
             st._baseCost = _marginalCost(Object.assign({ day: bp.day, start: bp.start, end: bp.end }, st._base), st._sig, st._live);
           }
         }
-        // Slot parcheggiato: il ghost prende SUBITO la forma della vista Slot.
-        if (st.wasParked) _ghostToSlot();
+        // Ghost: per i PARCHEGGIATI usa il render della VISTA SLOT (contenuto/allineamenti/
+        // a-capo IDENTICI al blocco finale); altrimenti clona il blocco Aule.
+        let g;
+        if (st.wasParked && sess) {
+          g = makeSlotBlock(sess).cloneNode(true);              // clone → senza listener
+          g.querySelectorAll('.s-resize').forEach(el => el.remove());
+          const t0 = document.querySelector('.slot-room-track');
+          const wsl = t0 ? (t0.getBoundingClientRect().width - 4) : 70;
+          g.style.right = 'auto';
+          g.style.width = Math.max(wsl, 40) + 'px';
+          g.style.height = ((st.origEnd - st.origStart) / data.slotStepMin * SLOT_H) + 'px';
+          st._slotShape = true;
+        } else {
+          const w = st.wasParked ? (st.origEnd - st.origStart) * PX_PER_MIN_AULE - 2 : st.rectW;
+          g = block.cloneNode(true);
+          g.querySelectorAll('.resize-handle').forEach(el => el.remove());
+          g.classList.remove('in-parking');
+          g.style.width = Math.max(w, 60) + 'px'; g.style.height = st.rectH + 'px';
+        }
+        g.classList.add('drag-ghost');
+        g.style.position = 'fixed'; g.style.left = '0px'; g.style.top = '0px';
+        g.style.margin = '0'; g.style.pointerEvents = 'none'; g.style.zIndex = '9999';
+        g.style.opacity = '0.9'; g.style.outline = '2px solid #1a73e8';
+        g.style.boxShadow = '0 6px 16px rgba(0,0,0,0.3)'; g.style.willChange = 'transform';
+        document.body.appendChild(g);
+        st.ghost = g;
+        st._auleW = g.style.width; st._auleH = g.style.height;  // dims correnti (per ripristino)
+        block.style.opacity = '0.25';
       }
     }
 
