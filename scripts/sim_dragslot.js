@@ -20,7 +20,8 @@ let data = {};
 let _coexRoleCtxCache = null;
 const fnSrc = [extractFn('sigOf'), extractFn('teachersOfSess'), extractFn('canon'),
   extractFn('_teacherBusySessions'), extractFn('_teacherBusyIntervals'),
-  extractFn('_coexRoleCtx'), extractFn('_coexPairType')].join('\n');
+  extractFn('_coexRoleCtx'), extractFn('_coexPairType'),
+  extractFn('_gCompatCost'), extractFn('_ltCoexHit')].join('\n');
 eval(fnSrc);
 
 function S(code, docenti, day, start, end, row) {
@@ -104,6 +105,18 @@ check('Coex: simmetrico (M2 × 289BB) → OO', _coexPairType('M2', '289BB') === 
 // Fix review (major): cache invalidata al cambio di reference di data.pds (senza reset manuale).
 data.pds = [{ vincoloByCode: { '289BB': 'FOR', 'M2': 'FOR' } }]; // nuovo reference, ruoli diversi
 check('Coex: cache invalidata su nuovo data.pds → FF', _coexPairType('289BB', 'M2') === 'FF');
+
+// ── _ltCoexHit: collisione Triennale = OBB+OBB, stesso anno, gruppi-prefisso ──────
+const LT = (vincolo, anno, group) => ({ vincolo, anno, group });
+check('LT: A↔B (gruppi disgiunti) → no', _ltCoexHit(LT('OBB', '1', 'A'), LT('OBB', '1', 'B')) === false);
+check('LT: A↔A1 (padre/figlio) → sì', _ltCoexHit(LT('OBB', '1', 'A'), LT('OBB', '1', 'A1')) === true);
+check('LT: A↔A2 → sì', _ltCoexHit(LT('OBB', '1', 'A'), LT('OBB', '1', 'A2')) === true);
+check('LT: A1↔A2 (fratelli) → no', _ltCoexHit(LT('OBB', '1', 'A1'), LT('OBB', '1', 'A2')) === false);
+check('LT: stesso gruppo A↔A → sì', _ltCoexHit(LT('OBB', '1', 'A'), LT('OBB', '1', 'A')) === true);
+check('LT: gruppo vuoto ↔ A (stesso anno) → sì', _ltCoexHit(LT('OBB', '1', ''), LT('OBB', '1', 'A')) === true);
+check('LT: anni diversi → no', _ltCoexHit(LT('OBB', '1', 'A'), LT('OBB', '2', 'A')) === false);
+check('LT: uno non-OBB (FOR×OBB) → no', _ltCoexHit(LT('FOR', '1', 'A'), LT('OBB', '1', 'A')) === false);
+check('LT: entrambi FOR → no', _ltCoexHit(LT('FOR', '1', 'A'), LT('FOR', '1', 'A')) === false);
 
 console.log('\nRISULTATO: ' + pass + ' pass, ' + fail + ' fail');
 process.exit(fail ? 1 : 0);

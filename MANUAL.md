@@ -224,8 +224,14 @@ tab Collisioni, passando sopra la cella costo.)*
 >   **giallo** = forchetta–forchetta; per gli **opzionali** (solo informativi, non
 >   valorizzati) **verde** = opz–opz, **mezzo rosso/verde** = obbligo–opz,
 >   **mezzo giallo/verde** = forchetta–opz. Priorità: obbligo/forchetta **prima** degli
->   opzionali (OBB-OBB > OBB-FOR > FOR-FOR > i misti con opzionale). Gli overlay restano
->   visibili per tutta la durata del drag.
+>   opzionali (OBB-OBB > OBB-FOR > FOR-FOR > i misti con opzionale). Quando i co-esami
+>   sono **0** lo zero è scritto in **grigio chiaro** (collisione di vincolo presente, ma
+>   nessuno studente in comune → costo 0). Gli overlay restano visibili per tutta la
+>   durata del drag.
+>   - **Triennale (LT):** la regola è diversa — il pallino è **rosso pieno e senza numero**
+>     e segnala una collisione fra **due obblighi dello stesso anno con gruppi compatibili**
+>     (il gruppo "padre" A collide con i sotto-gruppi A1/A2; A1 e A2 fra loro no; gruppi
+>     disgiunti A/B no). Non è valorizzata coi co-esami.
 > - un **riquadro grigio** (stessa altezza dello slot, tratteggiato) mostra **dove
 >   atterrerà** lo slot: nell'**aula** sotto il puntatore, con orario **arrotondato
 >   alla mezzora**. Compare per **qualunque** destinazione: le collisioni co-esame **non**

@@ -1917,6 +1917,7 @@ var _editActive = !!EDIT_MODE;
     block.dataset.room = s.room;
     block.dataset.gruppo = s.group;
     block.dataset.anno = s.anno || '';
+    block.dataset.vincolo = (s.vincolo || '');
     block.dataset.day = String(s.day);
     block.dataset.start = String(s.start);
     block.dataset.end = String(s.end);
@@ -3526,6 +3527,16 @@ var _editActive = !!EDIT_MODE;
     if (!inPds) return ct;
     return (ct === 'PP' || ct === 'PO' || ct === 'PF') ? ct : null;
   }
+  // Collisione strutturale TRIENNALE: due OBBLIGHI dello stesso ANNO con gruppi
+  // "compatibili" (uno prefisso dell'altro: il gruppo padre A copre i sotto-gruppi
+  // A1/A2; A1 e A2 fra loro NO; gruppi disgiunti NO; gruppo vuoto = intera coorte).
+  // Pura → testabile. (Stessa regola del costo LT: _gCompatCost.)
+  function _ltCoexHit(a, b) {
+    return String(a.vincolo || '').toUpperCase() === 'OBB'
+      && String(b.vincolo || '').toUpperCase() === 'OBB'
+      && String(a.anno || '') === String(b.anno || '')
+      && _gCompatCost(a.group, b.group);
+  }
   function _dragShowCoex(session, draggedBlock) {
     const grid = document.getElementById('slotGrid'); if (!grid) return;
     _dragClearCoex();
@@ -3545,24 +3556,41 @@ var _editActive = !!EDIT_MODE;
     // valido → ripiego sui colori-tipo (rosso/giallo/verde) per non avere pallini bianchi.
     const realCol = c => { c = String(c || '').trim().toLowerCase(); return (!c || c === '#fff' || c === '#ffffff' || c === 'white') ? '' : c; };
     const myBg = realCol(session.vincoloColor);
+    const isLT = (lvl === 'LT');
     grid.querySelectorAll('.slot-room-track .sblock').forEach(b => {
       const code = (b.dataset.code || '').toUpperCase();
       if (b === draggedBlock || !code || code === myCode || slotLevelOf(b.dataset.sheet) !== lvl) return;
-      const type = _coexPairType(myCode, code);
-      if (!type) return;                        // nessuna collisione di vincolo
-      const n = coexamN(myCode, code);
+      let type, showN, lab;
+      if (isLT) {
+        // Triennale: collisione = OBB+OBB stesso anno + gruppi-prefisso. SOLO pallino rosso,
+        // NIENTE numero (non valorizzata). La regola NON usa i co-esami.
+        if (!_ltCoexHit({ vincolo: session.vincolo, anno: session.anno, group: session.group },
+          { vincolo: b.dataset.vincolo, anno: b.dataset.anno, group: b.dataset.gruppo })) return;
+        type = 'OO'; showN = false; lab = 'obbligo-obbligo (LT: stesso anno/gruppo)';
+      } else {
+        type = _coexPairType(myCode, code);
+        if (!type) return;                      // nessuna collisione di vincolo
+        showN = true; lab = LAB[type] || type;
+      }
+      const n = showN ? coexamN(myCode, code) : null;
       const oBg = realCol(b.dataset.origBg);
       const ov = document.createElement('div');
       ov.className = 'sblock-coex-ov';
       const dot = document.createElement('span');
       dot.className = 'coex-dot';
       dot.style.width = SLOT_H + 'px'; dot.style.height = SLOT_H + 'px';
-      dot.style.background = (myBg && oBg) ? (myBg === oBg ? myBg : half(myBg, oBg)) : (DOT[type] || cFOR);
-      const num = document.createElement('span');
-      num.className = 'coex-n';
-      num.textContent = (n == null) ? '–' : String(n);
-      ov.title = 'Co-esami ' + myCode + '×' + code + ': N=' + (n == null ? 'n/d' : n) + ' (' + (LAB[type] || type) + ')';
-      ov.appendChild(dot); ov.appendChild(num);
+      dot.style.background = isLT ? cOBB   // LT: SEMPRE rosso pieno (obbligo-obbligo)
+        : ((myBg && oBg) ? (myBg === oBg ? myBg : half(myBg, oBg)) : (DOT[type] || cFOR));
+      ov.appendChild(dot);
+      if (showN) {
+        const num = document.createElement('span');
+        num.className = 'coex-n';
+        num.textContent = (n == null) ? '–' : String(n);
+        if (n === 0) num.style.color = '#9aa0a6';   // 0 co-esami → zero in grigio chiaro
+        ov.appendChild(num);
+      }
+      ov.title = isLT ? ('Collisione ' + myCode + '×' + code + ' (' + lab + ')')
+        : ('Co-esami ' + myCode + '×' + code + ': N=' + (n == null ? 'n/d' : n) + ' (' + lab + ')');
       b.appendChild(ov);
     });
   }
@@ -3907,6 +3935,7 @@ var _editActive = !!EDIT_MODE;
     block.dataset.room = s.room;
     block.dataset.gruppo = s.group;
     block.dataset.anno = s.anno || '';
+    block.dataset.vincolo = (s.vincolo || '');
     block.dataset.day = String(s.day);
     block.dataset.start = String(s.start);
     block.dataset.end = String(s.end);
