@@ -216,15 +216,30 @@ tab Collisioni, passando sopra la cella costo.)*
 >   di quella collisione (gli altri slot dello stesso docente) vengono inoltre
 >   **cerchiati in rosso** (come se fossero selezionati);
 > - su **tutti** gli slot in **collisione co-esame** col corso trascinato (stesso
->   livello, vincolo OBB/FOR in qualche PdS) compare un **overlay** bianco trasparente
->   con, **al centro**, un **pallino** (⌀ = altezza della mezzora) e, **subito di
->   fianco**, il **numero** di co-esami (il valore `N` della matrice). Il pallino usa
->   i **colori degli header della matrice co-esami** e indica il **tipo** di
->   collisione di vincolo: **rosso** = obbligo–obbligo (in qualche PdS),
->   **mezzo rosso / mezzo giallo** = obbligo–forchetta, **giallo** = forchetta–forchetta.
->   La priorità è **obbligo–obbligo > obbligo–forchetta > forchetta–forchetta** (se una
->   coppia è forchetta–forchetta in un PdS e obbligo–obbligo in un altro, vince
->   obbligo–obbligo). Gli overlay restano visibili per tutta la durata del drag.
+>   livello) compare un **overlay** bianco trasparente con, **al centro**, un
+>   **pallino** (⌀ = altezza della mezzora) e, **subito di fianco**, il **numero** di
+>   co-esami (il valore `N` della matrice). Il pallino usa gli **stessi toni pieni dello
+>   sfondo degli slot** (senza trasparenza) e indica il **tipo** di collisione di vincolo:
+>   **rosso** = obbligo–obbligo (in qualche PdS), **mezzo rosso / mezzo giallo** = obbligo–forchetta,
+>   **giallo** = forchetta–forchetta; per gli **opzionali** (solo informativi, non
+>   valorizzati) **verde** = opz–opz, **mezzo rosso/verde** = obbligo–opz,
+>   **mezzo giallo/verde** = forchetta–opz. Priorità: obbligo/forchetta **prima** degli
+>   opzionali (OBB-OBB > OBB-FOR > FOR-FOR > i misti con opzionale). Gli overlay restano
+>   visibili per tutta la durata del drag.
+> - un **riquadro grigio** (stessa altezza dello slot, tratteggiato) mostra **dove
+>   atterrerà** lo slot: nell'**aula** sotto il puntatore, con orario **arrotondato
+>   alla mezzora**. Se quella destinazione non è valida (collisione **co-esame
+>   obbligo/forchetta**, aula occupata o non disponibile, oppure il corso ha già uno
+>   slot quel giorno) il riquadro **scompare** (target non ammesso): al rilascio, se
+>   c'è un target ammesso lo slot ci si posiziona, altrimenti **torna al punto di
+>   partenza** (gli opzionali non bloccano).
+> - un **rettangolo costo** in alto mostra in tempo reale il **costo** delle collisioni
+>   dello slot alla posizione candidata (**nero**, in ore·studente/settimana) e il
+>   **differenziale** rispetto alla posizione di partenza: **`+x` in rosso** (peggiora),
+>   **`−x` in verde** (migliora), **`0` in nero**. Il rettangolo compare anche quando
+>   **reinserisci** uno slot dal **parcheggio** trascinandolo nella griglia Slot: in quel
+>   caso il differenziale è calcolato rispetto alla **posizione che lo slot aveva prima**
+>   del parcheggio.
 
 ![Slot — guida durante il drag (orari docente occupato + corsi in collisione)](docs/img/14-slot-drag.png)
 

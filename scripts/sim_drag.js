@@ -71,6 +71,17 @@ function updatePendingUI() { pendingUI++; }
 function commitEdit(b, src, target) { commits.push({ src, target }); }
 function revertBlock(b) { reverts.push(b); }
 let _activeDrag = null; // registro globale del drag attivo (come in index.html)
+// Stub per il rettangolo costo aggiunto al reinserimento dal parcheggio (vista Slot).
+// Nel mock non c'è .slot-room-track, quindi il box non viene mai mostrato; servono solo
+// le dipendenze referenziate da begin()/cleanupGhost.
+function sigOf(src) { return src ? JSON.stringify(src) : ''; }
+const data = { sessions: [], slotStepMin: 30 };
+const parkedItems = {};
+const currentSlotDay = 0;
+const SLOT_H = 17;
+function _marginalCost() { return 0; }
+function _dragShowCostBox() {}
+function _dragClearCostBox() {}
 
 eval(fnSrc); // definisce attachEditHandlers nello scope
 

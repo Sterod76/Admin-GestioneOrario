@@ -825,9 +825,29 @@
   }
   .sblock .sblock-coex-ov .coex-dot {
     flex: 0 0 auto; border-radius: 50%; box-sizing: border-box;
-    border: 1px solid rgba(0,0,0,.40);
+    border: 1px solid #5f6368;
   }
   .sblock .sblock-coex-ov .coex-n { font-weight: 700; font-size: 13px; color: #111; line-height: 1; }
+  /* Durante il drag: anteprima grigia della destinazione (snap mezzora), con la
+     stessa altezza dello slot trascinato. Mostrata solo se il target è AMMESSO
+     (nessuna collisione co-esame). */
+  .slot-drop-preview {
+    position: absolute; left: 2px; right: 2px; z-index: 2; pointer-events: none;
+    background: rgba(120,120,120,0.30); border: 2px dashed #757575;
+    border-radius: 3px; box-sizing: border-box;
+  }
+  /* Rettangolo costo collisioni in tempo reale durante il drag (vista Slot). */
+  .drag-cost-box {
+    position: fixed; top: 56px; left: 50%; transform: translateX(-50%);
+    z-index: 10000; pointer-events: none; white-space: nowrap;
+    background: #fff; border: 1px solid #bbb; border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2); padding: 6px 12px; font-size: 13px;
+  }
+  .drag-cost-box .dcb-total { font-weight: 700; color: #111; }
+  .drag-cost-box .dcb-delta { margin-left: 10px; font-weight: 700; }
+  .drag-cost-box .dcb-up { color: #d93025; }    /* peggiora → rosso */
+  .drag-cost-box .dcb-down { color: #137333; }  /* migliora → verde */
+  .drag-cost-box .dcb-zero { color: #111; }
   /* Blocchi sessione nel tab Slot: posizionati verticalmente */
   .sblock {
     position: absolute; left: 2px; right: 2px;
@@ -3369,7 +3389,7 @@ var _editActive = !!EDIT_MODE;
       b.style.opacity = '';
     });
     // Pulisci anche le evidenziazioni drag (anche nel ramo orfano senza _activeDrag).
-    _dragClearTeacherBusy(); _dragClearCoex();
+    _dragClearTeacherBusy(); _dragClearCoex(); _dragClearDropPreview(); _dragClearCostBox();
   }
   document.addEventListener('pointerdown', purgeGhosts, true);
   window.addEventListener('blur', purgeGhosts);
@@ -3379,7 +3399,8 @@ var _editActive = !!EDIT_MODE;
 
   // Drag/resize robusto: listener su `document` (sopravvivono ai re-render e ai
   // bordi dell'iframe), soglia di 4px prima di iniziare (un click non crea
-  // ghost), fallback su lastDrop se elementFromPoint non trova il track.
+  // ghost). Il target del drop è quello dell'ultimo onMove (st._dropTarget): si
+  // posiziona lì solo se ammesso, altrimenti lo slot torna all'origine.
   // ── Evidenziazione durante il drag (vista Slot) ─────────────────────────────
   // (1) Intervalli del giorno in cui il/i DOCENTE/I del corso trascinato sono già
   //     impegnati (altro slot, codice/classe diverso, escluso lo slot stesso).
@@ -3473,11 +3494,16 @@ var _editActive = !!EDIT_MODE;
     if (!A || !B) return null;
     const cA = canon(A), cB = canon(B);
     if (cA === cB) return null;                 // stesso esame (classe equiv.) → non co-esame
-    const RANK = { OO: 3, OF: 2, FF: 1 };
+    // Tipi: OO/OF/FF (obbligo/forchetta, VALORIZZATI) > PO/PF/PP (con opzionale,
+    // solo informativi). OBB/FOR hanno priorità sugli OPZ.
+    const RANK = { OO: 6, OF: 5, FF: 4, PO: 3, PF: 2, PP: 1 };
     const classify = (rA, rB) => {
-      rA = (rA === 'OBB' || rA === 'FOR') ? rA : null;
-      rB = (rB === 'OBB' || rB === 'FOR') ? rB : null;
+      const ok = r => (r === 'OBB' || r === 'FOR' || r === 'OPZ') ? r : null;
+      rA = ok(rA); rB = ok(rB);
       if (!rA || !rB) return null;
+      const nOpz = (rA === 'OPZ' ? 1 : 0) + (rB === 'OPZ' ? 1 : 0);
+      if (nOpz === 2) return 'PP';
+      if (nOpz === 1) return (rA === 'OBB' || rB === 'OBB') ? 'PO' : 'PF';
       return (rA === 'OBB' && rB === 'OBB') ? 'OO' : (rA === 'FOR' && rB === 'FOR') ? 'FF' : 'OF';
     };
     const ctx = _coexRoleCtx();                 // mappe con chiavi canon
@@ -3489,8 +3515,12 @@ var _editActive = !!EDIT_MODE;
       if (t && RANK[t] > bestRank) { bestRank = RANK[t]; best = t; }
     });
     if (best) return best;
-    if (inPds) return null;                     // gestiti dai PdS: niente ripiego (no falsi OBB-OBB)
-    return classify(ctx.course[cA], ctx.course[cB]);
+    // Ripiego sul vincolo di corso. I tipi VALORIZZATI (OO/OF/FF) li accettiamo solo se i
+    // codici NON sono in alcun PdS (Triennale) — così non si creano falsi OBB-OBB fra PdS
+    // diversi. I tipi con OPZ (informativi, non bloccanti) si possono mostrare comunque.
+    const ct = classify(ctx.course[cA], ctx.course[cB]);
+    if (!inPds) return ct;
+    return (ct === 'PP' || ct === 'PO' || ct === 'PF') ? ct : null;
   }
   function _dragShowCoex(session, draggedBlock) {
     const grid = document.getElementById('slotGrid'); if (!grid) return;
@@ -3499,25 +3529,34 @@ var _editActive = !!EDIT_MODE;
     const myCode = (session.code || '').toUpperCase();
     const cOBB = (data.vincoloColors && data.vincoloColors.OBB) || '#ffcfc9';
     const cFOR = (data.vincoloColors && data.vincoloColors.FOR) || '#ffe5a0';
+    const cOPZ = (data.vincoloColors && data.vincoloColors.OPZ) || '#d4edbc';
+    // pallino: tinta piena per le coppie omogenee, 2-tono per le miste.
+    const half = (x, y) => 'linear-gradient(90deg,' + x + ' 0 50%,' + y + ' 50% 100%)';
+    const DOT = { OO: cOBB, FF: cFOR, PP: cOPZ, OF: half(cOBB, cFOR), PO: half(cOBB, cOPZ), PF: half(cFOR, cOPZ) };
+    const LAB = { OO: 'obbligo-obbligo', OF: 'obbligo-forchetta', FF: 'forchetta-forchetta',
+      PO: 'obbligo-opzionale', PF: 'forchetta-opzionale', PP: 'opzionale-opzionale' };
+    // Tono ESATTO dello sfondo degli slot (pieno, senza trasparenza): metà colore del
+    // corso trascinato + metà del corso in collisione. Il bianco/default NON è un tono
+    // valido → ripiego sui colori-tipo (rosso/giallo/verde) per non avere pallini bianchi.
+    const realCol = c => { c = String(c || '').trim().toLowerCase(); return (!c || c === '#fff' || c === '#ffffff' || c === 'white') ? '' : c; };
+    const myBg = realCol(session.vincoloColor);
     grid.querySelectorAll('.slot-room-track .sblock').forEach(b => {
       const code = (b.dataset.code || '').toUpperCase();
       if (b === draggedBlock || !code || code === myCode || slotLevelOf(b.dataset.sheet) !== lvl) return;
       const type = _coexPairType(myCode, code);
-      if (!type) return;                        // nessuna collisione OBB/FOR su alcun PdS
+      if (!type) return;                        // nessuna collisione di vincolo
       const n = coexamN(myCode, code);
+      const oBg = realCol(b.dataset.origBg);
       const ov = document.createElement('div');
       ov.className = 'sblock-coex-ov';
       const dot = document.createElement('span');
       dot.className = 'coex-dot';
       dot.style.width = SLOT_H + 'px'; dot.style.height = SLOT_H + 'px';
-      dot.style.background = type === 'OO' ? cOBB
-        : type === 'FF' ? cFOR
-          : ('linear-gradient(90deg,' + cOBB + ' 0 50%,' + cFOR + ' 50% 100%)');
+      dot.style.background = (myBg && oBg) ? (myBg === oBg ? myBg : half(myBg, oBg)) : (DOT[type] || cFOR);
       const num = document.createElement('span');
       num.className = 'coex-n';
       num.textContent = (n == null) ? '–' : String(n);
-      const tlab = type === 'OO' ? 'obbligo-obbligo' : type === 'OF' ? 'obbligo-forchetta' : 'forchetta-forchetta';
-      ov.title = 'Co-esami ' + myCode + '×' + code + ': N=' + (n == null ? 'n/d' : n) + ' (' + tlab + ')';
+      ov.title = 'Co-esami ' + myCode + '×' + code + ': N=' + (n == null ? 'n/d' : n) + ' (' + (LAB[type] || type) + ')';
       ov.appendChild(dot); ov.appendChild(num);
       b.appendChild(ov);
     });
@@ -3525,6 +3564,53 @@ var _editActive = !!EDIT_MODE;
   function _dragClearCoex() {
     const grid = document.getElementById('slotGrid'); if (!grid) return;
     grid.querySelectorAll('.sblock .sblock-coex-ov').forEach(o => o.remove());
+  }
+  // (3) Anteprima grigia della destinazione del drag (snap mezzora, aula specifica).
+  // True se lo slot [start,end) nel giorno `day` si SOVRAPPONE a un corso CO-ESAME del
+  // corso trascinato (stesso livello, tipo OBB/FOR in qualche PdS): target NON ammesso.
+  // Pura → testabile.
+  function _coexCollides(session, start, end, sessions, day) {
+    const lvl = slotLevelOf(session.sheet);
+    const myCode = (session.code || '').toUpperCase();
+    const mySig = session.src ? sigOf(session.src) : null;
+    return (sessions || []).some(o => {
+      if (o.day !== day) return false;
+      if (mySig && o.src && sigOf(o.src) === mySig) return false;   // se stesso
+      if (slotLevelOf(o.sheet) !== lvl) return false;              // co-esami = stesso livello
+      if (!(start < o.end && o.start < end)) return false;         // nessun overlap temporale
+      const t = _coexPairType(myCode, o.code);
+      return t === 'OO' || t === 'OF' || t === 'FF';               // OPZ = solo informativo, non blocca
+    });
+  }
+  function _dragClearDropPreview() {
+    const grid = document.getElementById('slotGrid'); if (!grid) return;
+    grid.querySelectorAll('.slot-drop-preview').forEach(e => e.remove());
+  }
+  function _dragShowDropPreview(trackEl, start, durMin) {
+    _dragClearDropPreview();
+    if (!trackEl) return;
+    const p = document.createElement('div');
+    p.className = 'slot-drop-preview';
+    p.style.top = ((start - slotStart) / data.slotStepMin * SLOT_H) + 'px';
+    p.style.height = Math.max(durMin / data.slotStepMin * SLOT_H - 2, 16) + 'px';  // come i blocchi reali
+    trackEl.appendChild(p);
+  }
+  // (4) Rettangolo costo in tempo reale durante il drag. Mostra il costo (ore·studente/
+  //     settimana) delle collisioni dello slot alla posizione candidata e il differenziale
+  //     rispetto alla posizione di partenza (per i parcheggiati: la posizione PRE-parcheggio,
+  //     memorizzata in parkedItems[sig]). Stesso modello dei "suggerimenti" (_marginalCost).
+  function _dragClearCostBox() {
+    const b = document.getElementById('dragCostBox');
+    if (b && b.parentNode) b.parentNode.removeChild(b);
+  }
+  function _dragShowCostBox(total, delta) {
+    let b = document.getElementById('dragCostBox');
+    if (!b) { b = document.createElement('div'); b.id = 'dragCostBox'; b.className = 'drag-cost-box'; document.body.appendChild(b); }
+    let dcls = 'dcb-zero', dtxt = '0';
+    if (delta > 0.05) { dcls = 'dcb-up'; dtxt = '+' + fmtCost(delta); }
+    else if (delta < -0.05) { dcls = 'dcb-down'; dtxt = '−' + fmtCost(-delta); }
+    b.innerHTML = '<span class="dcb-total">' + fmtCost(total) + ' ore·stud/sett</span>' +
+      '<span class="dcb-delta ' + dcls + '">' + dtxt + '</span>';
   }
 
   function attachSlotEditHandlers(block, session) {
@@ -3552,7 +3638,7 @@ var _editActive = !!EDIT_MODE;
         origEnd: parseInt(block.dataset.end, 10),
         offX: e.clientX - rect.left, offY: e.clientY - rect.top,
         w: rect.width, h: rect.height,
-        ghost: null, lastDrop: null, started: false
+        ghost: null, started: false
       };
       document.addEventListener('pointermove', onMove, true);
       document.addEventListener('pointerup', onUp, true);
@@ -3579,6 +3665,16 @@ var _editActive = !!EDIT_MODE;
         block.style.opacity = '0.25';
         _dragShowTeacherBusy(session);   // bande rosse colonna "Ora" = docente occupato
         _dragShowCoex(session, block);   // overlay co-esame su TUTTI gli slot in collisione
+        // Costo: sessioni "vive" (no parcheggiate) e baseline = posizione attuale, oppure
+        // la posizione PRE-parcheggio se lo slot è parcheggiato.
+        if (session.src) {
+          st._sig = sigOf(session.src);
+          st._base = { sheet: session.sheet, code: session.code, vincolo: session.vincolo, anno: session.anno, group: session.group };
+          st._live = (data.sessions || []).filter(o => !(o.src && parkedItems[sigOf(o.src)]));
+          const pk = parkedItems[st._sig];
+          const bp = pk ? pk : { day: st.origDay, start: st.origStart, end: st.origEnd };
+          st._baseCost = _marginalCost(Object.assign({ day: bp.day, start: bp.start, end: bp.end }, st._base), st._sig, st._live);
+        }
       }
     }
 
@@ -3591,17 +3687,48 @@ var _editActive = !!EDIT_MODE;
         st.ghost.style.transform =
           'translate(' + (e.clientX - st.offX) + 'px,' + (e.clientY - st.offY) + 'px)';
         const el = document.elementFromPoint(e.clientX, e.clientY);
-        const parking = el ? el.closest('.parking-zone') : null;
         const track = el ? el.closest('.slot-room-track') : null;
         const trash = el ? el.closest('#slotTrash') : null;
-        if (trash) st.lastDrop = { kind: 'trash', el: trash };
-        else if (parking) st.lastDrop = { kind: 'parking', el: parking };
-        else if (track) st.lastDrop = { kind: 'track', el: track };
-        else st.lastDrop = null;
         // Evidenzia il cestino quando ci passi sopra
         const tb = document.getElementById('slotTrash');
         if (tb) tb.classList.toggle('drop-hot', !!trash);
-        // (gli overlay co-esame sono statici: disegnati una volta in begin())
+        // Slot candidato (snap mezzora) sul track sotto il puntatore.
+        const dur = st.origEnd - st.origStart;
+        let start = null, room = null;
+        if (track) {
+          const tr = track.getBoundingClientRect();
+          let sft = Math.round((e.clientY - tr.top - st.offY) / SLOT_H);
+          if (sft < 0) sft = 0;
+          const maxS = (slotEnd - slotStart - dur) / step;
+          if (sft > maxS) sft = maxS;
+          start = slotStart + sft * step; room = track.dataset.room;
+        }
+        const key = (room == null) ? null : (room + '|' + start);
+        if (key !== st._dragKey) {        // ricalcola solo al cambio di slot candidato
+          st._dragKey = key; st._dropTarget = null;
+          if (track) {
+            const end = start + dur, sig = st._sig, live = st._live || (data.sessions || []);
+            // Rettangolo costo: SEMPRE (anche su posizioni in collisione → mostra il costo
+            // indotto). Totale = costo collisioni dello slot qui; Δ = qui − baseline.
+            if (st._base) {
+              const at = _marginalCost(Object.assign({ day: currentSlotDay, start: start, end: end }, st._base), sig, live);
+              _dragShowCostBox(at, at - (st._baseCost || 0));
+            }
+            // Ammesso = destinazione VALIDA per il commit (aula/riga libere — controllo su
+            // TUTTE le sessioni, parcheggiate incluse, come applyEditLocally) E nessuna
+            // collisione co-esame (policy UI piu' severa del commit: i parcheggiati NON
+            // contano, come i pallini). Così l'anteprima non promette un drop poi rifiutato.
+            const all = data.sessions || [];
+            const free = !!session.src &&
+              _roomFreeAt(room, currentSlotDay, start, end, sig, all) &&
+              _rowFreeOnDay(session.src.sheet, session.src.row, currentSlotDay, sig, all) &&
+              !_coexCollides(session, start, end, live, currentSlotDay);
+            if (free) { st._dropTarget = { room: room, start: start, end: end }; _dragShowDropPreview(track, start, dur); }
+            else { _dragClearDropPreview(); }
+          } else {
+            _dragClearDropPreview(); _dragClearCostBox();
+          }
+        }
         return;
       }
       // Resize verticale
@@ -3639,7 +3766,7 @@ var _editActive = !!EDIT_MODE;
       if (st && st.ghost && st.ghost.parentNode) st.ghost.parentNode.removeChild(st.ghost);
       block.style.opacity = '';
       block.classList.remove('dragging');
-      _dragClearTeacherBusy(); _dragClearCoex();   // via le evidenziazioni del drag
+      _dragClearTeacherBusy(); _dragClearCoex(); _dragClearDropPreview(); _dragClearCostBox();  // via le evidenziazioni del drag
     }
     function onCancel(e) {
       if (st && e && e.pointerId != null && e.pointerId !== st.pointerId) return;
@@ -3658,39 +3785,28 @@ var _editActive = !!EDIT_MODE;
       if (s.mode === 'move') {
         const el = document.elementFromPoint(e.clientX, e.clientY);
         const parking = el ? el.closest('.parking-zone') : null;
-        const track = el ? el.closest('.slot-room-track') : null;
         const trash = el ? el.closest('#slotTrash') : null;
-        let drop = trash ? { kind: 'trash' }
-                 : (parking ? { kind: 'parking', el: parking }
-                 : (track ? { kind: 'track', el: track } : s.lastDrop));
         cleanupGhost(); st = null;
         const tb = document.getElementById('slotTrash'); if (tb) tb.classList.remove('drop-hot');
-        if (!drop) { return; }
 
-        // Drop sul cestino → elimina lo slot
-        if (drop.kind === 'trash') { deleteSlot(session); return; }
-
-        if (drop.kind === 'parking') {
+        // Cestino → elimina lo slot
+        if (trash) { deleteSlot(session); return; }
+        // Parking → parcheggia
+        if (parking) {
           recordParked(block, { room: s.origRoom, day: s.origDay, start: s.origStart, end: s.origEnd });
           calendarDirty = false;
           rerenderAfterEdit();
           return;
         }
-        const trackEl = drop.el;
-        const trackRect = trackEl.getBoundingClientRect();
-        let slotsFromTop = Math.round((e.clientY - trackRect.top - s.offY) / SLOT_H);
-        if (slotsFromTop < 0) slotsFromTop = 0;
-        const duration = s.origEnd - s.origStart;
-        const maxSlots = (slotEnd - slotStart - duration) / step;
-        if (slotsFromTop > maxSlots) slotsFromTop = maxSlots;
-        const newStart = slotStart + slotsFromTop * step;
-        const newEnd = newStart + duration;
-        const newRoom = trackEl.dataset.room;
-        if (newStart === s.origStart && newRoom === s.origRoom) { return; } // no-op
-        if (!src) { renderSlotsSessions(); applyFilters(); return; }
+        // Track: posiziona SOLO se c'è un target ammesso (anteprima grigia visibile,
+        // cioè nessuna collisione co-esame); altrimenti riporta lo slot all'origine.
+        const t = s._dropTarget;
+        if (!t || (t.start === s.origStart && t.room === s.origRoom) || !src) {
+          renderSlotsSessions(); applyFilters(); return;   // nessun target ammesso / no-op → torna all'origine
+        }
         commitSlotEdit(src, {
           sheet: src.sheet, row: src.row, col: 12 + currentSlotDay,
-          room: newRoom, start: newStart, end: newEnd
+          room: t.room, start: t.start, end: t.end
         });
         return;
       }
@@ -3989,6 +4105,20 @@ var _editActive = !!EDIT_MODE;
         document.body.appendChild(g);
         st.ghost = g;
         block.style.opacity = '0.25';
+        // Costo: mostrato SOLO se si reinserisce nella griglia Slot (.slot-room-track);
+        // la vista Aule resta invariata. Baseline = posizione attuale, o PRE-parcheggio.
+        let bsrc; try { bsrc = JSON.parse(block.dataset.src || 'null'); } catch (e2) { bsrc = null; }
+        if (bsrc) {
+          st._sig = sigOf(bsrc);
+          const sess = (data.sessions || []).find(o => o.src && sigOf(o.src) === st._sig);
+          if (sess) {
+            st._base = { sheet: sess.sheet, code: sess.code, vincolo: sess.vincolo, anno: sess.anno, group: sess.group };
+            st._live = (data.sessions || []).filter(o => !(o.src && parkedItems[sigOf(o.src)]));
+            const pk = parkedItems[st._sig];
+            const bp = pk ? pk : { day: sess.day, start: sess.start, end: sess.end };
+            st._baseCost = _marginalCost(Object.assign({ day: bp.day, start: bp.start, end: bp.end }, st._base), st._sig, st._live);
+          }
+        }
       }
     }
 
@@ -4008,6 +4138,23 @@ var _editActive = !!EDIT_MODE;
         else if (track) st.lastDrop = { kind: 'track', el: track };
         else if (slotTrack) st.lastDrop = { kind: 'slotTrack', el: slotTrack };
         else st.lastDrop = null;
+        // Rettangolo costo SOLO sopra la griglia Slot (reinserimento dal parcheggio).
+        if (slotTrack && st._base) {
+          const r = slotTrack.getBoundingClientRect();
+          const dur = st.origEnd - st.origStart;
+          let sft = Math.round((e.clientY - r.top - st.offY) / SLOT_H);
+          if (sft < 0) sft = 0;
+          const maxS = (slotEnd - slotStart - dur) / data.slotStepMin;
+          if (sft > maxS) sft = maxS;
+          const cs = slotStart + sft * data.slotStepMin;
+          if (cs !== st._costKey) {
+            st._costKey = cs;
+            const at = _marginalCost(Object.assign({ day: currentSlotDay, start: cs, end: cs + dur }, st._base), st._sig, st._live);
+            _dragShowCostBox(at, at - (st._baseCost || 0));
+          }
+        } else if (st._costKey != null) {
+          st._costKey = null; _dragClearCostBox();
+        }
         return;
       }
       // Resize orizzontale
@@ -4048,6 +4195,7 @@ var _editActive = !!EDIT_MODE;
       if (st && st.ghost && st.ghost.parentNode) st.ghost.parentNode.removeChild(st.ghost);
       block.style.opacity = '';
       block.classList.remove('dragging');
+      _dragClearCostBox();
     }
     function onCancel(e) {
       if (st && e && e.pointerId != null && e.pointerId !== st.pointerId) return;
