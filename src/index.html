@@ -820,7 +820,7 @@
   .slot-busy-band { position: absolute; left: 0; right: 0; background: rgba(234,67,53,.22); pointer-events: none; z-index: 0; }
   .sblock .sblock-coex-ov {
     position: absolute; inset: 0; z-index: 6; pointer-events: none;
-    display: flex; align-items: center; justify-content: space-between;
+    display: flex; align-items: center; justify-content: center; gap: 4px;
     padding: 0 4px; background: rgba(255,255,255,.80);
   }
   .sblock .sblock-coex-ov .coex-dot {
@@ -3433,10 +3433,11 @@ var _editActive = !!EDIT_MODE;
     grid.querySelectorAll('.slot-busy-band').forEach(b => b.remove());
     grid.querySelectorAll('.sblock.sblock-teacher-src').forEach(b => b.classList.remove('sblock-teacher-src'));
   }
-  // (2) Overlay CO-ESAME sui blocchi in collisione alla posizione candidata (stesso
-  //     giorno/livello, codice diverso, orari sovrapposti — come il pannello
-  //     collisioni dello slot). Per ogni blocco: pallino = TIPO di collisione di
-  //     vincolo e numero = N co-esami (matrice). Dinamico: segue il fantasma.
+  // (2) Overlay CO-ESAME su TUTTI gli slot in collisione co-esame col corso
+  //     trascinato (stesso livello, codice diverso, tipo OBB/FOR in qualche PdS) —
+  //     indipendentemente dalla posizione candidata. Per ogni blocco: pallino =
+  //     TIPO di collisione di vincolo e numero = N co-esami (matrice). Statico per
+  //     tutta la durata del drag (disegnato in begin()).
   // Contesti di vincolo: una mappa per PdS (vincoloByCode) + una mappa dai corsi
   //     (course.vincolo), usata solo come RIPIEGO per i codici fuori da ogni PdS
   //     (Triennale). Le chiavi sono CANONICALIZZATE (canon → classi di equivalenza)
@@ -3491,19 +3492,16 @@ var _editActive = !!EDIT_MODE;
     if (inPds) return null;                     // gestiti dai PdS: niente ripiego (no falsi OBB-OBB)
     return classify(ctx.course[cA], ctx.course[cB]);
   }
-  function _dragShowCoex(session, candStart, candEnd, draggedBlock) {
+  function _dragShowCoex(session, draggedBlock) {
     const grid = document.getElementById('slotGrid'); if (!grid) return;
     _dragClearCoex();
-    if (candStart == null) return;
     const lvl = slotLevelOf(session.sheet);
     const myCode = (session.code || '').toUpperCase();
     const cOBB = (data.vincoloColors && data.vincoloColors.OBB) || '#ffcfc9';
     const cFOR = (data.vincoloColors && data.vincoloColors.FOR) || '#ffe5a0';
     grid.querySelectorAll('.slot-room-track .sblock').forEach(b => {
       const code = (b.dataset.code || '').toUpperCase();
-      const bs = parseInt(b.dataset.start, 10), be = parseInt(b.dataset.end, 10);
-      if (b === draggedBlock || !code || code === myCode ||
-        slotLevelOf(b.dataset.sheet) !== lvl || !(candStart < be && bs < candEnd)) return;
+      if (b === draggedBlock || !code || code === myCode || slotLevelOf(b.dataset.sheet) !== lvl) return;
       const type = _coexPairType(myCode, code);
       if (!type) return;                        // nessuna collisione OBB/FOR su alcun PdS
       const n = coexamN(myCode, code);
@@ -3580,6 +3578,7 @@ var _editActive = !!EDIT_MODE;
         st.ghost = g;
         block.style.opacity = '0.25';
         _dragShowTeacherBusy(session);   // bande rosse colonna "Ora" = docente occupato
+        _dragShowCoex(session, block);   // overlay co-esame su TUTTI gli slot in collisione
       }
     }
 
@@ -3602,22 +3601,7 @@ var _editActive = !!EDIT_MODE;
         // Evidenzia il cestino quando ci passi sopra
         const tb = document.getElementById('slotTrash');
         if (tb) tb.classList.toggle('drop-hot', !!trash);
-        // Overlay co-esame alla posizione candidata (segue il fantasma). Ricalcolato
-        // SOLO quando lo slot candidato cambia, per non ricreare i nodi a ogni pixel.
-        const dur = st.origEnd - st.origStart;
-        let coexCs = null;
-        if (track) {
-          const tr = track.getBoundingClientRect();
-          let sft = Math.round((e.clientY - tr.top - st.offY) / SLOT_H);
-          if (sft < 0) sft = 0;
-          const maxS = (slotEnd - slotStart - dur) / step;
-          if (sft > maxS) sft = maxS;
-          coexCs = slotStart + sft * step;
-        }
-        if (coexCs !== st._coexCs) {
-          st._coexCs = coexCs;
-          _dragShowCoex(session, coexCs, (coexCs == null ? null : coexCs + dur), block);
-        }
+        // (gli overlay co-esame sono statici: disegnati una volta in begin())
         return;
       }
       // Resize verticale
