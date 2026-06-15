@@ -20,7 +20,8 @@ let data = {};
 let _coexRoleCtxCache = null;
 const fnSrc = [extractFn('sigOf'), extractFn('teachersOfSess'), extractFn('canon'),
   extractFn('_teacherBusySessions'), extractFn('_teacherBusyIntervals'),
-  extractFn('_coexRoleCtx'), extractFn('_coexPairType')].join('\n');
+  extractFn('slotLevelOf'), extractFn('_coexRoleCtx'), extractFn('_coexPairType'),
+  extractFn('_coexCollides')].join('\n');
 eval(fnSrc);
 
 function S(code, docenti, day, start, end, row) {
@@ -67,13 +68,14 @@ const dr2 = S('0024B', ['VERDI'], 1, 840, 960, 2);
 check('Busy: stesso CANON (mutuazione) escluso anche con codice diverso',
   !_teacherBusyIntervals(dr2, sessions, 1).some(x => x.code === '405B'));
 
-// ── _coexPairType: tipo collisione di vincolo (OO/OF/FF), priorità OO>OF>FF, ─────
-//    valutato PER PdS; ripiego sul vincolo di corso per i codici fuori da ogni PdS.
+// ── _coexPairType: tipo collisione di vincolo (OO/OF/FF valorizzati + PO/PF/PP con ─
+//    opzionale, informativi), priorità OO>OF>FF>PO>PF>PP, valutato PER PdS; ripiego
+//    sul vincolo di corso per i codici fuori da ogni PdS.
 _coexRoleCtxCache = null;
 data.equiv = { 'A1X': 'A1' }; // A1X mutua A1 (stessa classe di equivalenza)
 data.pds = [
-  { vincoloByCode: { A1: 'OBB', A2: 'OBB', B2: 'FOR', C1: 'FOR', C2: 'FOR', P: 'FOR', Q: 'FOR', Z: 'OPZ' } },
-  { vincoloByCode: { D1: 'OBB', C1: 'FOR', C2: 'OBB', P: 'OBB', Q: 'OBB' } }
+  { vincoloByCode: { A1: 'OBB', A2: 'OBB', B2: 'FOR', C1: 'FOR', C2: 'FOR', P: 'FOR', Q: 'FOR', Z: 'OPZ', Z2: 'OPZ', G: 'OPZ', H: 'OPZ' } },
+  { vincoloByCode: { D1: 'OBB', C1: 'FOR', C2: 'OBB', P: 'OBB', Q: 'OBB', G: 'FOR', H: 'FOR' } }
 ];
 data.courses = [
   { code: 'LT1', vincolo: 'FOR' }, { code: 'LT2', vincolo: 'FOR' }, { code: 'LT3', vincolo: 'OBB' }
@@ -84,7 +86,10 @@ check('Coex: FOR-FOR stesso PdS → FF', _coexPairType('B2', 'C1') === 'FF');
 check('Coex: priorità OF>FF (FF in PdS1, OF in PdS2) → OF', _coexPairType('C1', 'C2') === 'OF');
 check('Coex: priorità OO>FF (FF in PdS1, OO in PdS2) → OO', _coexPairType('P', 'Q') === 'OO');
 check('Coex: due OBB in PdS DIVERSI (mai insieme) → null', _coexPairType('A1', 'D1') === null);
-check('Coex: OPZ ignorato (Z OPZ × A1 OBB) → null', _coexPairType('Z', 'A1') === null);
+check('Coex: OPZ×OBB → PO (informativo)', _coexPairType('Z', 'A1') === 'PO');
+check('Coex: OPZ×FOR → PF', _coexPairType('Z', 'B2') === 'PF');
+check('Coex: OPZ×OPZ → PP', _coexPairType('Z', 'Z2') === 'PP');
+check('Coex: priorità OBB/FOR > OPZ (PP in PdS1, FF in PdS2) → FF', _coexPairType('G', 'H') === 'FF');
 check('Coex: stessa classe equiv. (A1X≡A1) → null', _coexPairType('A1X', 'A1') === null);
 check('Coex: case-insensitive (a1 × a2) → OO', _coexPairType('a1', 'a2') === 'OO');
 check('Coex: Triennale (fuori PdS) FOR-FOR via vincolo corso → FF', _coexPairType('LT1', 'LT2') === 'FF');
@@ -100,6 +105,20 @@ check('Coex: simmetrico (M2 × 289BB) → OO', _coexPairType('M2', '289BB') === 
 // Fix review (major): cache invalidata al cambio di reference di data.pds (senza reset manuale).
 data.pds = [{ vincoloByCode: { '289BB': 'FOR', 'M2': 'FOR' } }]; // nuovo reference, ruoli diversi
 check('Coex: cache invalidata su nuovo data.pds → FF', _coexPairType('289BB', 'M2') === 'FF');
+
+// ── _coexCollides: target del drop AMMESSO? (true = collisione co-esame → NO drop) ──
+_coexRoleCtxCache = null;
+data.equiv = {}; data.courses = [];
+data.pds = [{ vincoloByCode: { A1: 'OBB', A2: 'OBB', OP: 'OPZ' } }]; // A1×A2 = co-esame (OO); OP = opzionale
+const drg = { code: 'A1', sheet: 'S1LM', day: 1, src: { sheet: 'S1LM', row: 1, col: 13, idx: 0 } };
+const mk = (code, sheet, day, start, end, row) => ({ code, sheet, day, start, end, src: { sheet, row, col: 13, idx: 0 } });
+const ss = [drg, mk('A2', 'S1LM', 1, 600, 660, 2), mk('NOPE', 'S1LM', 1, 700, 760, 3), mk('OP', 'S1LM', 1, 800, 860, 6)];
+check('Drop: overlap con co-esame (A2, stesso livello/giorno) → collisione', _coexCollides(drg, 630, 690, ss, 1) === true);
+check('Drop: nessun overlap temporale → ammesso', _coexCollides(drg, 670, 700, ss, 1) === false);
+check('Drop: overlap solo con NON-co-esame (NOPE) → ammesso', _coexCollides(drg, 710, 740, ss, 1) === false);
+check('Drop: overlap con OPZ (informativo) → ammesso (non blocca)', _coexCollides(drg, 810, 850, ss, 1) === false);
+check('Drop: co-esame di altro LIVELLO ignorato → ammesso', _coexCollides(drg, 630, 690, [drg, mk('A2', 'S1LT', 1, 600, 660, 4)], 1) === false);
+check('Drop: co-esame in altro GIORNO ignorato → ammesso', _coexCollides(drg, 630, 690, [drg, mk('A2', 'S1LM', 2, 600, 660, 5)], 1) === false);
 
 console.log('\nRISULTATO: ' + pass + ' pass, ' + fail + ' fail');
 process.exit(fail ? 1 : 0);
