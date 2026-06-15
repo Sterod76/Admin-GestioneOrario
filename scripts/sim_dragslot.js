@@ -17,8 +17,10 @@ function extractFn(name) {
 }
 
 let data = {};
+let _coexRoleCtxCache = null;
 const fnSrc = [extractFn('sigOf'), extractFn('teachersOfSess'), extractFn('canon'),
-  extractFn('_teacherBusyIntervals')].join('\n');
+  extractFn('_teacherBusySessions'), extractFn('_teacherBusyIntervals'),
+  extractFn('_coexRoleCtx'), extractFn('_coexPairType')].join('\n');
 eval(fnSrc);
 
 function S(code, docenti, day, start, end, row) {
@@ -49,6 +51,12 @@ check('Busy: escluso altro giorno (406B su LUN)', !iv.some(x => x.code === '406B
 check('Busy: intervallo 405B = 840-960', iv.some(x => x.code === '405B' && x.start === 840 && x.end === 960));
 check('Busy: co-docente conta (403B via VERDI)', iv.some(x => x.code === '403B'));
 
+// _teacherBusySessions: stesse sorgenti ma con l'oggetto sessione completo (per cerchiare i blocchi)
+const bsess = _teacherBusySessions(dragged, sessions, 1);
+check('BusySessions: 2 sorgenti, tutte con src', bsess.length === 2 && bsess.every(o => o.src));
+check('BusySessions: righe src = {4,6} (403B, 405B)', bsess.map(o => o.src.row).sort((a, b) => a - b).join(',') === '4,6');
+check('BusySessions: esclude se stesso e stesso codice', !bsess.some(o => o.src.row === 2 || o.src.row === 9));
+
 // Docente assente → nessun intervallo
 check('Busy: corso senza docenti → nessun intervallo', _teacherBusyIntervals(S('999B', [], 1, 840, 960, 1), sessions, 1).length === 0);
 
@@ -58,6 +66,40 @@ data.equiv = { '0024B': '405B' }; // 0024B mutua 405B
 const dr2 = S('0024B', ['VERDI'], 1, 840, 960, 2);
 check('Busy: stesso CANON (mutuazione) escluso anche con codice diverso',
   !_teacherBusyIntervals(dr2, sessions, 1).some(x => x.code === '405B'));
+
+// ── _coexPairType: tipo collisione di vincolo (OO/OF/FF), priorità OO>OF>FF, ─────
+//    valutato PER PdS; ripiego sul vincolo di corso per i codici fuori da ogni PdS.
+_coexRoleCtxCache = null;
+data.equiv = { 'A1X': 'A1' }; // A1X mutua A1 (stessa classe di equivalenza)
+data.pds = [
+  { vincoloByCode: { A1: 'OBB', A2: 'OBB', B2: 'FOR', C1: 'FOR', C2: 'FOR', P: 'FOR', Q: 'FOR', Z: 'OPZ' } },
+  { vincoloByCode: { D1: 'OBB', C1: 'FOR', C2: 'OBB', P: 'OBB', Q: 'OBB' } }
+];
+data.courses = [
+  { code: 'LT1', vincolo: 'FOR' }, { code: 'LT2', vincolo: 'FOR' }, { code: 'LT3', vincolo: 'OBB' }
+];
+check('Coex: OBB-OBB stesso PdS → OO', _coexPairType('A1', 'A2') === 'OO');
+check('Coex: OBB-FOR stesso PdS → OF', _coexPairType('A1', 'B2') === 'OF');
+check('Coex: FOR-FOR stesso PdS → FF', _coexPairType('B2', 'C1') === 'FF');
+check('Coex: priorità OF>FF (FF in PdS1, OF in PdS2) → OF', _coexPairType('C1', 'C2') === 'OF');
+check('Coex: priorità OO>FF (FF in PdS1, OO in PdS2) → OO', _coexPairType('P', 'Q') === 'OO');
+check('Coex: due OBB in PdS DIVERSI (mai insieme) → null', _coexPairType('A1', 'D1') === null);
+check('Coex: OPZ ignorato (Z OPZ × A1 OBB) → null', _coexPairType('Z', 'A1') === null);
+check('Coex: stessa classe equiv. (A1X≡A1) → null', _coexPairType('A1X', 'A1') === null);
+check('Coex: case-insensitive (a1 × a2) → OO', _coexPairType('a1', 'a2') === 'OO');
+check('Coex: Triennale (fuori PdS) FOR-FOR via vincolo corso → FF', _coexPairType('LT1', 'LT2') === 'FF');
+check('Coex: Triennale OBB-FOR via vincolo corso → OF', _coexPairType('LT3', 'LT1') === 'OF');
+check('Coex: codici ignoti → null', _coexPairType('XXX', 'YYY') === null);
+
+// Fix review (major): chiavi CANON — il PdS cita un MEMBRO, lo slot porta il CAPOSTIPITE.
+data.equiv = { '0024B': '289BB' };                 // 0024B (membro) → 289BB (capostipite)
+data.pds = [{ vincoloByCode: { '0024B': 'OBB', 'M2': 'OBB' } }];
+data.courses = [];
+check('Coex: PdS cita membro 0024B, slot porta canon 289BB → OO', _coexPairType('289BB', 'M2') === 'OO');
+check('Coex: simmetrico (M2 × 289BB) → OO', _coexPairType('M2', '289BB') === 'OO');
+// Fix review (major): cache invalidata al cambio di reference di data.pds (senza reset manuale).
+data.pds = [{ vincoloByCode: { '289BB': 'FOR', 'M2': 'FOR' } }]; // nuovo reference, ruoli diversi
+check('Coex: cache invalidata su nuovo data.pds → FF', _coexPairType('289BB', 'M2') === 'FF');
 
 console.log('\nRISULTATO: ' + pass + ' pass, ' + fail + ' fail');
 process.exit(fail ? 1 : 0);

@@ -812,10 +812,22 @@
   }
   .slot-tick.hour { color: var(--text); font-weight: 700; font-size: 9.5px; }
   /* Durante un drag (vista Slot): banda ROSSA sulla colonna "Ora" negli orari in
-     cui il DOCENTE del corso trascinato è già impegnato (collisione docente); e
-     titoli ROSSI dei corsi in collisione CO-ESAME alla posizione candidata. */
+     cui il DOCENTE del corso trascinato è già impegnato (collisione docente); e,
+     per ogni blocco in collisione CO-ESAME alla posizione candidata, un overlay
+     bianco trasparente con un pallino (tipo vincolo: OBB-OBB rosso / OBB-FOR
+     rosso-giallo / FOR-FOR giallo, colori header matrice co-esami) e il numero N
+     di co-esami (matrice). */
   .slot-busy-band { position: absolute; left: 0; right: 0; background: rgba(234,67,53,.22); pointer-events: none; z-index: 0; }
-  .sblock.sblock-coex-hit .sblock-name { color: #c5221f; font-weight: 700; }
+  .sblock .sblock-coex-ov {
+    position: absolute; inset: 0; z-index: 6; pointer-events: none;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 4px; background: rgba(255,255,255,.80);
+  }
+  .sblock .sblock-coex-ov .coex-dot {
+    flex: 0 0 auto; border-radius: 50%; box-sizing: border-box;
+    border: 1px solid rgba(0,0,0,.40);
+  }
+  .sblock .sblock-coex-ov .coex-n { font-weight: 700; font-size: 13px; color: #111; line-height: 1; }
   /* Blocchi sessione nel tab Slot: posizionati verticalmente */
   .sblock {
     position: absolute; left: 2px; right: 2px;
@@ -834,6 +846,12 @@
   .sblock.selected {
     outline: 3px solid #1a73e8; outline-offset: -1px; z-index: 60;
     box-shadow: 0 0 0 2px rgba(26,115,232,0.25);
+  }
+  /* Durante il drag: blocchi SORGENTE della collisione docente, cerchiati in rosso
+     (stesso stile della selezione, colore della collisione docente). */
+  .sblock.sblock-teacher-src {
+    outline: 3px solid #d93025; outline-offset: -1px; z-index: 60;
+    box-shadow: 0 0 0 2px rgba(217,48,37,0.30);
   }
   .sblock .s-resize {
     position: absolute; left: 0; right: 0; height: 7px; cursor: ns-resize;
@@ -3350,6 +3368,8 @@ var _editActive = !!EDIT_MODE;
       b.classList.remove('dragging');
       b.style.opacity = '';
     });
+    // Pulisci anche le evidenziazioni drag (anche nel ramo orfano senza _activeDrag).
+    _dragClearTeacherBusy(); _dragClearCoex();
   }
   document.addEventListener('pointerdown', purgeGhosts, true);
   window.addEventListener('blur', purgeGhosts);
@@ -3364,7 +3384,9 @@ var _editActive = !!EDIT_MODE;
   // (1) Intervalli del giorno in cui il/i DOCENTE/I del corso trascinato sono già
   //     impegnati (altro slot, codice/classe diverso, escluso lo slot stesso).
   //     Pura → testabile; usata per le bande rosse della colonna "Ora".
-  function _teacherBusyIntervals(session, sessions, day) {
+  // Sessioni del giorno che CAUSANO la collisione docente (sorgenti): stesso docente
+  // del corso trascinato, codice/classe diverso, escluso lo slot stesso.
+  function _teacherBusySessions(session, sessions, day) {
     const teachers = teachersOfSess(session);
     if (!teachers.length) return [];
     const tset = {}; teachers.forEach(t => { tset[t] = 1; });
@@ -3375,47 +3397,136 @@ var _editActive = !!EDIT_MODE;
       if (o.day !== day) return;
       if (mySig && o.src && sigOf(o.src) === mySig) return;  // se stesso
       if (canon(o.code) === myCanon) return;                 // stesso esame → falso positivo
-      if (teachersOfSess(o).some(t => tset[t])) out.push({ start: o.start, end: o.end, code: o.code });
+      if (teachersOfSess(o).some(t => tset[t])) out.push(o);
     });
     return out;
+  }
+  function _teacherBusyIntervals(session, sessions, day) {
+    return _teacherBusySessions(session, sessions, day)
+      .map(o => ({ start: o.start, end: o.end, code: o.code }));
   }
   // Disegna le bande rosse (collisione docente) sulla colonna "Ora". Statiche per
   // tutto il drag: gli impegni del docente non dipendono da dove trascini.
   function _dragShowTeacherBusy(session) {
     const grid = document.getElementById('slotGrid'); if (!grid) return;
-    const ticks = grid.querySelector('.slot-time-col .slot-ticks'); if (!ticks) return;
     _dragClearTeacherBusy();
-    _teacherBusyIntervals(session, data.sessions || [], currentSlotDay).forEach(iv => {
+    const busy = _teacherBusySessions(session, data.sessions || [], currentSlotDay);
+    const ticks = grid.querySelector('.slot-time-col .slot-ticks');
+    if (ticks) busy.forEach(o => {
       const band = document.createElement('div');
       band.className = 'slot-busy-band';
-      band.style.top = ((iv.start - slotStart) / data.slotStepMin * SLOT_H) + 'px';
-      band.style.height = ((iv.end - iv.start) / data.slotStepMin * SLOT_H) + 'px';
-      band.title = 'Docente occupato (' + esc(iv.code) + ' ' + fmt(iv.start) + '-' + fmt(iv.end) + ')';
+      band.style.top = ((o.start - slotStart) / data.slotStepMin * SLOT_H) + 'px';
+      band.style.height = ((o.end - o.start) / data.slotStepMin * SLOT_H) + 'px';
+      band.title = 'Docente occupato (' + esc(o.code) + ' ' + fmt(o.start) + '-' + fmt(o.end) + ')';
       ticks.insertBefore(band, ticks.firstChild);  // dietro alle etichette ora
+    });
+    // Cerchia (stile "selezionato") i blocchi SORGENTE della collisione docente.
+    const srcSigs = {};
+    busy.forEach(o => { if (o.src) srcSigs[sigOf(o.src)] = 1; });
+    grid.querySelectorAll('.slot-room-track .sblock').forEach(b => {
+      let src = null; try { src = JSON.parse(b.dataset.src || 'null'); } catch (e) { src = null; }
+      b.classList.toggle('sblock-teacher-src', !!(src && srcSigs[sigOf(src)]));
     });
   }
   function _dragClearTeacherBusy() {
     const grid = document.getElementById('slotGrid'); if (!grid) return;
     grid.querySelectorAll('.slot-busy-band').forEach(b => b.remove());
+    grid.querySelectorAll('.sblock.sblock-teacher-src').forEach(b => b.classList.remove('sblock-teacher-src'));
   }
-  // (2) Titoli ROSSI dei corsi in collisione CO-ESAME alla posizione candidata
-  //     (stesso giorno, stesso livello, codice diverso, orari sovrapposti — come il
-  //     pannello collisioni dello slot). Dinamica: segue il fantasma del drag.
+  // (2) Overlay CO-ESAME sui blocchi in collisione alla posizione candidata (stesso
+  //     giorno/livello, codice diverso, orari sovrapposti — come il pannello
+  //     collisioni dello slot). Per ogni blocco: pallino = TIPO di collisione di
+  //     vincolo e numero = N co-esami (matrice). Dinamico: segue il fantasma.
+  // Contesti di vincolo: una mappa per PdS (vincoloByCode) + una mappa dai corsi
+  //     (course.vincolo), usata solo come RIPIEGO per i codici fuori da ogni PdS
+  //     (Triennale). Le chiavi sono CANONICALIZZATE (canon → classi di equivalenza)
+  //     con priorità OBB, come la matrice: così un PdS che cita un MEMBRO e uno slot
+  //     che porta il CAPOSTIPITE coincidono. Cache invalidata se data.pds/data.courses
+  //     cambiano reference (es. dopo Carica/Salva), come le altre cache co-esame.
+  let _coexRoleCtxCache = null;
+  function _coexRoleCtx() {
+    const pref = data.pds, cref = data.courses, eref = data.equiv;
+    if (_coexRoleCtxCache && _coexRoleCtxCache.pref === pref && _coexRoleCtxCache.cref === cref && _coexRoleCtxCache.eref === eref)
+      return _coexRoleCtxCache;
+    const setRole = (m, code, v) => {            // aggrega per canon, OBB vince
+      const cc = canon(code), vv = String(v || '').toUpperCase();
+      if (cc && vv && m[cc] !== 'OBB') m[cc] = vv;
+    };
+    const pds = [];
+    (pref || []).forEach(p => {
+      const vb = p.vincoloByCode || {}, m = {};
+      Object.keys(vb).forEach(k => setRole(m, k, vb[k]));
+      pds.push(m);
+    });
+    const course = {};
+    (cref || []).forEach(c => setRole(course, c.code, c.vincolo));
+    _coexRoleCtxCache = { pref: pref, cref: cref, eref: eref, pds: pds, course: course };
+    return _coexRoleCtxCache;
+  }
+  // Tipo di collisione di vincolo fra due codici: 'OO' | 'OF' | 'FF' | null.
+  // Valutato PER PdS (ruoli nello STESSO PdS), priorità OO > OF > FF su tutti i PdS;
+  // se i codici non compaiono in alcun PdS (Triennale) si ripiega sul vincolo di
+  // corso. Solo i ruoli OBB/FOR contano (OPZ/assenti ignorati). Pura → testabile.
+  function _coexPairType(a, b) {
+    const A = (a || '').toUpperCase(), B = (b || '').toUpperCase();
+    if (!A || !B) return null;
+    const cA = canon(A), cB = canon(B);
+    if (cA === cB) return null;                 // stesso esame (classe equiv.) → non co-esame
+    const RANK = { OO: 3, OF: 2, FF: 1 };
+    const classify = (rA, rB) => {
+      rA = (rA === 'OBB' || rA === 'FOR') ? rA : null;
+      rB = (rB === 'OBB' || rB === 'FOR') ? rB : null;
+      if (!rA || !rB) return null;
+      return (rA === 'OBB' && rB === 'OBB') ? 'OO' : (rA === 'FOR' && rB === 'FOR') ? 'FF' : 'OF';
+    };
+    const ctx = _coexRoleCtx();                 // mappe con chiavi canon
+    let best = null, bestRank = 0, inPds = false;
+    ctx.pds.forEach(m => {
+      const rA = m[cA], rB = m[cB];
+      if (rA || rB) inPds = true;               // almeno uno dei due appartiene a questo PdS
+      const t = classify(rA, rB);               // conta solo se ENTRAMBI sono OBB/FOR nello stesso PdS
+      if (t && RANK[t] > bestRank) { bestRank = RANK[t]; best = t; }
+    });
+    if (best) return best;
+    if (inPds) return null;                     // gestiti dai PdS: niente ripiego (no falsi OBB-OBB)
+    return classify(ctx.course[cA], ctx.course[cB]);
+  }
   function _dragShowCoex(session, candStart, candEnd, draggedBlock) {
     const grid = document.getElementById('slotGrid'); if (!grid) return;
+    _dragClearCoex();
+    if (candStart == null) return;
     const lvl = slotLevelOf(session.sheet);
     const myCode = (session.code || '').toUpperCase();
+    const cOBB = (data.vincoloColors && data.vincoloColors.OBB) || '#ffcfc9';
+    const cFOR = (data.vincoloColors && data.vincoloColors.FOR) || '#ffe5a0';
     grid.querySelectorAll('.slot-room-track .sblock').forEach(b => {
       const code = (b.dataset.code || '').toUpperCase();
       const bs = parseInt(b.dataset.start, 10), be = parseInt(b.dataset.end, 10);
-      const hit = (candStart != null) && b !== draggedBlock && code && code !== myCode &&
-        slotLevelOf(b.dataset.sheet) === lvl && candStart < be && bs < candEnd;
-      b.classList.toggle('sblock-coex-hit', !!hit);
+      if (b === draggedBlock || !code || code === myCode ||
+        slotLevelOf(b.dataset.sheet) !== lvl || !(candStart < be && bs < candEnd)) return;
+      const type = _coexPairType(myCode, code);
+      if (!type) return;                        // nessuna collisione OBB/FOR su alcun PdS
+      const n = coexamN(myCode, code);
+      const ov = document.createElement('div');
+      ov.className = 'sblock-coex-ov';
+      const dot = document.createElement('span');
+      dot.className = 'coex-dot';
+      dot.style.width = SLOT_H + 'px'; dot.style.height = SLOT_H + 'px';
+      dot.style.background = type === 'OO' ? cOBB
+        : type === 'FF' ? cFOR
+          : ('linear-gradient(90deg,' + cOBB + ' 0 50%,' + cFOR + ' 50% 100%)');
+      const num = document.createElement('span');
+      num.className = 'coex-n';
+      num.textContent = (n == null) ? '–' : String(n);
+      const tlab = type === 'OO' ? 'obbligo-obbligo' : type === 'OF' ? 'obbligo-forchetta' : 'forchetta-forchetta';
+      ov.title = 'Co-esami ' + myCode + '×' + code + ': N=' + (n == null ? 'n/d' : n) + ' (' + tlab + ')';
+      ov.appendChild(dot); ov.appendChild(num);
+      b.appendChild(ov);
     });
   }
   function _dragClearCoex() {
     const grid = document.getElementById('slotGrid'); if (!grid) return;
-    grid.querySelectorAll('.sblock.sblock-coex-hit').forEach(b => b.classList.remove('sblock-coex-hit'));
+    grid.querySelectorAll('.sblock .sblock-coex-ov').forEach(o => o.remove());
   }
 
   function attachSlotEditHandlers(block, session) {
@@ -3491,17 +3602,22 @@ var _editActive = !!EDIT_MODE;
         // Evidenzia il cestino quando ci passi sopra
         const tb = document.getElementById('slotTrash');
         if (tb) tb.classList.toggle('drop-hot', !!trash);
-        // Titoli rossi = collisioni co-esame alla posizione candidata (segue il fantasma)
+        // Overlay co-esame alla posizione candidata (segue il fantasma). Ricalcolato
+        // SOLO quando lo slot candidato cambia, per non ricreare i nodi a ogni pixel.
+        const dur = st.origEnd - st.origStart;
+        let coexCs = null;
         if (track) {
           const tr = track.getBoundingClientRect();
           let sft = Math.round((e.clientY - tr.top - st.offY) / SLOT_H);
           if (sft < 0) sft = 0;
-          const dur = st.origEnd - st.origStart;
           const maxS = (slotEnd - slotStart - dur) / step;
           if (sft > maxS) sft = maxS;
-          const cs = slotStart + sft * step;
-          _dragShowCoex(session, cs, cs + dur, block);
-        } else { _dragShowCoex(session, null, null, block); }
+          coexCs = slotStart + sft * step;
+        }
+        if (coexCs !== st._coexCs) {
+          st._coexCs = coexCs;
+          _dragShowCoex(session, coexCs, (coexCs == null ? null : coexCs + dur), block);
+        }
         return;
       }
       // Resize verticale

@@ -212,10 +212,19 @@ tab Collisioni, passando sopra la cella costo.)*
 > visivi compaiono e spariscono al rilascio:
 > - sulla colonna **«Ora»** (a sinistra) si colorano di **rosso** gli orari in cui
 >   il/i **docente/i** del corso trascinato sono già impegnati (collisione docente):
->   così vedi subito **dove conviene non spostarlo**;
-> - i **titoli** dei corsi con cui andresti in **collisione co-esame** (stesso
->   livello, orari sovrapposti — gli stessi del pannello collisioni) diventano
->   **rossi**, aggiornandosi in base alla posizione candidata sotto il puntatore.
+>   così vedi subito **dove conviene non spostarlo**; gli **insegnamenti sorgente**
+>   di quella collisione (gli altri slot dello stesso docente) vengono inoltre
+>   **cerchiati in rosso** (come se fossero selezionati);
+> - su ogni **blocco** con cui andresti in **collisione co-esame** (stesso livello,
+>   orari sovrapposti — gli stessi del pannello collisioni) compare un **overlay**
+>   bianco trasparente con, a sinistra, un **pallino** (⌀ = altezza della mezzora) e,
+>   a destra, il **numero** di co-esami (il valore `N` della matrice). Il pallino usa
+>   i **colori degli header della matrice co-esami** e indica il **tipo** di
+>   collisione di vincolo: **rosso** = obbligo–obbligo (in qualche PdS),
+>   **mezzo rosso / mezzo giallo** = obbligo–forchetta, **giallo** = forchetta–forchetta.
+>   La priorità è **obbligo–obbligo > obbligo–forchetta > forchetta–forchetta** (se una
+>   coppia è forchetta–forchetta in un PdS e obbligo–obbligo in un altro, vince
+>   obbligo–obbligo). L'overlay si aggiorna in base alla posizione candidata sotto il puntatore.
 
 ![Slot — guida durante il drag (orari docente occupato + corsi in collisione)](docs/img/14-slot-drag.png)
 
