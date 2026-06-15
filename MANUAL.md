@@ -216,10 +216,10 @@ tab Collisioni, passando sopra la cella costo.)*
 >   di quella collisione (gli altri slot dello stesso docente) vengono inoltre
 >   **cerchiati in rosso** (come se fossero selezionati);
 > - su **tutti** gli slot in **collisione co-esame** col corso trascinato (stesso
->   livello) compare un **overlay** bianco trasparente con, **al centro**, un
->   **pallino** (⌀ = altezza della mezzora) e, **subito di fianco**, il **numero** di
->   co-esami (il valore `N` della matrice). Il pallino usa gli **stessi toni pieni dello
->   sfondo degli slot** (senza trasparenza) e indica il **tipo** di collisione di vincolo:
+>   livello) compare, **al centro**, un **pallino** (⌀ = altezza della mezzora) e,
+>   **subito di fianco**, il **numero** di co-esami (il valore `N` della matrice). Il
+>   pallino usa gli **stessi toni pieni dello sfondo degli slot** (niente velo bianco,
+>   colori a piena intensità) e indica il **tipo** di collisione di vincolo:
 >   **rosso** = obbligo–obbligo (in qualche PdS), **mezzo rosso / mezzo giallo** = obbligo–forchetta,
 >   **giallo** = forchetta–forchetta; per gli **opzionali** (solo informativi, non
 >   valorizzati) **verde** = opz–opz, **mezzo rosso/verde** = obbligo–opz,
@@ -228,11 +228,11 @@ tab Collisioni, passando sopra la cella costo.)*
 >   visibili per tutta la durata del drag.
 > - un **riquadro grigio** (stessa altezza dello slot, tratteggiato) mostra **dove
 >   atterrerà** lo slot: nell'**aula** sotto il puntatore, con orario **arrotondato
->   alla mezzora**. Se quella destinazione non è valida (collisione **co-esame
->   obbligo/forchetta**, aula occupata o non disponibile, oppure il corso ha già uno
->   slot quel giorno) il riquadro **scompare** (target non ammesso): al rilascio, se
->   c'è un target ammesso lo slot ci si posiziona, altrimenti **torna al punto di
->   partenza** (gli opzionali non bloccano).
+>   alla mezzora**. Compare per **qualunque** destinazione: le collisioni co-esame **non**
+>   lo nascondono più (sono solo informative — pallini + rettangolo costo). Scompare solo
+>   se la destinazione **non è committabile**: aula **occupata** o **non disponibile**,
+>   oppure il corso ha **già uno slot** quel giorno. Al rilascio, se c'è un target valido
+>   lo slot ci si posiziona, altrimenti **torna al punto di partenza**.
 > - un **rettangolo costo** in alto mostra in tempo reale il **costo** delle collisioni
 >   dello slot alla posizione candidata (**nero**, in ore·studente/settimana) e il
 >   **differenziale** rispetto alla posizione di partenza: **`+x` in rosso** (peggiora),

@@ -20,8 +20,7 @@ let data = {};
 let _coexRoleCtxCache = null;
 const fnSrc = [extractFn('sigOf'), extractFn('teachersOfSess'), extractFn('canon'),
   extractFn('_teacherBusySessions'), extractFn('_teacherBusyIntervals'),
-  extractFn('slotLevelOf'), extractFn('_coexRoleCtx'), extractFn('_coexPairType'),
-  extractFn('_coexCollides')].join('\n');
+  extractFn('_coexRoleCtx'), extractFn('_coexPairType')].join('\n');
 eval(fnSrc);
 
 function S(code, docenti, day, start, end, row) {
@@ -105,20 +104,6 @@ check('Coex: simmetrico (M2 × 289BB) → OO', _coexPairType('M2', '289BB') === 
 // Fix review (major): cache invalidata al cambio di reference di data.pds (senza reset manuale).
 data.pds = [{ vincoloByCode: { '289BB': 'FOR', 'M2': 'FOR' } }]; // nuovo reference, ruoli diversi
 check('Coex: cache invalidata su nuovo data.pds → FF', _coexPairType('289BB', 'M2') === 'FF');
-
-// ── _coexCollides: target del drop AMMESSO? (true = collisione co-esame → NO drop) ──
-_coexRoleCtxCache = null;
-data.equiv = {}; data.courses = [];
-data.pds = [{ vincoloByCode: { A1: 'OBB', A2: 'OBB', OP: 'OPZ' } }]; // A1×A2 = co-esame (OO); OP = opzionale
-const drg = { code: 'A1', sheet: 'S1LM', day: 1, src: { sheet: 'S1LM', row: 1, col: 13, idx: 0 } };
-const mk = (code, sheet, day, start, end, row) => ({ code, sheet, day, start, end, src: { sheet, row, col: 13, idx: 0 } });
-const ss = [drg, mk('A2', 'S1LM', 1, 600, 660, 2), mk('NOPE', 'S1LM', 1, 700, 760, 3), mk('OP', 'S1LM', 1, 800, 860, 6)];
-check('Drop: overlap con co-esame (A2, stesso livello/giorno) → collisione', _coexCollides(drg, 630, 690, ss, 1) === true);
-check('Drop: nessun overlap temporale → ammesso', _coexCollides(drg, 670, 700, ss, 1) === false);
-check('Drop: overlap solo con NON-co-esame (NOPE) → ammesso', _coexCollides(drg, 710, 740, ss, 1) === false);
-check('Drop: overlap con OPZ (informativo) → ammesso (non blocca)', _coexCollides(drg, 810, 850, ss, 1) === false);
-check('Drop: co-esame di altro LIVELLO ignorato → ammesso', _coexCollides(drg, 630, 690, [drg, mk('A2', 'S1LT', 1, 600, 660, 4)], 1) === false);
-check('Drop: co-esame in altro GIORNO ignorato → ammesso', _coexCollides(drg, 630, 690, [drg, mk('A2', 'S1LM', 2, 600, 660, 5)], 1) === false);
 
 console.log('\nRISULTATO: ' + pass + ' pass, ' + fail + ' fail');
 process.exit(fail ? 1 : 0);

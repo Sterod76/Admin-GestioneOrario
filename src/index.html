@@ -821,16 +821,19 @@
   .sblock .sblock-coex-ov {
     position: absolute; inset: 0; z-index: 6; pointer-events: none;
     display: flex; align-items: center; justify-content: center; gap: 4px;
-    padding: 0 4px; background: rgba(255,255,255,.80);
+    padding: 0 4px; background: transparent;  /* nessun velo: i pallini hanno il tono PIENO degli slot */
   }
   .sblock .sblock-coex-ov .coex-dot {
     flex: 0 0 auto; border-radius: 50%; box-sizing: border-box;
-    border: 1px solid #5f6368;
+    border: 1px solid #5f6368; box-shadow: 0 0 0 1px rgba(255,255,255,.9);  /* anello chiaro per staccare dal blocco */
   }
-  .sblock .sblock-coex-ov .coex-n { font-weight: 700; font-size: 13px; color: #111; line-height: 1; }
-  /* Durante il drag: anteprima grigia della destinazione (snap mezzora), con la
-     stessa altezza dello slot trascinato. Mostrata solo se il target è AMMESSO
-     (nessuna collisione co-esame). */
+  .sblock .sblock-coex-ov .coex-n {
+    font-weight: 700; font-size: 13px; color: #111; line-height: 1;
+    text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff;  /* leggibile su qualunque colore */
+  }
+  /* Durante il drag: anteprima grigia della destinazione (snap mezzora), con la stessa
+     altezza dello slot trascinato. Mostrata per QUALUNQUE target valido (aula/riga libere);
+     le collisioni co-esame NON la nascondono più (sono solo informative: pallini + costo). */
   .slot-drop-preview {
     position: absolute; left: 2px; right: 2px; z-index: 2; pointer-events: none;
     background: rgba(120,120,120,0.30); border: 2px dashed #757575;
@@ -3566,22 +3569,8 @@ var _editActive = !!EDIT_MODE;
     grid.querySelectorAll('.sblock .sblock-coex-ov').forEach(o => o.remove());
   }
   // (3) Anteprima grigia della destinazione del drag (snap mezzora, aula specifica).
-  // True se lo slot [start,end) nel giorno `day` si SOVRAPPONE a un corso CO-ESAME del
-  // corso trascinato (stesso livello, tipo OBB/FOR in qualche PdS): target NON ammesso.
-  // Pura → testabile.
-  function _coexCollides(session, start, end, sessions, day) {
-    const lvl = slotLevelOf(session.sheet);
-    const myCode = (session.code || '').toUpperCase();
-    const mySig = session.src ? sigOf(session.src) : null;
-    return (sessions || []).some(o => {
-      if (o.day !== day) return false;
-      if (mySig && o.src && sigOf(o.src) === mySig) return false;   // se stesso
-      if (slotLevelOf(o.sheet) !== lvl) return false;              // co-esami = stesso livello
-      if (!(start < o.end && o.start < end)) return false;         // nessun overlap temporale
-      const t = _coexPairType(myCode, o.code);
-      return t === 'OO' || t === 'OF' || t === 'FF';               // OPZ = solo informativo, non blocca
-    });
-  }
+  // Mostrata per QUALUNQUE target valido per il commit: le collisioni co-esame non la
+  // bloccano più (sono informative — pallini + rettangolo costo).
   function _dragClearDropPreview() {
     const grid = document.getElementById('slotGrid'); if (!grid) return;
     grid.querySelectorAll('.slot-drop-preview').forEach(e => e.remove());
@@ -3715,14 +3704,14 @@ var _editActive = !!EDIT_MODE;
               _dragShowCostBox(at, at - (st._baseCost || 0));
             }
             // Ammesso = destinazione VALIDA per il commit (aula/riga libere — controllo su
-            // TUTTE le sessioni, parcheggiate incluse, come applyEditLocally) E nessuna
-            // collisione co-esame (policy UI piu' severa del commit: i parcheggiati NON
-            // contano, come i pallini). Così l'anteprima non promette un drop poi rifiutato.
+            // TUTTE le sessioni, parcheggiate incluse, come applyEditLocally). Le collisioni
+            // co-esame NON impediscono più il drop: l'anteprima grigia compare per QUALUNQUE
+            // slot; pallini e rettangolo costo ne informano. (Bloccano solo: aula occupata /
+            // non disponibile / riga già con uno slot quel giorno.)
             const all = data.sessions || [];
             const free = !!session.src &&
               _roomFreeAt(room, currentSlotDay, start, end, sig, all) &&
-              _rowFreeOnDay(session.src.sheet, session.src.row, currentSlotDay, sig, all) &&
-              !_coexCollides(session, start, end, live, currentSlotDay);
+              _rowFreeOnDay(session.src.sheet, session.src.row, currentSlotDay, sig, all);
             if (free) { st._dropTarget = { room: room, start: start, end: end }; _dragShowDropPreview(track, start, dur); }
             else { _dragClearDropPreview(); }
           } else {
