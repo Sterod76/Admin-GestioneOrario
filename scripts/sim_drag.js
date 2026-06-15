@@ -82,6 +82,10 @@ const SLOT_H = 17;
 function _marginalCost() { return 0; }
 function _dragShowCostBox() {}
 function _dragClearCostBox() {}
+function _dragShowDropPreview() {}
+function _dragClearDropPreview() {}
+function _roomFreeAt() { return true; }
+function _rowFreeOnDay() { return true; }
 
 eval(fnSrc); // definisce attachEditHandlers nello scope
 

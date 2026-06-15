@@ -818,19 +818,20 @@
      rosso-giallo / FOR-FOR giallo, colori header matrice co-esami) e il numero N
      di co-esami (matrice). */
   .slot-busy-band { position: absolute; left: 0; right: 0; background: rgba(234,67,53,.22); pointer-events: none; z-index: 0; }
+  /* Chip COMPATTO (sfondo chiaro, poco padding) centrato sul blocco: stacca i pallini
+     a piena intensità dallo sfondo dello slot. */
   .sblock .sblock-coex-ov {
-    position: absolute; inset: 0; z-index: 6; pointer-events: none;
-    display: flex; align-items: center; justify-content: center; gap: 4px;
-    padding: 0 4px; background: transparent;  /* nessun velo: i pallini hanno il tono PIENO degli slot */
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    z-index: 6; pointer-events: none;
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 1px 3px; background: rgba(255,255,255,.92);
+    border-radius: 4px; box-shadow: 0 0 0 1px rgba(0,0,0,.25);
   }
   .sblock .sblock-coex-ov .coex-dot {
     flex: 0 0 auto; border-radius: 50%; box-sizing: border-box;
-    border: 1px solid #5f6368; box-shadow: 0 0 0 1px rgba(255,255,255,.9);  /* anello chiaro per staccare dal blocco */
+    border: 1px solid #5f6368;
   }
-  .sblock .sblock-coex-ov .coex-n {
-    font-weight: 700; font-size: 13px; color: #111; line-height: 1;
-    text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff;  /* leggibile su qualunque colore */
-  }
+  .sblock .sblock-coex-ov .coex-n { font-weight: 700; font-size: 12px; color: #111; line-height: 1; }
   /* Durante il drag: anteprima grigia della destinazione (snap mezzora), con la stessa
      altezza dello slot trascinato. Mostrata per QUALUNQUE target valido (aula/riga libere);
      le collisioni co-esame NON la nascondono più (sono solo informative: pallini + costo). */
@@ -3534,7 +3535,8 @@ var _editActive = !!EDIT_MODE;
     const cFOR = (data.vincoloColors && data.vincoloColors.FOR) || '#ffe5a0';
     const cOPZ = (data.vincoloColors && data.vincoloColors.OPZ) || '#d4edbc';
     // pallino: tinta piena per le coppie omogenee, 2-tono per le miste.
-    const half = (x, y) => 'linear-gradient(90deg,' + x + ' 0 50%,' + y + ' 50% 100%)';
+    // 2-tono con linea divisoria centrale fra i due semicerchi.
+    const half = (x, y) => 'linear-gradient(90deg,' + x + ' 0 calc(50% - 0.5px),#3c4043 calc(50% - 0.5px) calc(50% + 0.5px),' + y + ' calc(50% + 0.5px) 100%)';
     const DOT = { OO: cOBB, FF: cFOR, PP: cOPZ, OF: half(cOBB, cFOR), PO: half(cOBB, cOPZ), PF: half(cFOR, cOPZ) };
     const LAB = { OO: 'obbligo-obbligo', OF: 'obbligo-forchetta', FF: 'forchetta-forchetta',
       PO: 'obbligo-opzionale', PF: 'forchetta-opzionale', PP: 'opzionale-opzionale' };
@@ -4076,6 +4078,21 @@ var _editActive = !!EDIT_MODE;
       e.preventDefault(); e.stopPropagation();
     }
 
+    // Ghost: forma "vista Slot" (largo un'aula, alto le mezzore) ↔ forma "vista Aule".
+    function _ghostToSlot() {
+      if (!st || !st.ghost || st._slotShape) return;
+      st._slotShape = true;
+      const t0 = document.querySelector('.slot-room-track');
+      const w = t0 ? (t0.getBoundingClientRect().width - 4) : 70;
+      st.ghost.style.width = Math.max(w, 40) + 'px';
+      st.ghost.style.height = ((st.origEnd - st.origStart) / data.slotStepMin * SLOT_H) + 'px';
+    }
+    function _ghostToAule() {
+      if (!st || !st.ghost || !st._slotShape) return;
+      st._slotShape = false;
+      if (st._auleW != null) st.ghost.style.width = st._auleW;
+      if (st._auleH != null) st.ghost.style.height = st._auleH;
+    }
     function begin() {
       if (st.started) return;
       st.started = true;
@@ -4093,11 +4110,14 @@ var _editActive = !!EDIT_MODE;
         g.style.boxShadow = '0 6px 16px rgba(0,0,0,0.3)'; g.style.willChange = 'transform';
         document.body.appendChild(g);
         st.ghost = g;
+        st._auleW = g.style.width; st._auleH = g.style.height;  // forma Aule (per ripristino)
         block.style.opacity = '0.25';
-        // Costo: mostrato SOLO se si reinserisce nella griglia Slot (.slot-room-track);
-        // la vista Aule resta invariata. Baseline = posizione attuale, o PRE-parcheggio.
+        // Costo + anteprima: attivi SOLO sopra la griglia Slot (reinserimento dal parcheggio);
+        // la vista Aule resta invariata. Baseline costo = posizione attuale o PRE-parcheggio.
         let bsrc; try { bsrc = JSON.parse(block.dataset.src || 'null'); } catch (e2) { bsrc = null; }
+        st._srcOk = !!bsrc;
         if (bsrc) {
+          st._srcSheet = bsrc.sheet; st._srcRow = bsrc.row;
           st._sig = sigOf(bsrc);
           const sess = (data.sessions || []).find(o => o.src && sigOf(o.src) === st._sig);
           if (sess) {
@@ -4108,6 +4128,8 @@ var _editActive = !!EDIT_MODE;
             st._baseCost = _marginalCost(Object.assign({ day: bp.day, start: bp.start, end: bp.end }, st._base), st._sig, st._live);
           }
         }
+        // Slot parcheggiato: il ghost prende SUBITO la forma della vista Slot.
+        if (st.wasParked) _ghostToSlot();
       }
     }
 
@@ -4127,8 +4149,10 @@ var _editActive = !!EDIT_MODE;
         else if (track) st.lastDrop = { kind: 'track', el: track };
         else if (slotTrack) st.lastDrop = { kind: 'slotTrack', el: slotTrack };
         else st.lastDrop = null;
-        // Rettangolo costo SOLO sopra la griglia Slot (reinserimento dal parcheggio).
+        // Sopra la griglia Slot (reinserimento dal parcheggio): ghost a forma di slot,
+        // rettangolo costo e anteprima grigia (se valido). La vista Aule resta invariata.
         if (slotTrack && st._base) {
+          _ghostToSlot();
           const r = slotTrack.getBoundingClientRect();
           const dur = st.origEnd - st.origStart;
           let sft = Math.round((e.clientY - r.top - st.offY) / SLOT_H);
@@ -4140,9 +4164,15 @@ var _editActive = !!EDIT_MODE;
             st._costKey = cs;
             const at = _marginalCost(Object.assign({ day: currentSlotDay, start: cs, end: cs + dur }, st._base), st._sig, st._live);
             _dragShowCostBox(at, at - (st._baseCost || 0));
+            const all = data.sessions || [], room = slotTrack.dataset.room;
+            const valid = st._srcOk &&
+              _roomFreeAt(room, currentSlotDay, cs, cs + dur, st._sig, all) &&
+              _rowFreeOnDay(st._srcSheet, st._srcRow, currentSlotDay, st._sig, all);
+            if (valid) _dragShowDropPreview(slotTrack, cs, dur); else _dragClearDropPreview();
           }
-        } else if (st._costKey != null) {
-          st._costKey = null; _dragClearCostBox();
+        } else {
+          if (track) _ghostToAule();   // sopra una colonna Aule → forma Aule
+          if (st._costKey != null) { st._costKey = null; _dragClearCostBox(); _dragClearDropPreview(); }
         }
         return;
       }
@@ -4184,7 +4214,7 @@ var _editActive = !!EDIT_MODE;
       if (st && st.ghost && st.ghost.parentNode) st.ghost.parentNode.removeChild(st.ghost);
       block.style.opacity = '';
       block.classList.remove('dragging');
-      _dragClearCostBox();
+      _dragClearCostBox(); _dragClearDropPreview();
     }
     function onCancel(e) {
       if (st && e && e.pointerId != null && e.pointerId !== st.pointerId) return;
