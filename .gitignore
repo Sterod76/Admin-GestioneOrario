@@ -41,3 +41,14 @@ Thumbs.db
 
 # Candidati classi equivalenza (rigenerabili da build_equiv_classes.py)
 matrice/equiv_classes_candidates.json
+
+# Dati orario/coperture/impegni (nomi, matricole, orari docenti) — solo locali,
+# rigenerabili dai tool in impegni/. NON committare.
+Orario S*.xlsx
+ExportCopertureBasic.xlsx
+all_professor_slots*.csv
+impegni/impegni_esterni_*.csv
+impegni/matricole.csv
+
+# Progetto gemello con repo Git proprio (non annidare nel repo Orario)
+Admin-PreferenzeOrario/
