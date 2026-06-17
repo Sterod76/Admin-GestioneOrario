@@ -882,15 +882,17 @@
     opacity: 0.7; cursor: grabbing; outline: 2px solid #ea8600;
     z-index: 100; box-shadow: 0 4px 8px rgba(0,0,0,0.2);
   }
-  /* Slot selezionato (attiva il pannello collisioni sotto la tabella) */
+  /* Slot selezionato (attiva il pannello collisioni sotto la tabella).
+     z-index basso (2): sopra gli altri slot ma SOTTO gli header fissi (colonna Ora z3,
+     topbar sticky z40) → durante lo scroll sparisce sotto gli header come gli altri. */
   .sblock.selected {
-    outline: 3px solid #1a73e8; outline-offset: -1px; z-index: 60;
+    outline: 3px solid #1a73e8; outline-offset: -1px; z-index: 2;
     box-shadow: 0 0 0 2px rgba(26,115,232,0.25);
   }
   /* Durante il drag: blocchi SORGENTE della collisione docente, cerchiati in rosso
      (stesso stile della selezione, colore della collisione docente). */
   .sblock.sblock-teacher-src {
-    outline: 3px solid #d93025; outline-offset: -1px; z-index: 60;
+    outline: 3px solid #d93025; outline-offset: -1px; z-index: 2;
     box-shadow: 0 0 0 2px rgba(217,48,37,0.30);
   }
   .sblock .s-resize {
@@ -960,7 +962,7 @@
      restano ALLINEATE in colonna (anche sulle righe successive). Ogni cella = costo
      (colonna fissa) + chip; il chip mostra per intero codice·aula·orario, il titolo se
      lungo viene troncato. */
-  .slot-hover-info .shi-coll { display: grid; grid-template-columns: repeat(auto-fill, 256px); gap: 6px 8px; align-items: start; }
+  .slot-hover-info .shi-coll { flex: 1 1 auto; min-width: 0; display: grid; grid-template-columns: repeat(auto-fill, 256px); gap: 6px 8px; align-items: start; }
   .slot-hover-info .shi-collitem { display: grid; grid-template-columns: 36px 1fr; gap: 5px; align-items: center; min-width: 0; }
   .slot-hover-info .shi-collitem .shi-cost { text-align: right; overflow: hidden; }
   .slot-hover-info .shi-collitem .shi-chip { min-width: 0; max-width: none; height: 32px; }
