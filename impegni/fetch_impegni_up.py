@@ -94,8 +94,9 @@ def impegni_esterni(mat, year, month):
         if di.weekday() > 4:    # solo Lun-Ven
             continue
         aula = (_aule(e) or [{}])[0]
-        out.add((WD[di.weekday()], di.strftime('%H:%M'), df.strftime('%H:%M'),
-                 str(e.get('nome') or e.get('codiceAttivita') or '').strip(),  # NOME corso (codiceAttivita = indice)
+        cod = str(e.get('codiceAttivita') or '').strip()
+        corso = cod if (cod and not cod.isdigit()) else str(e.get('nome') or cod or '').strip()
+        out.add((WD[di.weekday()], di.strftime('%H:%M'), df.strftime('%H:%M'), corso,
                  str(aula.get('codice') or aula.get('descrizione') or '').strip()))
     return sorted(out, key=lambda x: (WD.index(x[0]), x[1]))
 
@@ -116,6 +117,8 @@ def main():
     res = {'S1': [], 'S2': []}
     for n, r in enumerate(rows, 1):
         mat = str(r.get('matricola') or '').strip()
+        if mat.isdigit() and len(mat) < 6:
+            mat = mat.zfill(6)   # matricole UniPi a 6 cifre: senza zeri UP risponde 500
         if not mat:
             continue
         u = _get_nome(mat)

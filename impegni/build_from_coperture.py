@@ -71,8 +71,9 @@ def esterni(mat, y, m):
         if di.weekday() > 4:
             continue
         aula = (_aule(e) or [{}])[0]
-        out.add((WD[di.weekday()], di.strftime('%H:%M'), df.strftime('%H:%M'),
-                 str(e.get('nome') or e.get('codiceAttivita') or '').strip(),  # NOME corso (codiceAttivita = indice)
+        cod = str(e.get('codiceAttivita') or '').strip()
+        corso = cod if (cod and not cod.isdigit()) else str(e.get('nome') or cod or '').strip()
+        out.add((WD[di.weekday()], di.strftime('%H:%M'), df.strftime('%H:%M'), corso,
                  str(aula.get('codice') or aula.get('descrizione') or '').strip()))
     return sorted(out, key=lambda x: (WD.index(x[0]), x[1]))
 
@@ -91,6 +92,8 @@ def main():
         if not r or not r[0]:
             continue
         mat = str(r[0]).strip()
+        if mat.isdigit() and len(mat) < 6:
+            mat = mat.zfill(6)   # matricole UniPi a 6 cifre: senza zeri UP risponde 500
         info[mat] = (str(r[1] or '').strip(), str(r[2] or '').strip())
         sem = str(r[5] or '').strip().upper()
         if sem in ('S1', 'A1'):

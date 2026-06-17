@@ -133,18 +133,23 @@ function recuperaImpegniEsterniDaUP() {
   const ci = 0, ni = 1, mi = 2;
   const info = {};
   for (let r = 1; r < vals.length; r++) {
-    const m = String(vals[r][mi] || '').trim();
+    let m = String(vals[r][mi] || '').trim();
     if (!m) continue;
+    // Ripristina gli zeri iniziali: le matricole UniPi sono a 6 cifre (es. 007393). Se la
+    // cella le ha memorizzate come NUMERO (7393), UP risponde 500 → niente dati.
+    if (/^\d+$/.test(m) && m.length < 6) m = ('000000' + m).slice(-6);
     if (!info[m]) info[m] = { cog: String(vals[r][ci] || '').trim(), nom: String(vals[r][ni] || '').trim() };
   }
-  const mats = Object.keys(info);   // matricole UNICHE citate in colonna C
+  const mats = Object.keys(info);   // matricole UNICHE (a 6 cifre) citate in colonna C
   if (!mats.length) { ui.alert('SERVIZIO', 'Nessuna matricola in colonna C (Matricola).', ui.ButtonSet.OK); return; }
 
   // 1) prompt AA
   const now = new Date();
   const aaDef = (now.getMonth() + 1) >= 9 ? now.getFullYear() : now.getFullYear() - 1;
   const resp = ui.prompt('Recupera impegni da University Planner',
-    mats.length + ' docenti.\nAnno accademico di indagine (S1=ott AA, S2=apr AA+1).\nDefault ' +
+    mats.length + ' docenti.\n\nAnno accademico da interrogare su UP (S1 = ottobre AA, S2 = aprile AA+1).\n' +
+    '⚠️ UP ha i dati solo per gli AA GIÀ PUBBLICATI: il 2026/27 NON c\'è ancora — se lo inserisci\n' +
+    'esce 0 per tutti. Usa l\'ultimo AA pubblicato come riferimento.\n\nDefault ' +
     aaDef + ' (= AA ' + aaDef + '/' + (aaDef + 1) + '):', ui.ButtonSet.OK_CANCEL);
   if (resp.getSelectedButton() !== ui.Button.OK) return;
   const txt = String(resp.getResponseText() || '').trim();
@@ -180,10 +185,14 @@ function recuperaImpegniEsterniDaUP() {
         const dow = parseInt(Utilities.formatDate(di, 'Europe/Rome', 'u'), 10); // 1=Lun..7=Dom
         if (dow < 1 || dow > 5) return;
         const aula = _eventAule_(e)[0] || {};
+        const cod = String(e.codiceAttivita || '').trim();
+        // Corso: il codice se è sensato (es. "SFMC-03"); se è solo un indice numerico
+        // ("1") usa il NOME dell'attività.
+        const corso = (cod && !/^\d+$/.test(cod)) ? cod : String(e.nome || cod || '').trim();
         const row = [info[mat].cog, info[mat].nom, mat, DOW[dow - 1],
           Utilities.formatDate(di, 'Europe/Rome', 'HH:mm'),
           Utilities.formatDate(df, 'Europe/Rome', 'HH:mm'),
-          String(e.nome || e.codiceAttivita || '').trim(),     // NOME corso (codiceAttivita è solo un indice, es. "1")
+          corso,
           String(aula.codice || aula.descrizione || '').trim()];
         const k = row.join('|');
         if (!seen[k]) { seen[k] = 1; rows.push(row); added++; }
@@ -198,10 +207,10 @@ function recuperaImpegniEsterniDaUP() {
   // tipicamente è autorizzazione/rete o AA sbagliato. Era questa la causa del "cancella tutto".
   if (!rows.length) {
     ui.alert('SERVIZIO',
-      'Nessun impegno di servizio trovato per le ' + mats.length + ' matricole' +
-      (errors ? ' — ' + errors + ' errori da UP (verifica connessione e, al PRIMO uso del menu, la ri-autorizzazione)'
-              : ' (controlla l\'anno accademico inserito: ' + aa + '/' + (aa + 1) + ')') +
-      '.\n\nLa tabella NON è stata modificata.', ui.ButtonSet.OK);
+      'Nessun impegno di servizio trovato (semestre ' + sem + ', AA ' + aa + '/' + (aa + 1) + ', ' + mats.length + ' matricole)' +
+      (errors ? '.\n\n' + errors + ' errori da UP: verifica connessione e, al PRIMO uso del menu, la ri-autorizzazione.'
+              : '.\n\nPossibili cause:\n• l\'AA ' + aa + '/' + (aa + 1) + ' non è ancora pubblicato su UP → usa l\'AA precedente;\n• in questo semestre i docenti insegnano solo a Fisica (nessun impegno "fuori").') +
+      '\n\nLa tabella NON è stata modificata.', ui.ButtonSet.OK);
     return;
   }
 
