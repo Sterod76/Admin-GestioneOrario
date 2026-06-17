@@ -203,7 +203,9 @@ Gli slot che **superano l'80% della capienza** sono segnalati da un **triangolo 
 compaiono il dettaglio del codice — con **ore/settimana** (LEZ + LAB) e **CFU** — le sue
 collisioni e la capienza; inoltre, **esattamente come durante il drag**, nella colonna
 «Ora» compaiono le **lineette di collisione** del docente (rossa = a Fisica, viola =
-servizio) e gli slot **sorgente** vengono cerchiati. *(I suggerimenti di spostamento
+servizio) e gli slot **sorgente** vengono cerchiati. In selezione, **passando il mouse su
+una lineetta** un tooltip indica **chi** è il docente in comune e **quale** evento è in
+conflitto (corso · aula · orario, o l'impegno di servizio). *(I suggerimenti di spostamento
 restano disponibili nel **popover** del tab Collisioni, passando sopra la cella costo.)*
 
 > Anche in **VIEW / Revisore** (e per gli editor non in EDIT) gli slot restano

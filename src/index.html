@@ -2025,7 +2025,7 @@ var _editActive = !!EDIT_MODE;
   // selezione, o slot su un altro giorno → pulisce.
   function _showSelectionCollisions() {
     const sel = selectedSig ? (data.sessions || []).find(x => x.src && sigOf(x.src) === selectedSig) : null;
-    if (sel && sel.day === currentSlotDay) _dragShowTeacherBusy(sel);
+    if (sel && sel.day === currentSlotDay) _dragShowTeacherBusy(sel, true);  // hoverable: tooltip CHI/QUALE
     else _dragClearTeacherBusy();
   }
   function applySelectionHighlight() {
@@ -3535,7 +3535,7 @@ var _editActive = !!EDIT_MODE;
   // Colonna "Ora": durante il drag, ogni fascia in conflitto col docente trascinato si
   // colora a due metà — SINISTRA rossa = collisione A FISICA (interna), DESTRA viola =
   // impegno FUORI dipartimento. Statico per il giorno corrente.
-  function _dragShowTeacherBusy(session) {
+  function _dragShowTeacherBusy(session, hoverable) {
     const grid = document.getElementById('slotGrid'); if (!grid) return;
     _dragClearTeacherBusy();
     const ticks = grid.querySelector('.slot-time-col .slot-ticks');
@@ -3549,19 +3549,38 @@ var _editActive = !!EDIT_MODE;
       const fisI = clamp(busy), extI = clamp(ext);
       const inter = (A, B) => { const r = []; A.forEach(a => B.forEach(b => { const s = Math.max(a.start, b.start), e = Math.min(a.end, b.end); if (e > s) r.push({ start: s, end: e }); })); return r; };
       const minus = (A, B) => { const r = []; A.forEach(a => { let segs = [{ start: a.start, end: a.end }]; B.forEach(b => { segs = segs.flatMap(g => { if (b.end <= g.start || b.start >= g.end) return [g]; const o = []; if (b.start > g.start) o.push({ start: g.start, end: Math.min(b.start, g.end) }); if (b.end < g.end) o.push({ start: Math.max(b.end, g.start), end: g.end }); return o; }); }); segs.forEach(g => { if (g.end > g.start) r.push(g); }); }); return r; };
+      // Tooltip: CHI è in overlap (docente in comune) e QUALE evento. In selezione
+      // (hoverable) le bande diventano hoverabili; durante il drag restano inerti.
+      const selSet = {}; teachersOfSess(session).forEach(t => { selSet[t] = 1; });
+      const sharedOf = o => teachersOfSess(o).filter(t => selSet[t]).join(', ');
       const drawSeg = (seg, cls, title) => {
         const band = document.createElement('div');
         band.className = 'slot-busy-band ' + cls;
         band.style.top = ((seg.start - slotStart) / data.slotStepMin * SLOT_H) + 'px';
         band.style.height = ((seg.end - seg.start) / data.slotStepMin * SLOT_H) + 'px';
         band.title = title;
+        if (hoverable) { band.style.pointerEvents = 'auto'; band.style.cursor = 'help'; }
         ticks.insertBefore(band, ticks.firstChild);  // dietro alle etichette ora
       };
-      const fisTitle = seg => { const o = busy.find(b => b.start < seg.end && b.end > seg.start); return o ? ('A Fisica: ' + esc(o.code) + ' ' + fmt(o.start) + '-' + fmt(o.end)) : 'Collisione a Fisica'; };
-      const extTitle = seg => { const e = ext.find(x => x.start < seg.end && x.end > seg.start); return e ? ('Fuori dip.: ' + esc(e.corso || '') + (e.aula ? ' @ ' + esc(e.aula) : '') + ' ' + fmt(e.start) + '-' + fmt(e.end)) : 'Collisione di servizio'; };
+      const fisTitle = seg => {
+        const hits = busy.filter(b => b.start < seg.end && b.end > seg.start);
+        if (!hits.length) return 'Collisione a Fisica';
+        return 'A Fisica — docente occupato:\n' + hits.map(o =>
+          '• ' + esc(o.code) + (o.name ? ' ' + esc(o.name) : '') + (o.room ? ' (' + esc(o.room) + ')' : '') +
+          ' ' + fmt(o.start) + '-' + fmt(o.end) + (sharedOf(o) ? ' · ' + esc(sharedOf(o)) : '')).join('\n');
+      };
+      const extTitle = seg => {
+        const hits = ext.filter(e => e.start < seg.end && e.end > seg.start);
+        if (!hits.length) return 'Collisione di servizio';
+        return 'Servizio (fuori dip.):\n' + hits.map(e => {
+          const who = String((e.cognome || '') + (e.nome ? ' ' + e.nome : '')).trim();
+          return '• ' + (who ? esc(who) + ' — ' : '') + esc(e.corso || 'impegno') +
+            (e.aula ? ' @ ' + esc(e.aula) : '') + ' ' + fmt(e.start) + '-' + fmt(e.end);
+        }).join('\n');
+      };
       minus(fisI, extI).forEach(g => drawSeg(g, 'fis', fisTitle(g)));
       minus(extI, fisI).forEach(g => drawSeg(g, 'ext', extTitle(g)));
-      inter(fisI, extI).forEach(g => drawSeg(g, 'both', fisTitle(g) + ' + ' + extTitle(g)));
+      inter(fisI, extI).forEach(g => drawSeg(g, 'both', fisTitle(g) + '\n' + extTitle(g)));
     }
     const lg = document.getElementById('slotDragLegend');   // legenda: compare quando rilevante
     if (lg) lg.hidden = !(busy.length || ext.length);
