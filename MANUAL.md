@@ -205,8 +205,11 @@ collisioni e la capienza; inoltre, **esattamente come durante il drag**, nella c
 «Ora» compaiono le **lineette di collisione** del docente (rossa = a Fisica, viola =
 servizio) e gli slot **sorgente** vengono cerchiati. In selezione, **passando il mouse su
 una lineetta** un tooltip indica **chi** è il docente in comune e **quale** evento è in
-conflitto (corso · aula · orario, o l'impegno di servizio). *(I suggerimenti di spostamento
-restano disponibili nel **popover** del tab Collisioni, passando sopra la cella costo.)*
+conflitto (corso · aula · orario, o l'impegno di servizio). In fondo al pannello, sotto gli
+altri slot dello stesso codice, una sezione **«Impegni dei docenti coinvolti»** elenca per
+ciascun docente dello slot **tutti** i suoi impegni della settimana — corsi interni (giorno ·
+orario · codice/aula) e di **servizio** (tag viola) — ordinati per giorno e ora. *(I suggerimenti
+di spostamento restano disponibili nel **popover** del tab Collisioni, passando sopra la cella costo.)*
 
 > Anche in **VIEW / Revisore** (e per gli editor non in EDIT) gli slot restano
 > **selezionabili** — il pannello collisioni/capienza in basso funziona; è bloccato

@@ -946,6 +946,16 @@
   .slot-hover-info .shi-self .shi-when .shi-room { font-style: italic; color: #444; font-size: 11px; }
   .slot-hover-info .shi-self.shi-self-sel .shi-day,
   .slot-hover-info .shi-self.shi-self-sel .shi-when .shi-time { color: #1a73e8; }
+  /* Impegni dei docenti coinvolti (interni + servizio), lista compatta per docente */
+  .slot-hover-info .shi-doc-h { font-weight: 700; font-size: 12px; color: #333; margin: 6px 0 2px; }
+  .slot-hover-info .shi-impegni { display: flex; flex-direction: column; gap: 2px; margin-bottom: 4px; }
+  .slot-hover-info .shi-imp { font-size: 12px; color: #444; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .slot-hover-info .shi-imp .shi-imp-day { font-weight: 700; color: #333; min-width: 30px; }
+  .slot-hover-info .shi-imp .shi-imp-time { color: #555; min-width: 78px; }
+  .slot-hover-info .shi-imp .shi-imp-what { color: #222; }
+  .slot-hover-info .shi-imp.shi-imp-self .shi-imp-what { color: #1a73e8; font-weight: 700; }
+  .slot-hover-info .shi-imp.shi-imp-svc .shi-imp-what { color: #6a1b9a; }
+  .slot-hover-info .shi-imp .shi-imp-tag { font-size: 10px; background: #f3e8fd; color: #6a1b9a; border-radius: 3px; padding: 0 5px; }
   .slot-hover-info .shi-coll { display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-start; }
   /* Chip collisione (stile slot, su due righe): riga1 codice+aula+orario, riga2 titolo */
   .slot-hover-info .shi-chip {
@@ -2204,6 +2214,48 @@ var _editActive = !!EDIT_MODE;
       .sort((a, b) => (a.day - b.day) || (a.start - b.start));
     if (others.length) others.forEach(o => { html += _slotRow(o, dayLabel, false); });
     else html += '<div class="shi-empty">Nessun altro slot per questo codice.</div>';
+    // 4) Impegni orari di TUTTI i docenti coinvolti nello slot: interni (corsi che
+    //    insegnano, titolare o co-docente) + servizio (tabella SERVIZIO). Per docente,
+    //    ordinati per giorno/ora; lo slot del codice corrente è evidenziato in blu.
+    const involved = teachersOfSess(s);
+    if (involved.length) {
+      const extAll = data.impegniEsterni || [];
+      html += '<div class="shi-sep"></div><div class="shi-head">Impegni dei docenti coinvolti</div>';
+      involved.forEach(t => {
+        const tk = _teacherKey(t);
+        const rows = [];
+        const seenI = {};
+        (data.sessions || []).forEach(x => {
+          if (teachersOfSess(x).indexOf(t) === -1) return;
+          const k = x.day + '|' + x.start + '|' + x.end + '|' + (x.code || '') + '|' + (x.room || '');
+          if (seenI[k]) return; seenI[k] = 1;
+          rows.push({ day: x.day, start: x.start, end: x.end, svc: false, x: x });
+        });
+        const seenE = {};
+        extAll.forEach(e => {
+          const ek = _extKey(e.cognome, e.nome);
+          if (!(tk.surname === ek.surname && (!tk.initial || !ek.initial || tk.initial === ek.initial))) return;
+          const k = e.day + '|' + e.start + '|' + e.end + '|' + (e.corso || '') + '|' + (e.aula || '');
+          if (seenE[k]) return; seenE[k] = 1;
+          rows.push({ day: e.day, start: e.start, end: e.end, svc: true, e: e });
+        });
+        rows.sort((a, b) => (a.day - b.day) || (a.start - b.start));
+        html += '<div class="shi-doc-h">👤 ' + esc(t) + '</div>';
+        if (!rows.length) { html += '<div class="shi-empty">nessun impegno</div>'; return; }
+        html += '<div class="shi-impegni">' + rows.map(r => {
+          const when = '<span class="shi-imp-day">' + esc(dayLabel[r.day] || '?') + '</span>' +
+            '<span class="shi-imp-time">' + fmt(r.start) + '-' + fmt(r.end) + '</span>';
+          if (r.svc) {
+            return '<div class="shi-imp shi-imp-svc">' + when +
+              '<span class="shi-imp-what">' + esc(r.e.corso || 'servizio') + (r.e.aula ? ' @ ' + esc(r.e.aula) : '') + '</span>' +
+              '<span class="shi-imp-tag">servizio</span></div>';
+          }
+          const self = (r.x.code === s.code);
+          return '<div class="shi-imp' + (self ? ' shi-imp-self' : '') + '">' + when +
+            '<span class="shi-imp-what">' + esc(r.x.code) + (r.x.room ? ' (' + esc(r.x.room) + ')' : '') + '</span></div>';
+        }).join('') + '</div>';
+      });
+    }
     // NB: i suggerimenti di spostamento NON vengono più mostrati qui (richiesta
     // utente). suggestMoves() resta in uso dal popover del tab Collisioni.
     box.innerHTML = html;
