@@ -256,8 +256,13 @@ tab Collisioni, passando sopra la cella costo.)*
 > dipartimenti. I dati si ottengono da **University Planner** con i tool in `impegni/`
 > (vedi `impegni/README.md`) e si incollano nel foglio; la voce di menu
 > **🛠️ Gestione tabelle → 🌐 Prepara foglio Impegni Esterni** crea/formatta il foglio.
+> In alternativa al copia-incolla, la voce **Gestione tabelle → Recupera impegni esterni da
+> UP** popola il foglio direttamente dal gsheet: basta avere la colonna **Matricola**
+> (Cognome/Nome si recuperano da UP se mancanti), il comando chiede l'**anno accademico** e
+> riscrive il foglio col semestre di quel gsheet (S1 = ottobre AA, S2 = aprile AA+1).
 > Poi **Carica / Pubblica** nel Web Calendar per caricarli. Il match docente è per
-> **cognome + iniziale**.
+> **cognome + iniziale**. ⚠️ Il recupero da UP usa `UrlFetchApp`: la prima volta dopo
+> l'aggiornamento Google chiede di **ri-autorizzare** lo script (scope *richieste esterne*).
 
 ![Slot — guida durante il drag (orari docente occupato + corsi in collisione)](docs/img/14-slot-drag.png)
 

@@ -9,7 +9,8 @@ function onOpen() {
     .addSeparator()
     .addItem('🎯 Assegna vincoli dalla tabella PdS', 'assegnaVincoliDaPds')
     .addSeparator()
-    .addItem('🌐 Prepara foglio Impegni Esterni', 'preparaImpegniEsterni');
+    .addItem('🌐 Prepara foglio Impegni Esterni', 'preparaImpegniEsterni')
+    .addItem('🛰️ Recupera impegni esterni da UP', 'recuperaImpegniEsterniDaUP');
 
   const io = ui.createMenu('🔁 Import / Export')
     .addItem('📤 Esporta JSON', 'exportToJson')
@@ -100,9 +101,11 @@ function preparaImpegniEsterni() {
   try { sh.autoResizeColumns(1, HEADERS.length); } catch (e) {}
   ui.alert('Impegni esterni',
     (created ? 'Creato' : 'Aggiornato') + ' il foglio "ImpegniEsterni".\n\n' +
-    'Incolla qui (dalla riga 2) i dati del semestre giusto generati dai tool in impegni/\n' +
-    '(ImpegniEsterni_S1.csv nel gsheet S1, ImpegniEsterni_S2.csv nel gsheet S2),\n' +
-    'rispettando gli header: ' + HEADERS.join(', ') + '.\n\n' +
+    'Due modi per popolarlo:\n' +
+    '• incolla (dalla riga 2) il CSV del semestre giusto generato dai tool in impegni/\n' +
+    '  (impegni_esterni_S1.csv nel gsheet S1, impegni_esterni_S2.csv nel gsheet S2),\n' +
+    '  rispettando gli header: ' + HEADERS.join(', ') + ';\n' +
+    '• oppure incolla solo le Matricole e usa "🛰️ Recupera impegni esterni da UP".\n\n' +
     'Poi nel Web Calendar fai "Carica / Pubblica" per caricarli.',
     ui.ButtonSet.OK);
 }
