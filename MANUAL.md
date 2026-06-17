@@ -203,7 +203,9 @@ Gli slot che **superano l'80% della capienza** sono segnalati da un **triangolo 
 compaiono il dettaglio del codice — con **ore/settimana** (LEZ + LAB) e **CFU** — le sue
 collisioni e la capienza; inoltre, **esattamente come durante il drag**, nella colonna
 «Ora» compaiono le **lineette di collisione** del docente (rossa = a Fisica, viola =
-servizio) e gli slot **sorgente** vengono cerchiati. In selezione, **passando il mouse su
+servizio), i **pallini co-esame** su tutti gli slot in collisione e gli slot **sorgente**
+vengono cerchiati. *(Avviando il **trascinamento** di uno slot la selezione passa subito a
+quello slot, spegnendo la precedente.)* In selezione, **passando il mouse su
 una lineetta** un tooltip indica **chi** è il docente in comune e **quale** evento è in
 conflitto (corso · aula · orario, o l'impegno di servizio). In fondo al pannello, sotto gli
 altri slot dello stesso codice, una sezione **«Impegni dei docenti coinvolti»** elenca per

@@ -2035,8 +2035,10 @@ var _editActive = !!EDIT_MODE;
   // selezione, o slot su un altro giorno → pulisce.
   function _showSelectionCollisions() {
     const sel = selectedSig ? (data.sessions || []).find(x => x.src && sigOf(x.src) === selectedSig) : null;
-    if (sel && sel.day === currentSlotDay) _dragShowTeacherBusy(sel, true);  // hoverable: tooltip CHI/QUALE
-    else _dragClearTeacherBusy();
+    if (sel && sel.day === currentSlotDay) {
+      _dragShowTeacherBusy(sel, true);   // lineette docente/servizio (hoverable: tooltip CHI/QUALE)
+      _dragShowCoex(sel);                // pallini co-esame su TUTTI gli slot in collisione (come nel drag)
+    } else { _dragClearTeacherBusy(); _dragClearCoex(); }
   }
   function applySelectionHighlight() {
     slotEls.forEach(el => {
@@ -3874,6 +3876,8 @@ var _editActive = !!EDIT_MODE;
         document.body.appendChild(g);
         st.ghost = g;
         block.style.opacity = '0.25';
+        // Passa la selezione allo slot che si sta trascinando (spegne quella precedente).
+        if (session.src) { selectedSig = sigOf(session.src); applySelectionHighlight(); renderSelectionPanel(); }
         _dragShowTeacherBusy(session);   // bande rosse colonna "Ora" = docente occupato
         _dragShowCoex(session, block);   // overlay co-esame su TUTTI gli slot in collisione
         // Costo: sessioni "vive" (no parcheggiate) e baseline = posizione attuale, oppure
@@ -5247,7 +5251,7 @@ var _editActive = !!EDIT_MODE;
       if (e.target.closest('.sblock')) return;     // su uno slot: gestito dal drag handler
       if (e.target.closest('.slot-topbar')) return; // toolbar/day-tab
       if (e.target.closest('.slot-hover-info')) return; // pannello sotto
-      if (selectedSig) { selectedSig = null; applySelectionHighlight(); renderSelectionPanel(); _dragClearTeacherBusy(); }
+      if (selectedSig) { selectedSig = null; applySelectionHighlight(); renderSelectionPanel(); _dragClearTeacherBusy(); _dragClearCoex(); }
     });
   })();
 
