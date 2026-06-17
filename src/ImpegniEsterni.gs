@@ -1,8 +1,8 @@
 // Recupero impegni FUORI dipartimento da University Planner (Cineca), dentro l'orario.
 // Endpoint PUBBLICO (no auth): POST impegniCalendarioPubblicoDocente, filtra per matricola
 // col clienteId UniPi. Semestre = finestra date (S1=ottobre AA, S2=aprile AA+1). Filtra le
-// aule Fisica (FIB/FIS/Fibonacci). Le MATRICOLE si leggono dalla colonna "Matricola" della
-// Tabella nativa "SERVIZIO" (popolata la prima volta dai tool in impegni/), poi questa voce
+// aule Fisica (FIB/FIS/Fibonacci). Le MATRICOLE uniche si leggono dalla colonna C (Matricola)
+// della Tabella nativa "SERVIZIO" (popolata la prima volta dai tool in impegni/), poi questa voce
 // di menu RIAGGIORNA la tabella da UP per l'AA scelto.
 // Richiede: scope script.external_request (UrlFetchApp) e scope spreadsheets pieno +
 // servizio avanzato "Sheets" (Tabelle native via Sheets.Spreadsheets.batchUpdate).
@@ -118,19 +118,17 @@ function recuperaImpegniEsterniDaUP() {
   const lastRow = sh.getLastRow(), lastCol = Math.max(sh.getLastColumn(), SERVIZIO_HEADERS.length);
   if (lastRow < 2) { ui.alert('SERVIZIO', 'Nessuna matricola nella tabella: incolla prima i dati.', ui.ButtonSet.OK); return; }
   const vals = sh.getRange(1, 1, lastRow, lastCol).getValues();
-  const hdr = vals[0].map(h => String(h || '').trim().toLowerCase());
-  const mi = hdr.indexOf('matricola'), ci = hdr.indexOf('cognome'), ni = hdr.indexOf('nome');
-  if (mi < 0) { ui.alert('SERVIZIO', 'Colonna "Matricola" non trovata nella tabella.', ui.ButtonSet.OK); return; }
-
-  // matricola → (cognome, nome) dai dati già presenti (no UP se già noti)
+  // Colonne FISSE della tabella SERVIZIO: A=Cognome, B=Nome, C=Matricola. Le MATRICOLE
+  // UNICHE si leggono dalla colonna C (riga 1 = header → si parte dalla riga 2).
+  const ci = 0, ni = 1, mi = 2;
   const info = {};
   for (let r = 1; r < vals.length; r++) {
     const m = String(vals[r][mi] || '').trim();
     if (!m) continue;
-    if (!info[m]) info[m] = { cog: ci >= 0 ? String(vals[r][ci] || '').trim() : '', nom: ni >= 0 ? String(vals[r][ni] || '').trim() : '' };
+    if (!info[m]) info[m] = { cog: String(vals[r][ci] || '').trim(), nom: String(vals[r][ni] || '').trim() };
   }
-  const mats = Object.keys(info);
-  if (!mats.length) { ui.alert('SERVIZIO', 'Nessuna matricola valida nella tabella.', ui.ButtonSet.OK); return; }
+  const mats = Object.keys(info);   // matricole UNICHE citate in colonna C
+  if (!mats.length) { ui.alert('SERVIZIO', 'Nessuna matricola in colonna C (Matricola).', ui.ButtonSet.OK); return; }
 
   // 1) prompt AA
   const now = new Date();
@@ -143,7 +141,9 @@ function recuperaImpegniEsterniDaUP() {
   const aa = txt ? parseInt(txt, 10) : aaDef;
   if (!aa || aa < 2000 || aa > 2100) { ui.alert('SERVIZIO', 'AA non valido.', ui.ButtonSet.OK); return; }
 
-  // 2) semestre di QUESTO gsheet → finestra (ottobre AA / aprile AA+1)
+  // 2) semestre di QUESTO gsheet (dai nomi dei tab) → finestra: S1 = settimane di OTTOBRE,
+  //    altrimenti S2 = settimane di APRILE (AA+1). Il mese intero copre tutte le settimane,
+  //    e il join dedup (sotto) riduce le occorrenze ripetute al singolo impegno settimanale.
   let sem = 'S1';
   try { sem = String(detectAuleConfigFor_(ss).prefix || 'S1').toUpperCase(); } catch (e) {}
   const win = (sem.indexOf('S2') === 0) ? _meseWindowISO_(aa + 1, 3) : _meseWindowISO_(aa, 9);
@@ -183,8 +183,9 @@ function recuperaImpegniEsterniDaUP() {
   const ord = { Lun: 0, Mar: 1, Mer: 2, Gio: 3, Ven: 4 };
   rows.sort((a, b) => String(a[0]).localeCompare(String(b[0])) || (ord[a[3]] - ord[b[3]]) || String(a[4]).localeCompare(String(b[4])));
 
-  // 4) riscrivi la Tabella SERVIZIO: elimina la Tabella, pulisci, scrivi come TESTO
-  //    (per non perdere zeri iniziali matricola/orari), ricrea la Tabella sui dati.
+  // 4) riscrivi la Tabella SERVIZIO: elimina la Tabella, pulisci, scrivi come TESTO (per non
+  //    perdere zeri iniziali matricola/orari), ELIMINA le righe in eccesso (niente righe libere
+  //    in fondo), poi ricrea la Tabella dimensionata esattamente su header + dati.
   const cols = SERVIZIO_HEADERS.length;
   let tableErr = '';
   try { _deleteTablesOnSheet_(ss, sh); } catch (e) { tableErr = String(e); }
@@ -193,6 +194,13 @@ function recuperaImpegniEsterniDaUP() {
   sh.getRange(1, 1, 1, cols).setValues([SERVIZIO_HEADERS]);
   if (rows.length) sh.getRange(2, 1, rows.length, cols).setValues(rows);
   sh.setFrozenRows(1);
+  // niente righe vuote in fondo: tieni solo header + dati (la Tabella richiede >=1 riga corpo)
+  SpreadsheetApp.flush();
+  try {
+    const keep = 1 + Math.max(rows.length, 1);
+    const extra = sh.getMaxRows() - keep;
+    if (extra > 0) sh.deleteRows(keep + 1, extra);
+  } catch (e) {}
   if (!tableErr) { try { _createServizioTable_(ss, sh, rows.length); } catch (e) { tableErr = String(e); } }
   SpreadsheetApp.flush();
 
