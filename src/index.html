@@ -956,14 +956,21 @@
   .slot-hover-info .shi-imp.shi-imp-self .shi-imp-what { color: #1a73e8; font-weight: 700; }
   .slot-hover-info .shi-imp.shi-imp-svc .shi-imp-what { color: #6a1b9a; }
   .slot-hover-info .shi-imp .shi-imp-tag { font-size: 10px; background: #f3e8fd; color: #6a1b9a; border-radius: 3px; padding: 0 5px; }
-  .slot-hover-info .shi-coll { display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-start; }
+  /* Collisioni in GRIGLIA: celle a larghezza fissa → vanno a capo SOLO a riga piena e
+     restano ALLINEATE in colonna (anche sulle righe successive). Ogni cella = costo
+     (colonna fissa) + chip; il chip mostra per intero codice·aula·orario, il titolo se
+     lungo viene troncato. */
+  .slot-hover-info .shi-coll { display: grid; grid-template-columns: repeat(auto-fill, 256px); gap: 6px 8px; align-items: start; }
+  .slot-hover-info .shi-collitem { display: grid; grid-template-columns: 36px 1fr; gap: 5px; align-items: center; min-width: 0; }
+  .slot-hover-info .shi-collitem .shi-cost { text-align: right; overflow: hidden; }
+  .slot-hover-info .shi-collitem .shi-chip { min-width: 0; max-width: none; height: 32px; }
   /* Chip collisione (stile slot, su due righe): riga1 codice+aula+orario, riga2 titolo */
   .slot-hover-info .shi-chip {
     display: inline-flex; flex-direction: column; vertical-align: top;
     border-radius: 3px; padding: 2px 8px; box-sizing: border-box;
     box-shadow: 0 1px 2px rgba(0,0,0,0.06); max-width: 230px;
   }
-  .slot-hover-info .shi-chip .shi-l1 { white-space: nowrap; font-size: 12px; }
+  .slot-hover-info .shi-chip .shi-l1 { white-space: nowrap; font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
   .slot-hover-info .shi-chip .shi-c { font-weight: 700; }
   .slot-hover-info .shi-chip .shi-room { color: var(--text); font-weight: 600; }
   .slot-hover-info .shi-chip .shi-t { color: var(--muted); font-size: 11px; }
@@ -2149,10 +2156,23 @@ var _editActive = !!EDIT_MODE;
     ).sort((a, b) => a.start - b.start);
     const seen = {}; const collU = [];
     coll.forEach(o => { const k = o.code + '|' + o.room + '|' + o.start; if (!seen[k]) { seen[k] = 1; collU.push(o); } });
+    // Ordine: OBB → FOR → OPZ (per colore-vincolo, ripiego su o.vincolo), poi codice A-Z.
+    const _vc = data.vincoloColors || {};
+    const _rk = {};
+    _rk[String(_vc.OBB || '#ffcfc9').toLowerCase()] = 0;
+    _rk[String(_vc.FOR || '#ffe5a0').toLowerCase()] = 1;
+    _rk[String(_vc.OPZ || '#d4edbc').toLowerCase()] = 2;
+    const roleRank = o => {
+      let r = _rk[String(o.vincoloColor || '').toLowerCase()];
+      if (r == null) { const v = String(o.vincolo || '').toUpperCase(); r = v === 'OBB' ? 0 : (v === 'FOR' ? 1 : (v === 'OPZ' ? 2 : 3)); }
+      return r;
+    };
+    collU.sort((a, b) => (roleRank(a) - roleRank(b)) ||
+      String(a.code || '').toUpperCase().localeCompare(String(b.code || '').toUpperCase()));
     const chips = collU.length ? collU.map(o => {
       const e = effN(sess.code, o.code);
       const cost = (e.n == null) ? null : (overlapMin(sess, o) / 60) * e.n;
-      return costInlineHtml(cost, e.n, e.estimated) + _collChip(o);
+      return '<span class="shi-collitem">' + costInlineHtml(cost, e.n, e.estimated) + _collChip(o) + '</span>';
     }).join('') : '<span class="shi-chip shi-none">nessuna collisione</span>';
     return '<div class="shi-row">' +
       '<span class="shi-self' + (isSel ? ' shi-self-sel' : '') + '">' +
@@ -3745,11 +3765,9 @@ var _editActive = !!EDIT_MODE;
     const DOT = { OO: cOBB, FF: cFOR, PP: cOPZ, OF: half(cOBB, cFOR), PO: half(cOBB, cOPZ), PF: half(cFOR, cOPZ) };
     const LAB = { OO: 'obbligo-obbligo', OF: 'obbligo-forchetta', FF: 'forchetta-forchetta',
       PO: 'obbligo-opzionale', PF: 'forchetta-opzionale', PP: 'opzionale-opzionale' };
-    // Tono ESATTO dello sfondo degli slot (pieno, senza trasparenza): metà colore del
-    // corso trascinato + metà del corso in collisione. Il bianco/default NON è un tono
-    // valido → ripiego sui colori-tipo (rosso/giallo/verde) per non avere pallini bianchi.
-    const realCol = c => { c = String(c || '').trim().toLowerCase(); return (!c || c === '#fff' || c === '#ffffff' || c === 'white') ? '' : c; };
-    const myBg = realCol(session.vincoloColor);
+    // Colore del pallino = TIPO di collisione classificato PER-PdS (come nel tab Collisioni),
+    // NON i colori dei singoli slot: due OBB in PdS DIVERSI non sono una OO. Il tipo (con la
+    // priorità OO>OF>FF>PO>PF>PP) viene da _coexPairType; i toni sono pieni (DOT[type]).
     const isLT = (lvl === 'LT');
     grid.querySelectorAll('.slot-room-track .sblock').forEach(b => {
       const code = (b.dataset.code || '').toUpperCase();
@@ -3767,14 +3785,12 @@ var _editActive = !!EDIT_MODE;
         showN = true; lab = LAB[type] || type;
       }
       const n = showN ? coexamN(myCode, code) : null;
-      const oBg = realCol(b.dataset.origBg);
       const ov = document.createElement('div');
       ov.className = 'sblock-coex-ov';
       const dot = document.createElement('span');
       dot.className = 'coex-dot';
       dot.style.width = SLOT_H + 'px'; dot.style.height = SLOT_H + 'px';
-      dot.style.background = isLT ? cOBB   // LT: SEMPRE rosso pieno (obbligo-obbligo)
-        : ((myBg && oBg) ? (myBg === oBg ? myBg : half(myBg, oBg)) : (DOT[type] || cFOR));
+      dot.style.background = isLT ? cOBB : (DOT[type] || cFOR);  // colore = TIPO di collisione
       ov.appendChild(dot);
       if (showN) {
         const num = document.createElement('span');

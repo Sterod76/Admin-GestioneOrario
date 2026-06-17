@@ -210,7 +210,10 @@ una lineetta** un tooltip indica **chi** è il docente in comune e **quale** eve
 conflitto (corso · aula · orario, o l'impegno di servizio). In fondo al pannello, sotto gli
 altri slot dello stesso codice, una sezione **«Impegni dei docenti coinvolti»** elenca per
 ciascun docente dello slot **tutti** i suoi impegni della settimana — corsi interni (giorno ·
-orario · codice/aula) e di **servizio** (tag viola) — ordinati per giorno e ora. *(I suggerimenti
+orario · codice/aula) e di **servizio** (tag viola) — ordinati per giorno e ora. Le collisioni di
+ogni giorno sono mostrate come **chip a dimensione fissa** (codice · aula · orario sempre per intero,
+titolo troncato se lungo), **allineati a griglia** (vanno a capo solo a riga piena, mantenendo le
+colonne) e ordinati **obblighi → forchette → opzionali**, poi per **codice**. *(I suggerimenti
 di spostamento restano disponibili nel **popover** del tab Collisioni, passando sopra la cella costo.)*
 
 > Anche in **VIEW / Revisore** (e per gli editor non in EDIT) gli slot restano
