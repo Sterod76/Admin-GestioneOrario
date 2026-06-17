@@ -214,7 +214,7 @@ tab Collisioni, passando sopra la cella costo.)*
 >   **docente/i** del corso trascinato sono già impegnati, due sottili **lineette
 >   verticali**: una **rossa** all'estremo sinistro = collisione **a Fisica** (impegno
 >   interno), e — poco a destra — una **viola** = impegno di **servizio / fuori
->   dipartimento** (dal foglio `ImpegniEsterni`, vedi sotto). Una **legenda** appare a
+>   dipartimento** (dalla tabella `SERVIZIO`, vedi sotto). Una **legenda** appare a
 >   destra dei giorni quando ci sono collisioni. Gli **insegnamenti sorgente** della
 >   collisione *a Fisica* (gli altri slot dello stesso docente) vengono inoltre
 >   **cerchiati in rosso** (come se fossero selezionati);
@@ -250,19 +250,32 @@ tab Collisioni, passando sopra la cella costo.)*
 >   caso il differenziale è calcolato rispetto alla **posizione che lo slot aveva prima**
 >   del parcheggio.
 
-> **Impegni FUORI dipartimento (di servizio).** Le lineette **viola** vengono dal foglio
-> **`ImpegniEsterni`** del gsheet-orario (header `Cognome · Nome · Matricola · Giorno ·
+> **Impegni FUORI dipartimento (di servizio).** Le lineette **viola** vengono dalla
+> **Tabella nativa `SERVIZIO`** del gsheet-orario (header `Cognome · Nome · Matricola · Giorno ·
 > Inizio · Fine · Corso · Aula`), che elenca quando ogni docente insegna in altri
-> dipartimenti. I dati si ottengono da **University Planner** con i tool in `impegni/`
-> (vedi `impegni/README.md`) e si incollano nel foglio; la voce di menu
-> **🛠️ Gestione tabelle → 🌐 Prepara foglio Impegni Esterni** crea/formatta il foglio.
-> In alternativa al copia-incolla, la voce **Gestione tabelle → Recupera impegni esterni da
-> UP** popola il foglio direttamente dal gsheet: basta avere la colonna **Matricola**
-> (Cognome/Nome si recuperano da UP se mancanti), il comando chiede l'**anno accademico** e
-> riscrive il foglio col semestre di quel gsheet (S1 = ottobre AA, S2 = aprile AA+1).
-> Poi **Carica / Pubblica** nel Web Calendar per caricarli. Il match docente è per
-> **cognome + iniziale**. ⚠️ Il recupero da UP usa `UrlFetchApp`: la prima volta dopo
-> l'aggiornamento Google chiede di **ri-autorizzare** lo script (scope *richieste esterne*).
+> dipartimenti. È una vera **Tabella di Google** (filtri e ordinamento integrati nell'header).
+> La voce di menu **🛠️ Gestione tabelle → 🌐 Prepara tabella SERVIZIO** la crea (vuota o
+> conservando i dati). I dati si ottengono da **University Planner** in due modi:
+> - **da PC**, coi tool in `impegni/` (vedi `impegni/README.md`): si **incolla** nella tabella
+>   il CSV del semestre (`impegni_esterni_S1.csv` nel gsheet S1, `_S2` in S2);
+> - **dal gsheet**, con **🛠️ Gestione tabelle → 🛰️ Recupera SERVIZIO da UP**: basta avere la
+>   colonna **Matricola** (Cognome/Nome si recuperano da UP se mancanti), il comando chiede
+>   l'**anno accademico** e riscrive la tabella col semestre di quel gsheet (S1 = ottobre AA,
+>   S2 = aprile AA+1).
+>
+> Poi **Carica / Pubblica** nel Web Calendar. Il match docente è per **cognome + iniziale**.
+>
+> ⚠️ **Matricole con zeri iniziali:** incolla i dati **dopo** aver creato la tabella con *Prepara
+> tabella SERVIZIO* (la colonna è già formattata come testo). Se incolli in un foglio non
+> formattato, lo zero iniziale viene perso al momento dell'incolla e non è più recuperabile.
+>
+> ⚠️ **Autorizzazione (importante al primo deploy con questa funzione):** le Tabelle native usano
+> il **servizio Sheets avanzato** → scope `spreadsheets` **pieno**; il recupero da UP usa
+> `UrlFetchApp` → scope *richieste esterne*. Cambiando l'insieme di scope, **dopo il deploy la
+> WebApp `/exec` può restituire un errore di autorizzazione finché il deployer non ri-autorizza**.
+> Subito dopo `npm run deploy`, per **ogni** installazione l'account che ha deployato deve aprire
+> il gsheet (o la WebApp da loggato) e **passare una volta la schermata di consenso** prima che gli
+> utenti usino la WebApp.
 
 ![Slot — guida durante il drag (orari docente occupato + corsi in collisione)](docs/img/14-slot-drag.png)
 

@@ -48,7 +48,7 @@ python impegni/fetch_impegni_up.py --aa 2025      # legge impegni/matricole.csv
 
 `impegni/impegni_esterni_S1.csv` e `_S2.csv` —
 `Cognome, Nome, Matricola, Giorno, Inizio, Fine, Corso, Aula` (header **italiani**, gli
-stessi attesi dal foglio `ImpegniEsterni` e dal reader della web app; il reader accetta
+stessi attesi dalla Tabella `SERVIZIO` e dal reader della web app; il reader accetta
 comunque anche gli alias inglesi `weekday/start_time/end_time/course`). L'AA d'indagine
 è `AA_DEFAULT` (=2025) in `build_from_coperture.py`, override con `--aa`.
 

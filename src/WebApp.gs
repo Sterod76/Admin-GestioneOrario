@@ -771,12 +771,12 @@ function cleanupLegacyProperties() {
 // vaiAlWebCalendar. È l'unica funzione che apre lo Spreadsheet.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Legge il foglio "ImpegniEsterni" (impegni di docenza FUORI dal dipartimento, da
+// Legge la tabella "SERVIZIO" (impegni di docenza FUORI dal dipartimento, da
 // University Planner). Per nome header (robusto all'ordine): Cognome, Nome, Matricola,
 // Giorno, Inizio, Fine, Corso, Aula. Ritorna [{cognome, nome, day(0..5), start, end,
 // corso, aula}]. Foglio assente o vuoto → []. Vedi tool in impegni/.
 function readImpegniEsterni_(ss) {
-  const sh = ss.getSheetByName('ImpegniEsterni');
+  const sh = ss.getSheetByName('SERVIZIO');
   if (!sh) return [];
   const lastRow = sh.getLastRow(), lastCol = sh.getLastColumn();
   if (lastRow < 2 || lastCol < 1) return [];

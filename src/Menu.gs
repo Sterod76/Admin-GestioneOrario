@@ -9,8 +9,8 @@ function onOpen() {
     .addSeparator()
     .addItem('🎯 Assegna vincoli dalla tabella PdS', 'assegnaVincoliDaPds')
     .addSeparator()
-    .addItem('🌐 Prepara foglio Impegni Esterni', 'preparaImpegniEsterni')
-    .addItem('🛰️ Recupera impegni esterni da UP', 'recuperaImpegniEsterniDaUP');
+    .addItem('🌐 Prepara tabella SERVIZIO', 'preparaImpegniEsterni')
+    .addItem('🛰️ Recupera SERVIZIO da UP', 'recuperaImpegniEsterniDaUP');
 
   const io = ui.createMenu('🔁 Import / Export')
     .addItem('📤 Esporta JSON', 'exportToJson')
@@ -74,38 +74,36 @@ function normalizzaDocenti() {
 }
 
 /**
- * Crea/prepara il foglio "ImpegniEsterni" (impegni di docenza FUORI dal dipartimento)
- * con header intelligibili + formato "smart table" (header in grassetto, riga fissa,
- * banding). I dati si incollano dai CSV generati dai tool in impegni/ (un semestre per
- * gsheet), poi si caricano nel Web Calendar con "Carica/Pubblica".
+ * Crea/prepara la Tabella nativa Google "SERVIZIO" (impegni di docenza FUORI dal
+ * dipartimento) con header intelligibili. Tabella vera (filtri + ordinamento sull'header)
+ * via servizio avanzato Sheets. I dati si incollano dai CSV generati dai tool in impegni/
+ * (un semestre per gsheet) oppure si recuperano da UP; poi "Carica/Pubblica" nel Web Calendar.
+ * Non distruttiva: se la tabella esiste già, conserva i dati e ne ridimensiona la Tabella.
  */
 function preparaImpegniEsterni() {
   const ui = SpreadsheetApp.getUi();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const HEADERS = ['Cognome', 'Nome', 'Matricola', 'Giorno', 'Inizio', 'Fine', 'Corso', 'Aula'];
-  let sh = ss.getSheetByName('ImpegniEsterni');
+  let sh = ss.getSheetByName(SERVIZIO_SHEET);
   const created = !sh;
-  if (!sh) sh = ss.insertSheet('ImpegniEsterni');
-  const cur = sh.getRange(1, 1, 1, HEADERS.length).getValues()[0].map(x => String(x || '').trim().toLowerCase());
-  if (cur.join('|') !== HEADERS.join('|').toLowerCase()) {
-    sh.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
-  }
-  sh.getRange(1, 1, 1, HEADERS.length).setFontWeight('bold').setBackground('#e8f0fe');
+  if (!sh) sh = ss.insertSheet(SERVIZIO_SHEET);
+  let tableErr = '';
+  try { _deleteTablesOnSheet_(ss, sh); } catch (e) { tableErr = String(e); }
+  const nData = Math.max(sh.getLastRow() - 1, 0);                 // righe dati già presenti
+  sh.getRange(1, 1, 1 + nData, SERVIZIO_HEADERS.length).setNumberFormat('@');  // TESTO: zeri/orari preservati
+  sh.getRange(1, 1, 1, SERVIZIO_HEADERS.length).setValues([SERVIZIO_HEADERS]);
   sh.setFrozenRows(1);
-  try {
-    sh.getBandings().forEach(b => b.remove());
-    const lastRow = Math.max(sh.getLastRow(), 2);
-    sh.getRange(1, 1, lastRow, HEADERS.length)
-      .applyRowBanding(SpreadsheetApp.BandingTheme.LIGHT_GREY, false, false);  // showHeader=false: tiene l'azzurro custom
-  } catch (e) {}
-  try { sh.autoResizeColumns(1, HEADERS.length); } catch (e) {}
-  ui.alert('Impegni esterni',
-    (created ? 'Creato' : 'Aggiornato') + ' il foglio "ImpegniEsterni".\n\n' +
-    'Due modi per popolarlo:\n' +
+  if (!tableErr) { try { _createServizioTable_(ss, sh, nData); } catch (e) { tableErr = String(e); } }
+  try { sh.autoResizeColumns(1, SERVIZIO_HEADERS.length); } catch (e) {}
+  ui.alert('SERVIZIO',
+    (created ? 'Creata' : 'Aggiornata') + ' la tabella "SERVIZIO".' +
+    (tableErr ? '\n\n⚠️ Tabella nativa non creata: ' + tableErr : '') + '\n\n' +
+    'Due modi per popolarla:\n' +
     '• incolla (dalla riga 2) il CSV del semestre giusto generato dai tool in impegni/\n' +
     '  (impegni_esterni_S1.csv nel gsheet S1, impegni_esterni_S2.csv nel gsheet S2),\n' +
-    '  rispettando gli header: ' + HEADERS.join(', ') + ';\n' +
-    '• oppure incolla solo le Matricole e usa "🛰️ Recupera impegni esterni da UP".\n\n' +
+    '  rispettando gli header: ' + SERVIZIO_HEADERS.join(', ') + ';\n' +
+    '• oppure incolla solo le Matricole e usa "🛰️ Recupera SERVIZIO da UP".\n' +
+    'NB: incolla i dati DOPO aver creato la tabella, così le matricole con zeri iniziali\n' +
+    'restano intatte (la colonna è già formattata come testo).\n\n' +
     'Poi nel Web Calendar fai "Carica / Pubblica" per caricarli.',
     ui.ButtonSet.OK);
 }
