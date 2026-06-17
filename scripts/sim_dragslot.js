@@ -21,7 +21,9 @@ let _coexRoleCtxCache = null;
 const fnSrc = [extractFn('sigOf'), extractFn('teachersOfSess'), extractFn('canon'),
   extractFn('_teacherBusySessions'), extractFn('_teacherBusyIntervals'),
   extractFn('_coexRoleCtx'), extractFn('_coexPairType'),
-  extractFn('_gCompatCost'), extractFn('_ltCoexHit')].join('\n');
+  extractFn('_gCompatCost'), extractFn('_ltCoexHit'),
+  extractFn('_normTok'), extractFn('_teacherKey'), extractFn('_extKey'),
+  extractFn('_externalBusyIntervals')].join('\n');
 eval(fnSrc);
 
 function S(code, docenti, day, start, end, row) {
@@ -117,6 +119,25 @@ check('LT: gruppo vuoto ↔ A (stesso anno) → sì', _ltCoexHit(LT('OBB', '1', 
 check('LT: anni diversi → no', _ltCoexHit(LT('OBB', '1', 'A'), LT('OBB', '2', 'A')) === false);
 check('LT: uno non-OBB (FOR×OBB) → no', _ltCoexHit(LT('FOR', '1', 'A'), LT('OBB', '1', 'A')) === false);
 check('LT: entrambi FOR → no', _ltCoexHit(LT('FOR', '1', 'A'), LT('FOR', '1', 'A')) === false);
+
+// ── Impegni esterni (fuori dip.): match docente cognome+iniziale + intervalli/giorno ──
+check('Ext: _teacherKey "Toncelli A." → TONCELLI/A', _teacherKey('TONCELLI A.').surname === 'TONCELLI' && _teacherKey('TONCELLI A.').initial === 'A');
+check('Ext: _extKey Toncelli/Alessandra → TONCELLI/A', _extKey('Toncelli', 'Alessandra').surname === 'TONCELLI' && _extKey('Toncelli', 'Alessandra').initial === 'A');
+check('Ext: cognome composto Di Bello ↔ DI BELLO', _teacherKey('Di Bello F.').surname === _extKey('Di Bello', 'Francesco').surname);
+check('Ext: accenti Nicolò ↔ NICOLO', _teacherKey('Nicolò D.').surname === _extKey('Nicolò', 'Donato').surname && _teacherKey('Nicolò D.').initial === _extKey('Nicolò', 'Donato').initial);
+const Sd = (doc, day) => ({ code: 'ZZZ', docenti: doc, day: day, start: 900, end: 960, src: { sheet: 'S1LT', row: 99, col: 13, idx: 0 } });
+data.impegniEsterni = [
+  { cognome: 'Toncelli', nome: 'Alessandra', day: 0, start: 600, end: 660, corso: 'X', aula: 'CHI A' },
+  { cognome: 'Mazza', nome: 'Andrea', day: 0, start: 600, end: 660, corso: 'Y', aula: 'DST C' }
+];
+check('Ext: docente con impegno esterno nel giorno → 1', _externalBusyIntervals(Sd(['Toncelli A.'], 0), 0).length === 1);
+check('Ext: stesso docente, altro giorno → 0', _externalBusyIntervals(Sd(['Toncelli A.'], 1), 1).length === 0);
+check('Ext: omonimo iniziale diversa (Mazza G. ≠ Mazza A.) → 0', _externalBusyIntervals(Sd(['Mazza G.'], 0), 0).length === 0);
+check('Ext: docente senza impegni esterni → 0', _externalBusyIntervals(Sd(['Rossi M.'], 0), 0).length === 0);
+// cognomi con apostrofo (fix review): D'Elia non deve spezzarsi né perdere l'iniziale
+check("Ext: D'Elia (dritto) → surname DELIA, initial M", _teacherKey("D'Elia M.").surname === 'DELIA' && _teacherKey("D'Elia M.").initial === 'M');
+check('Ext: apostrofo tipografico ↔ dritto combaciano', _teacherKey('D' + String.fromCharCode(0x2019) + 'Elia M.').surname === _extKey("D'Elia", 'Mario').surname);
+check("Ext: match D'Elia orario↔esterno", (function () { data.impegniEsterni = [{ cognome: "D'Elia", nome: 'Mario', day: 2, start: 600, end: 660, corso: 'Z', aula: 'X' }]; return _externalBusyIntervals(Sd(["D'Elia M."], 2), 2).length === 1; })());
 
 console.log('\nRISULTATO: ' + pass + ' pass, ' + fail + ' fail');
 process.exit(fail ? 1 : 0);

@@ -122,7 +122,7 @@ def main():
         out = os.path.join(HERE, f'impegni_esterni_{sem}.csv')
         with open(out, 'w', newline='', encoding='utf-8') as f:
             w = csv.writer(f)
-            w.writerow(['cognome', 'nome', 'matricola', 'weekday', 'start_time', 'end_time', 'course', 'aula'])
+            w.writerow(['Cognome', 'Nome', 'Matricola', 'Giorno', 'Inizio', 'Fine', 'Corso', 'Aula'])
             w.writerows(res[sem])
         print(f'OUTPUT {out}: {len(res[sem])} impegni')
 

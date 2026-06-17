@@ -330,7 +330,7 @@ function doGet(e) {
   }
   // In redazione: all'utente generico arriva l'header (titolo + controlli disattivati)
   // ma NON i contenuti dell'orario → svuoto sessioni/fogli/PdS/corsi (niente fuga dati).
-  if (draft) data = Object.assign({}, data, { sessions: [], rawSheets: {}, pds: [], courses: [] });
+  if (draft) data = Object.assign({}, data, { sessions: [], rawSheets: {}, pds: [], courses: [], impegniEsterni: [] });
 
   const json = JSON.stringify(data);
   if (action === 'data') {
@@ -622,6 +622,7 @@ function _splitBuckets_(data) {
       rooms: data.rooms || [],
       roomSubtitles: data.roomSubtitles || {},
       unavail: data.unavail || [],
+      impegniEsterni: data.impegniEsterni || [],
       semester: data.semester || 'S1',
       days: data.days || ['LUN','MAR','MER','GIO','VEN','SAB'],
       slotStartMin: data.slotStartMin,
@@ -669,6 +670,7 @@ function _assembleBuckets_(buckets) {
     ownerEmail: PDS.ownerEmail || '',
     sessions: [].concat(LT.sessions || [], LM.sessions || []),
     unavail: PDS.unavail || [],
+    impegniEsterni: PDS.impegniEsterni || [],
     generatedAt: PDS.generatedAt || new Date().toISOString()
   };
 }
@@ -768,6 +770,51 @@ function cleanupLegacyProperties() {
 // Chiamato da doGet (bootstrap), rpcLoadFromSheet, rpcSaveToSheet,
 // vaiAlWebCalendar. È l'unica funzione che apre lo Spreadsheet.
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Legge il foglio "ImpegniEsterni" (impegni di docenza FUORI dal dipartimento, da
+// University Planner). Per nome header (robusto all'ordine): Cognome, Nome, Matricola,
+// Giorno, Inizio, Fine, Corso, Aula. Ritorna [{cognome, nome, day(0..5), start, end,
+// corso, aula}]. Foglio assente o vuoto → []. Vedi tool in impegni/.
+function readImpegniEsterni_(ss) {
+  const sh = ss.getSheetByName('ImpegniEsterni');
+  if (!sh) return [];
+  const lastRow = sh.getLastRow(), lastCol = sh.getLastColumn();
+  if (lastRow < 2 || lastCol < 1) return [];
+  const values = sh.getRange(1, 1, lastRow, lastCol).getValues();
+  const hdr = values[0].map(h => String(h || '').trim().toLowerCase());
+  // Accetta header sia italiani (foglio) sia inglesi (output diretto dei tool impegni/).
+  const idx = function () {
+    for (var i = 0; i < arguments.length; i++) { var j = hdr.indexOf(arguments[i]); if (j >= 0) return j; }
+    return -1;
+  };
+  const ci = idx('cognome'), ni = idx('nome'), gi = idx('giorno', 'weekday'),
+        si = idx('inizio', 'start_time', 'start'), fi = idx('fine', 'end_time', 'end'),
+        coi = idx('corso', 'course'), ai = idx('aula');
+  if (ci < 0 || gi < 0 || si < 0 || fi < 0) return [];
+  const DAYMAP = { lun: 0, mar: 1, mer: 2, gio: 3, ven: 4, sab: 5 };
+  const toMin = v => {
+    if (v instanceof Date) return v.getHours() * 60 + v.getMinutes();
+    const m = String(v || '').trim().match(/^(\d{1,2})[:.](\d{2})/);
+    return m ? (parseInt(m[1], 10) * 60 + parseInt(m[2], 10)) : null;
+  };
+  const out = [];
+  for (let r = 1; r < values.length; r++) {
+    const row = values[r];
+    const cog = String(row[ci] || '').trim();
+    if (!cog) continue;
+    const day = DAYMAP[String(row[gi] || '').trim().toLowerCase().slice(0, 3)];
+    const start = toMin(row[si]), end = toMin(row[fi]);
+    if (day == null || start == null || end == null || end <= start) continue;
+    out.push({
+      cognome: cog,
+      nome: ni >= 0 ? String(row[ni] || '').trim() : '',
+      day: day, start: start, end: end,
+      corso: coi >= 0 ? String(row[coi] || '').trim() : '',
+      aula: ai >= 0 ? String(row[ai] || '').trim() : ''
+    });
+  }
+  return out;
+}
 
 function getOrarioData() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -1028,6 +1075,7 @@ function getOrarioData() {
     sessions,
     courses,
     unavail,
+    impegniEsterni: readImpegniEsterni_(ss),
     generatedAt: new Date().toISOString()
   };
 }

@@ -47,7 +47,10 @@ python impegni/fetch_impegni_up.py --aa 2025      # legge impegni/matricole.csv
 ### Output (rigenerabile, NON versionato)
 
 `impegni/impegni_esterni_S1.csv` e `_S2.csv` —
-`cognome, nome, matricola, weekday, start_time, end_time, course, aula`.
+`Cognome, Nome, Matricola, Giorno, Inizio, Fine, Corso, Aula` (header **italiani**, gli
+stessi attesi dal foglio `ImpegniEsterni` e dal reader della web app; il reader accetta
+comunque anche gli alias inglesi `weekday/start_time/end_time/course`). L'AA d'indagine
+è `AA_DEFAULT` (=2025) in `build_from_coperture.py`, override con `--aa`.
 
 > Il campo `course` per gli eventi esterni a volte è solo un indice di partizione
 > (es. `"1"`): UP non sempre mette un codice corso vero. L'informazione utile

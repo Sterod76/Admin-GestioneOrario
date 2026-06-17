@@ -817,7 +817,19 @@
      bianco trasparente con un pallino (tipo vincolo: OBB-OBB rosso / OBB-FOR
      rosso-giallo / FOR-FOR giallo, colori header matrice co-esami) e il numero N
      di co-esami (matrice). */
-  .slot-busy-band { position: absolute; left: 0; right: 0; background: rgba(234,67,53,.22); pointer-events: none; z-index: 0; }
+  /* Collisione docente sulla colonna "Ora": due LINEETTE verticali sul bordo sinistro,
+     larghe come la banda colore degli slot (~3px). ROSSA all'estremo sx = collisione a
+     Fisica (interna); poco a dx (piccolo gap) VIOLA = impegno di servizio (fuori dip.). */
+  .slot-busy-band { position: absolute; pointer-events: none; z-index: 1; width: 3px; border-radius: 1px; }
+  .slot-busy-band.fis { left: 0; background: rgba(217,48,37,.92); }
+  .slot-busy-band.ext { left: 5px; background: rgba(138,43,226,.92); }
+  /* Legenda delle lineette (compare durante il drag, a destra di SAB). */
+  .slot-drag-legend { display: inline-flex; align-items: center; gap: 12px; margin-left: 12px; font-size: 11px; color: #555; white-space: nowrap; }
+  .slot-drag-legend[hidden] { display: none; }
+  .slot-drag-legend .sdl-item { display: inline-flex; align-items: center; gap: 4px; }
+  .slot-drag-legend .sdl-sw { display: inline-block; width: 3px; height: 14px; border-radius: 1px; }
+  .slot-drag-legend .sdl-fis { background: rgba(217,48,37,.92); }
+  .slot-drag-legend .sdl-ext { background: rgba(138,43,226,.92); }
   /* Chip COMPATTO (sfondo chiaro, poco padding) centrato sul blocco: stacca i pallini
      a piena intensità dallo sfondo dello slot. */
   .sblock .sblock-coex-ov {
@@ -1100,6 +1112,10 @@
 <div id="viewSlots" class="view">
   <div class="slot-topbar">
     <div class="slot-daytabs" id="slotDayTabs"></div>
+    <div id="slotDragLegend" class="slot-drag-legend" hidden>
+      <span class="sdl-item"><span class="sdl-sw sdl-fis"></span>Collisioni FISICA</span>
+      <span class="sdl-item"><span class="sdl-sw sdl-ext"></span>Collisioni SERVIZIO</span>
+    </div>
     <div class="slot-toolbar">
       <div id="slotTemplate" class="slot-template" title="Trascina nella griglia per creare un nuovo slot (1h)">➕ Nuovo slot 1h</div>
       <div id="slotTrash" class="slot-trash" title="Trascina qui uno slot per eliminarlo">🗑️ Cestino</div>
@@ -3431,22 +3447,65 @@ var _editActive = !!EDIT_MODE;
     return _teacherBusySessions(session, sessions, day)
       .map(o => ({ start: o.start, end: o.end, code: o.code }));
   }
-  // Disegna le bande rosse (collisione docente) sulla colonna "Ora". Statiche per
-  // tutto il drag: gli impegni del docente non dipendono da dove trascini.
+  // Match nome docente: l'orario usa "Cognome I." (teachersOfSess, maiuscolo); gli
+  // impegni esterni hanno {cognome, nome}. Confronto per COGNOME (token-set, robusto
+  // ai composti) + INIZIALE del nome. Puro → testabile.
+  function _normTok(s) {
+    s = String(s || '').toUpperCase();
+    s = s.normalize ? s.normalize('NFD').replace(/[̀-ͯ]/g, '') : s;
+    s = s.replace(/['’`]/g, '');   // apostrofi (dritto+tipografico) UNITI: D'Elia→DELIA
+    return s.replace(/\./g, ' ').replace(/\s+/g, ' ').trim();
+  }
+  function _teacherKey(str) {                 // "Cognome I." → {surname, initial}
+    const toks = _normTok(str).split(' ').filter(Boolean);
+    const surn = [], inits = [];
+    toks.forEach(t => { (t.length === 1 ? inits : surn).push(t); });
+    return { surname: surn.slice().sort().join(' '), initial: inits.length ? inits[0] : '' };
+  }
+  function _extKey(cognome, nome) {           // {cognome, nome} → {surname, initial}
+    const surn = _normTok(cognome).split(' ').filter(Boolean).sort().join(' ');
+    const nm = _normTok(nome).split(' ').filter(Boolean);
+    return { surname: surn, initial: nm.length ? nm[0][0] : '' };
+  }
+  // Impegni FUORI dipartimento del/i docente/i del corso trascinato, nel giorno `day`.
+  function _externalBusyIntervals(session, day) {
+    const list = data.impegniEsterni || [];
+    if (!list.length) return [];
+    const tks = teachersOfSess(session).map(_teacherKey);
+    if (!tks.length) return [];
+    const out = [];
+    list.forEach(e => {
+      if (e.day !== day) return;
+      const ek = _extKey(e.cognome, e.nome);
+      if (tks.some(tk => tk.surname === ek.surname && (!tk.initial || !ek.initial || tk.initial === ek.initial))) out.push(e);
+    });
+    return out;
+  }
+  // Colonna "Ora": durante il drag, ogni fascia in conflitto col docente trascinato si
+  // colora a due metà — SINISTRA rossa = collisione A FISICA (interna), DESTRA viola =
+  // impegno FUORI dipartimento. Statico per il giorno corrente.
   function _dragShowTeacherBusy(session) {
     const grid = document.getElementById('slotGrid'); if (!grid) return;
     _dragClearTeacherBusy();
-    const busy = _teacherBusySessions(session, data.sessions || [], currentSlotDay);
     const ticks = grid.querySelector('.slot-time-col .slot-ticks');
-    if (ticks) busy.forEach(o => {
+    const busy = _teacherBusySessions(session, data.sessions || [], currentSlotDay);
+    const ext = _externalBusyIntervals(session, currentSlotDay);
+    const drawBand = (o, cls, title) => {
+      if (!ticks) return;
+      const s = Math.max(o.start, slotStart), e = Math.min(o.end, slotEnd);
+      if (e <= s) return;   // impegno fuori dalla finestra dell'orario → niente lineetta
       const band = document.createElement('div');
-      band.className = 'slot-busy-band';
-      band.style.top = ((o.start - slotStart) / data.slotStepMin * SLOT_H) + 'px';
-      band.style.height = ((o.end - o.start) / data.slotStepMin * SLOT_H) + 'px';
-      band.title = 'Docente occupato (' + esc(o.code) + ' ' + fmt(o.start) + '-' + fmt(o.end) + ')';
+      band.className = 'slot-busy-band ' + cls;
+      band.style.top = ((s - slotStart) / data.slotStepMin * SLOT_H) + 'px';
+      band.style.height = ((e - s) / data.slotStepMin * SLOT_H) + 'px';
+      band.title = title;
       ticks.insertBefore(band, ticks.firstChild);  // dietro alle etichette ora
-    });
-    // Cerchia (stile "selezionato") i blocchi SORGENTE della collisione docente.
+    };
+    busy.forEach(o => drawBand(o, 'fis', 'A Fisica: ' + esc(o.code) + ' ' + fmt(o.start) + '-' + fmt(o.end)));
+    ext.forEach(e => drawBand(e, 'ext', 'Fuori dip.: ' + esc(e.corso || '') + (e.aula ? ' @ ' + esc(e.aula) : '') + ' ' + fmt(e.start) + '-' + fmt(e.end)));
+    const lg = document.getElementById('slotDragLegend');   // legenda: compare quando rilevante
+    if (lg) lg.hidden = !(busy.length || ext.length);
+    // Cerchia (stile "selezionato") i blocchi SORGENTE della collisione interna.
     const srcSigs = {};
     busy.forEach(o => { if (o.src) srcSigs[sigOf(o.src)] = 1; });
     grid.querySelectorAll('.slot-room-track .sblock').forEach(b => {
@@ -3458,6 +3517,8 @@ var _editActive = !!EDIT_MODE;
     const grid = document.getElementById('slotGrid'); if (!grid) return;
     grid.querySelectorAll('.slot-busy-band').forEach(b => b.remove());
     grid.querySelectorAll('.sblock.sblock-teacher-src').forEach(b => b.classList.remove('sblock-teacher-src'));
+    const lg = document.getElementById('slotDragLegend');
+    if (lg) lg.hidden = true;
   }
   // (2) Overlay CO-ESAME su TUTTI gli slot in collisione co-esame col corso
   //     trascinato (stesso livello, codice diverso, tipo OBB/FOR in qualche PdS) —

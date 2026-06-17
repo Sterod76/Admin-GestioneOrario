@@ -210,10 +210,13 @@ tab Collisioni, passando sopra la cella costo.)*
 
 > **Guida durante il drag (solo editor).** Mentre **trascini** uno slot, due aiuti
 > visivi compaiono e spariscono al rilascio:
-> - sulla colonna **«Ora»** (a sinistra) si colorano di **rosso** gli orari in cui
->   il/i **docente/i** del corso trascinato sono già impegnati (collisione docente):
->   così vedi subito **dove conviene non spostarlo**; gli **insegnamenti sorgente**
->   di quella collisione (gli altri slot dello stesso docente) vengono inoltre
+> - sul **bordo sinistro** della colonna **«Ora»** compaiono, nelle fasce in cui il/i
+>   **docente/i** del corso trascinato sono già impegnati, due sottili **lineette
+>   verticali**: una **rossa** all'estremo sinistro = collisione **a Fisica** (impegno
+>   interno), e — poco a destra — una **viola** = impegno di **servizio / fuori
+>   dipartimento** (dal foglio `ImpegniEsterni`, vedi sotto). Una **legenda** appare a
+>   destra dei giorni quando ci sono collisioni. Gli **insegnamenti sorgente** della
+>   collisione *a Fisica* (gli altri slot dello stesso docente) vengono inoltre
 >   **cerchiati in rosso** (come se fossero selezionati);
 > - su **tutti** gli slot in **collisione co-esame** col corso trascinato (stesso
 >   livello) compare, **al centro**, un **pallino** (⌀ = altezza della mezzora) e,
@@ -246,6 +249,15 @@ tab Collisioni, passando sopra la cella costo.)*
 >   **reinserisci** uno slot dal **parcheggio** trascinandolo nella griglia Slot: in quel
 >   caso il differenziale è calcolato rispetto alla **posizione che lo slot aveva prima**
 >   del parcheggio.
+
+> **Impegni FUORI dipartimento (di servizio).** Le lineette **viola** vengono dal foglio
+> **`ImpegniEsterni`** del gsheet-orario (header `Cognome · Nome · Matricola · Giorno ·
+> Inizio · Fine · Corso · Aula`), che elenca quando ogni docente insegna in altri
+> dipartimenti. I dati si ottengono da **University Planner** con i tool in `impegni/`
+> (vedi `impegni/README.md`) e si incollano nel foglio; la voce di menu
+> **🛠️ Gestione tabelle → 🌐 Prepara foglio Impegni Esterni** crea/formatta il foglio.
+> Poi **Carica / Pubblica** nel Web Calendar per caricarli. Il match docente è per
+> **cognome + iniziale**.
 
 ![Slot — guida durante il drag (orari docente occupato + corsi in collisione)](docs/img/14-slot-drag.png)
 

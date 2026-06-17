@@ -19,6 +19,9 @@ TZ = ZoneInfo('Europe/Rome')
 WD = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom']
 BASE = 'https://unipi.prod.up.cineca.it/api'
 CID = '628de8b9b63679f193b87046'
+AA_DEFAULT = 2025   # ANNO ACCADEMICO di indagine (S1=ott AA, S2=apr AA+1). Override: --aa
+# Header del CSV = quelli attesi dal foglio "ImpegniEsterni" e dal reader della web app.
+HEADERS = ['Cognome', 'Nome', 'Matricola', 'Giorno', 'Inizio', 'Fine', 'Corso', 'Aula']
 
 
 def post_impegni(mat, frm, to):
@@ -69,7 +72,7 @@ def esterni(mat, y, m):
 
 def main():
     import openpyxl
-    aa = 2025
+    aa = AA_DEFAULT
     for i, a in enumerate(sys.argv):
         if a == '--aa' and i + 1 < len(sys.argv):
             aa = int(sys.argv[i + 1])
@@ -107,7 +110,7 @@ def main():
         out = os.path.join(HERE, f'impegni_esterni_{sem}.csv')
         with open(out, 'w', newline='', encoding='utf-8') as f:
             w = csv.writer(f)
-            w.writerow(['cognome', 'nome', 'matricola', 'weekday', 'start_time', 'end_time', 'course', 'aula'])
+            w.writerow(HEADERS)
             w.writerows(rows)
         ndoc = len({r[2] for r in rows})
         print(f'OUTPUT {out}: {len(rows)} impegni, {ndoc} docenti con impegni esterni')
