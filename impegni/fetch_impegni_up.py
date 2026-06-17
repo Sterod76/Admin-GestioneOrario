@@ -52,8 +52,16 @@ def _get_nome(mat):
         return {}
 
 
+def _aule(e):
+    # Aule dell'evento: di norma in e['aule']; fallback su risorse[].aula se vuoto.
+    aule = e.get('aule') or []
+    if not aule:
+        aule = [r.get('aula') for r in (e.get('risorse') or []) if r.get('aula')]
+    return aule
+
+
 def _is_fisica(e):
-    for a in (e.get('aule') or []):
+    for a in _aule(e):
         c = str(a.get('codice') or '').upper()
         d = str(a.get('descrizione') or '').upper()
         if c.startswith('FIB') or c.startswith('FIS') or d.startswith('FIB') or d.startswith('FIS'):
@@ -85,9 +93,9 @@ def impegni_esterni(mat, year, month):
         df = datetime.fromisoformat(e['dataFine'].replace('Z', '+00:00')).astimezone(TZ)
         if di.weekday() > 4:    # solo Lun-Ven
             continue
-        aula = (e.get('aule') or [{}])[0]
+        aula = (_aule(e) or [{}])[0]
         out.add((WD[di.weekday()], di.strftime('%H:%M'), df.strftime('%H:%M'),
-                 str(e.get('codiceAttivita') or e.get('nome') or '').strip(),
+                 str(e.get('nome') or e.get('codiceAttivita') or '').strip(),  # NOME corso (codiceAttivita = indice)
                  str(aula.get('codice') or aula.get('descrizione') or '').strip()))
     return sorted(out, key=lambda x: (WD.index(x[0]), x[1]))
 

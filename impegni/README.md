@@ -52,9 +52,10 @@ stessi attesi dalla Tabella `SERVIZIO` e dal reader della web app; il reader acc
 comunque anche gli alias inglesi `weekday/start_time/end_time/course`). L'AA d'indagine
 è `AA_DEFAULT` (=2025) in `build_from_coperture.py`, override con `--aa`.
 
-> Il campo `course` per gli eventi esterni a volte è solo un indice di partizione
-> (es. `"1"`): UP non sempre mette un codice corso vero. L'informazione utile
-> (docente · giorno · orario · aula) è sempre corretta.
+> La colonna `Corso` usa il **nome** dell'attività UP (`nome`, es. "TECNOLOGIE DIGITALI"):
+> il campo `codiceAttivita` NON è un codice corso ma un indice di partizione (spesso `"1"`),
+> quindi non va usato. L'aula viene da `aule[]` (fallback su `risorse[].aula`). L'informazione
+> utile (docente · giorno · orario · aula) è sempre corretta.
 
 ## File NON versionati (dati, restano locali)
 

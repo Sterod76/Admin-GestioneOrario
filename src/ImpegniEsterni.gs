@@ -87,8 +87,18 @@ function upGetUtente_(mat) {
   } catch (e) { return null; }
 }
 
+// Aule di un evento UP: di norma in e.aule (array di aule complete); fallback su
+// risorse[].aula se e.aule è vuoto. Ritorna un array di oggetti aula.
+function _eventAule_(e) {
+  let aule = (e && e.aule) || [];
+  if (!aule.length && e && Array.isArray(e.risorse)) {
+    aule = e.risorse.map(function (r) { return r && r.aula; }).filter(Boolean);
+  }
+  return aule;
+}
+
 function isFisicaEvent_(e) {
-  const aule = (e && e.aule) || [];
+  const aule = _eventAule_(e);
   for (let i = 0; i < aule.length; i++) {
     const a = aule[i] || {};
     const c = String(a.codice || '').toUpperCase(), d = String(a.descrizione || '').toUpperCase();
@@ -98,9 +108,9 @@ function isFisicaEvent_(e) {
   return false;
 }
 
-function _meseWindowISO_(year, monthIdx0) {  // finestra = mese intero (UTC), monthIdx0 0-based
-  const start = new Date(Date.UTC(year, monthIdx0, 1, 0, 0, 0));
-  const end = new Date(Date.UTC(monthIdx0 === 11 ? year + 1 : year, (monthIdx0 + 1) % 12, 1, 0, 0, 0));
+function _meseWindowISO_(year, monthIdx0) {  // mese intero, mezzanotte ORA LOCALE (TZ script = Europe/Rome)
+  const start = new Date(year, monthIdx0, 1, 0, 0, 0, 0);       // 1° del mese 00:00 (Roma)
+  const end = new Date(year, monthIdx0 + 1, 1, 0, 0, 0, 0);     // 1° del mese successivo (gestisce dic→gen)
   return { from: start.toISOString(), to: end.toISOString() };
 }
 
@@ -169,11 +179,11 @@ function recuperaImpegniEsterniDaUP() {
         if (!(di < df)) return;
         const dow = parseInt(Utilities.formatDate(di, 'Europe/Rome', 'u'), 10); // 1=Lun..7=Dom
         if (dow < 1 || dow > 5) return;
-        const aula = (e.aule || [{}])[0] || {};
+        const aula = _eventAule_(e)[0] || {};
         const row = [info[mat].cog, info[mat].nom, mat, DOW[dow - 1],
           Utilities.formatDate(di, 'Europe/Rome', 'HH:mm'),
           Utilities.formatDate(df, 'Europe/Rome', 'HH:mm'),
-          String(e.codiceAttivita || e.nome || '').trim(),
+          String(e.nome || e.codiceAttivita || '').trim(),     // NOME corso (codiceAttivita è solo un indice, es. "1")
           String(aula.codice || aula.descrizione || '').trim()];
         const k = row.join('|');
         if (!seen[k]) { seen[k] = 1; rows.push(row); added++; }
