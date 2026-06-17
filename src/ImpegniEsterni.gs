@@ -236,3 +236,25 @@ function recuperaImpegniEsterniDaUP() {
     (tableErr ? '\n\n⚠️ Tabella nativa non creata: ' + tableErr : '') + '.\n\n' +
     'Ora fai "Carica / Pubblica" nel Web Calendar per applicarli.', ui.ButtonSet.OK);
 }
+
+// Lancia QUESTA dall'editor Apps Script (▷ Esegui) per FORZARE la schermata di consenso e
+// concedere i permessi nuovi: "Connettersi a un servizio esterno" (UrlFetchApp) e
+// "Visualizzare/gestire i tuoi Fogli" (servizio Sheets avanzato per le Tabelle native).
+// Il consenso compare PRIMA che la funzione parta. Niente getUi → gira pulita dall'editor;
+// l'esito è nel Log (menu "Esecuzioni"/"Log") e in un toast se il foglio è aperto.
+function forzaAutorizzazione() {
+  const out = [];
+  try {
+    const r = UrlFetchApp.fetch(UP_BASE_ + '/AnniAccademici/getAnniAccademiciPublic', { muteHttpExceptions: true });
+    out.push('richieste esterne (UrlFetchApp): HTTP ' + r.getResponseCode());
+  } catch (e) { out.push('richieste esterne: ' + e); }
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (ss) { Sheets.Spreadsheets.get(ss.getId()); out.push('servizio Sheets avanzato (spreadsheets): OK'); }
+    else { out.push('servizio Sheets avanzato: nessuno spreadsheet attivo'); }
+  } catch (e) { out.push('servizio Sheets avanzato: ' + e); }
+  const msg = 'Autorizzazione completata.\n- ' + out.join('\n- ');
+  Logger.log(msg);
+  try { SpreadsheetApp.getActiveSpreadsheet().toast('Autorizzazione completata (vedi Log).', 'Orario', 6); } catch (e) {}
+  return msg;
+}
