@@ -897,8 +897,9 @@
   .sblock .s-resize.bottom { bottom: 0; }
   .sblock.editable:hover .s-resize { background: rgba(234,134,0,0.35); }
   .sblock .sblock-code { font-weight: 700; }
-  /* Warning capienza aula superata (>80%): solo il triangolo ⚠ (no bordo), grande, in basso a destra */
-  .sblock .sblock-warn { position: absolute; bottom: 0; right: 2px; font-size: 17.6px; line-height: 1; color: #d93025; pointer-events: none; }
+  /* Warning capienza aula superata (>80%): solo il triangolo ⚠ (no bordo), grande, in basso a
+     destra, con spaziatura di rispetto dal bordo pari allo spessore della banda colorata (3px) */
+  .sblock .sblock-warn { position: absolute; bottom: 3px; right: 3px; font-size: 17.6px; line-height: 1; color: #d93025; pointer-events: none; }
   /* Zone NON DISPONIBILE nel tab Slot (read-only, non draggabili) */
   .sblock.sblock-unavail {
     background: #cccccc !important; color: #fff; font-weight: 700; font-style: italic;
