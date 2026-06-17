@@ -148,11 +148,14 @@ function recuperaImpegniEsterniDaUP() {
   try { sem = String(detectAuleConfigFor_(ss).prefix || 'S1').toUpperCase(); } catch (e) {}
   const win = (sem.indexOf('S2') === 0) ? _meseWindowISO_(aa + 1, 3) : _meseWindowISO_(aa, 9);
 
-  // 3) fetch + filtra fuori-Fisica per ogni matricola
+  // 3) avviso n° matricole, poi scansione per docente (un toast per docente: nome + n° slot)
+  ss.toast('Trovate ' + mats.length + ' matricole uniche (colonna C). Avvio scansione su UP…', 'SERVIZIO', 6);
   const DOW = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven'];
   const seen = {}, rows = [];
-  let errors = 0;
+  let errors = 0, scanned = 0;
   mats.forEach(mat => {
+    scanned++;
+    let added = 0, err = false;
     try {
       if (!info[mat].cog) {  // incollate solo le matricole → recupera Cognome/Nome da UP
         const u = upGetUtente_(mat);
@@ -173,11 +176,24 @@ function recuperaImpegniEsterniDaUP() {
           String(e.codiceAttivita || e.nome || '').trim(),
           String(aula.codice || aula.descrizione || '').trim()];
         const k = row.join('|');
-        if (!seen[k]) { seen[k] = 1; rows.push(row); }
+        if (!seen[k]) { seen[k] = 1; rows.push(row); added++; }
       });
       Utilities.sleep(150);
-    } catch (err) { errors++; }
+    } catch (e2) { errors++; err = true; }
+    const who = String((info[mat].cog || '') + ' ' + (info[mat].nom || '')).trim() || ('matr. ' + mat);
+    ss.toast(who + ' — ' + (err ? 'ERRORE UP' : (added + ' slot')), 'SERVIZIO ' + scanned + '/' + mats.length, 4);
   });
+
+  // Se NON è stato trovato nulla, NON tocco il foglio (così non perdo le matricole incollate):
+  // tipicamente è autorizzazione/rete o AA sbagliato. Era questa la causa del "cancella tutto".
+  if (!rows.length) {
+    ui.alert('SERVIZIO',
+      'Nessun impegno di servizio trovato per le ' + mats.length + ' matricole' +
+      (errors ? ' — ' + errors + ' errori da UP (verifica connessione e, al PRIMO uso del menu, la ri-autorizzazione)'
+              : ' (controlla l\'anno accademico inserito: ' + aa + '/' + (aa + 1) + ')') +
+      '.\n\nLa tabella NON è stata modificata.', ui.ButtonSet.OK);
+    return;
+  }
 
   // ordina per cognome, giorno, ora
   const ord = { Lun: 0, Mar: 1, Mer: 2, Gio: 3, Ven: 4 };
