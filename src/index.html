@@ -744,9 +744,10 @@
     display: flex; flex-direction: column; border-right: 1px solid var(--border);
   }
   /* Colonna ora: sticky a sinistra → resta visibile durante lo scroll orizzontale.
-     Larghezza ridotta al ~60% (56→34px); tick compatti per restare leggibili. */
+     Allargata a 48px per ospitare a sinistra la lineetta di collisione (6px) senza
+     toccare le etichette ora (allineate a destra). */
   .slot-time-col {
-    width: 34px; background: #fafafa; flex-shrink: 0;
+    width: 48px; background: #fafafa; flex-shrink: 0;
     position: sticky; left: 0; z-index: 3;
   }
   .slot-room-col { width: 78px; flex-shrink: 0; transition: width 0.12s; }
@@ -817,12 +818,14 @@
      bianco trasparente con un pallino (tipo vincolo: OBB-OBB rosso / OBB-FOR
      rosso-giallo / FOR-FOR giallo, colori header matrice co-esami) e il numero N
      di co-esami (matrice). */
-  /* Collisione docente sulla colonna "Ora": due LINEETTE verticali sul bordo sinistro,
-     larghe come la banda colore degli slot (~3px). ROSSA all'estremo sx = collisione a
-     Fisica (interna); poco a dx (piccolo gap) VIOLA = impegno di servizio (fuori dip.). */
-  .slot-busy-band { position: absolute; pointer-events: none; z-index: 1; width: 3px; border-radius: 1px; }
-  .slot-busy-band.fis { left: 0; background: rgba(217,48,37,.92); }
-  .slot-busy-band.ext { left: 5px; background: rgba(138,43,226,.92); }
+  /* Collisione docente: LINEETTA verticale nella colonna "Ora" (allargata apposta), a
+     SINISTRA delle etichette, sempre alla STESSA X — i due tipi si distinguono dal COLORE.
+     ROSSA = collisione a Fisica (interna); VIOLA = impegno di servizio (fuori dip.).
+     Stesso orario fisica+servizio (raro) → tratteggio metà rosso/metà viola (classe .both). */
+  .slot-busy-band { position: absolute; left: 3px; pointer-events: none; z-index: 1; width: 6px; border-radius: 1px; }
+  .slot-busy-band.fis { background: rgba(217,48,37,.92); }
+  .slot-busy-band.ext { background: rgba(138,43,226,.92); }
+  .slot-busy-band.both { background: repeating-linear-gradient(to bottom, rgba(217,48,37,.92) 0 6px, rgba(138,43,226,.92) 6px 12px); }
   /* Legenda delle lineette (compare durante il drag, a destra di SAB). */
   .slot-drag-legend { display: inline-flex; align-items: center; gap: 12px; margin-left: 12px; font-size: 11px; color: #555; white-space: nowrap; }
   .slot-drag-legend[hidden] { display: none; }
@@ -3489,19 +3492,28 @@ var _editActive = !!EDIT_MODE;
     const ticks = grid.querySelector('.slot-time-col .slot-ticks');
     const busy = _teacherBusySessions(session, data.sessions || [], currentSlotDay);
     const ext = _externalBusyIntervals(session, currentSlotDay);
-    const drawBand = (o, cls, title) => {
-      if (!ticks) return;
-      const s = Math.max(o.start, slotStart), e = Math.min(o.end, slotEnd);
-      if (e <= s) return;   // impegno fuori dalla finestra dell'orario → niente lineetta
-      const band = document.createElement('div');
-      band.className = 'slot-busy-band ' + cls;
-      band.style.top = ((s - slotStart) / data.slotStepMin * SLOT_H) + 'px';
-      band.style.height = ((e - s) / data.slotStepMin * SLOT_H) + 'px';
-      band.title = title;
-      ticks.insertBefore(band, ticks.firstChild);  // dietro alle etichette ora
-    };
-    busy.forEach(o => drawBand(o, 'fis', 'A Fisica: ' + esc(o.code) + ' ' + fmt(o.start) + '-' + fmt(o.end)));
-    ext.forEach(e => drawBand(e, 'ext', 'Fuori dip.: ' + esc(e.corso || '') + (e.aula ? ' @ ' + esc(e.aula) : '') + ' ' + fmt(e.start) + '-' + fmt(e.end)));
+    if (ticks) {
+      // Clamp alla finestra orario, poi separa: solo-Fisica, solo-servizio, ENTRAMBI.
+      // I due tipi stanno alla STESSA X (si distinguono dal colore): se un intervallo
+      // Fisica e uno di servizio coincidono nell'orario, quella porzione diventa .both.
+      const clamp = list => (list || []).map(o => ({ start: Math.max(o.start, slotStart), end: Math.min(o.end, slotEnd) })).filter(x => x.end > x.start);
+      const fisI = clamp(busy), extI = clamp(ext);
+      const inter = (A, B) => { const r = []; A.forEach(a => B.forEach(b => { const s = Math.max(a.start, b.start), e = Math.min(a.end, b.end); if (e > s) r.push({ start: s, end: e }); })); return r; };
+      const minus = (A, B) => { const r = []; A.forEach(a => { let segs = [{ start: a.start, end: a.end }]; B.forEach(b => { segs = segs.flatMap(g => { if (b.end <= g.start || b.start >= g.end) return [g]; const o = []; if (b.start > g.start) o.push({ start: g.start, end: Math.min(b.start, g.end) }); if (b.end < g.end) o.push({ start: Math.max(b.end, g.start), end: g.end }); return o; }); }); segs.forEach(g => { if (g.end > g.start) r.push(g); }); }); return r; };
+      const drawSeg = (seg, cls, title) => {
+        const band = document.createElement('div');
+        band.className = 'slot-busy-band ' + cls;
+        band.style.top = ((seg.start - slotStart) / data.slotStepMin * SLOT_H) + 'px';
+        band.style.height = ((seg.end - seg.start) / data.slotStepMin * SLOT_H) + 'px';
+        band.title = title;
+        ticks.insertBefore(band, ticks.firstChild);  // dietro alle etichette ora
+      };
+      const fisTitle = seg => { const o = busy.find(b => b.start < seg.end && b.end > seg.start); return o ? ('A Fisica: ' + esc(o.code) + ' ' + fmt(o.start) + '-' + fmt(o.end)) : 'Collisione a Fisica'; };
+      const extTitle = seg => { const e = ext.find(x => x.start < seg.end && x.end > seg.start); return e ? ('Fuori dip.: ' + esc(e.corso || '') + (e.aula ? ' @ ' + esc(e.aula) : '') + ' ' + fmt(e.start) + '-' + fmt(e.end)) : 'Collisione di servizio'; };
+      minus(fisI, extI).forEach(g => drawSeg(g, 'fis', fisTitle(g)));
+      minus(extI, fisI).forEach(g => drawSeg(g, 'ext', extTitle(g)));
+      inter(fisI, extI).forEach(g => drawSeg(g, 'both', fisTitle(g) + ' + ' + extTitle(g)));
+    }
     const lg = document.getElementById('slotDragLegend');   // legenda: compare quando rilevante
     if (lg) lg.hidden = !(busy.length || ext.length);
     // Cerchia (stile "selezionato") i blocchi SORGENTE della collisione interna.
