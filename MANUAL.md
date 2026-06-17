@@ -210,14 +210,15 @@ tab Collisioni, passando sopra la cella costo.)*
 
 > **Guida durante il drag (solo editor).** Mentre **trascini** uno slot, due aiuti
 > visivi compaiono e spariscono al rilascio:
-> - sul **bordo sinistro** della colonna **«Ora»** compaiono, nelle fasce in cui il/i
->   **docente/i** del corso trascinato sono già impegnati, due sottili **lineette
->   verticali**: una **rossa** all'estremo sinistro = collisione **a Fisica** (impegno
->   interno), e — poco a destra — una **viola** = impegno di **servizio / fuori
->   dipartimento** (dalla tabella `SERVIZIO`, vedi sotto). Una **legenda** appare a
->   destra dei giorni quando ci sono collisioni. Gli **insegnamenti sorgente** della
->   collisione *a Fisica* (gli altri slot dello stesso docente) vengono inoltre
->   **cerchiati in rosso** (come se fossero selezionati);
+> - nella colonna **«Ora»** (allargata apposta), a sinistra delle etichette, compaiono
+>   nelle fasce in cui il/i **docente/i** del corso trascinato sono già impegnati delle
+>   **lineette verticali** sempre alla **stessa posizione X**, distinte dal **colore**:
+>   **rossa** = collisione **a Fisica** (impegno interno), **viola** = impegno di
+>   **servizio / fuori dipartimento** (dalla tabella `SERVIZIO`, vedi sotto). Nel caso
+>   raro in cui una fascia abbia **entrambe** (stesso orario), la lineetta è **tratteggiata
+>   metà rossa / metà viola**. Una **legenda** appare a destra dei giorni quando ci sono
+>   collisioni. Gli **insegnamenti sorgente** della collisione *a Fisica* (gli altri slot
+>   dello stesso docente) vengono inoltre **cerchiati in rosso** (come se fossero selezionati);
 > - su **tutti** gli slot in **collisione co-esame** col corso trascinato (stesso
 >   livello) compare, **al centro**, un **pallino** (⌀ = altezza della mezzora) e,
 >   **subito di fianco**, il **numero** di co-esami (il valore `N` della matrice). Il
