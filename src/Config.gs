@@ -60,7 +60,8 @@ function sheetCdsSuffix(sheetName) {
 //  1) ogni parola in Title Case (1ª lettera maiuscola, resto minuscolo);
 //  2) separatore fra docenti = " / ";
 //  3) spazi normalizzati (singolo spazio fra parole, niente spazi spurî);
-//  4) una lettera singola → iniziale puntata ("M" → "M.").
+//  4) una lettera singola → iniziale puntata ("M" → "M."); iniziali multiple
+//     unite restano maiuscole ("N.m." → "N.M.").
 // Dedup case-insensitive, ordine preservato (1° = titolare).
 function normalizeDocenti_(raw) {
   if (raw === null || raw === undefined) return '';
@@ -71,8 +72,9 @@ function normalizeDocenti_(raw) {
     if (!words.length) continue;
     const name = words.map(function (w) {
       let c = w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
-      // maiuscola anche dopo l'apostrofo (dritto o tipografico): d'elia → D'Elia
-      c = c.replace(/(['’])([a-zà-ÿ])/g, function (m, ap, ch) { return ap + ch.toUpperCase(); });
+      // maiuscola dopo apostrofo (dritto/tipografico) e dopo il punto:
+      // d'elia → D'Elia ; iniziali multiple unite "N.m." → "N.M."
+      c = c.replace(/([.'’])([a-zà-ÿ])/g, function (m, sep, ch) { return sep + ch.toUpperCase(); });
       if (/^[A-Za-zÀ-ÿ]$/.test(w)) c += '.'; // lettera singola → iniziale "X."
       return c;
     }).join(' ');

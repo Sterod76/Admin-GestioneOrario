@@ -43,6 +43,10 @@ check('Norm: dedup case-insensitive', normalizeDocenti_('Rossi / ROSSI') === 'Ro
 check('Norm: maiuscola dopo apostrofo ("d\'elia" → "D\'Elia")', normalizeDocenti_("d'elia") === "D'Elia");
 check('Norm: apostrofo + iniziale ("d\'angelo m" → "D\'Angelo M.")', normalizeDocenti_("d'angelo m") === "D'Angelo M.");
 check('Norm: apostrofo da maiuscole ("DELL\'ORTO" → "Dell\'Orto")', normalizeDocenti_("DELL'ORTO") === "Dell'Orto");
+check('Norm: iniziali unite ("Rossi N.M." → "Rossi N.M.")', normalizeDocenti_('Rossi N.M.') === 'Rossi N.M.');
+check('Norm: iniziali unite da minuscole ("rossi n.m." → "Rossi N.M.")', normalizeDocenti_('rossi n.m.') === 'Rossi N.M.');
+check('Norm: tre iniziali unite ("verdi g.m.l." → "Verdi G.M.L.")', normalizeDocenti_('verdi g.m.l.') === 'Verdi G.M.L.');
+check('Norm: iniziali spaziate invariate ("Rossi N. M." → "Rossi N. M.")', normalizeDocenti_('Rossi N. M.') === 'Rossi N. M.');
 check('Norm: vuoto → ""', normalizeDocenti_('') === '' && normalizeDocenti_(null) === '');
 
 console.log('\nRISULTATO: ' + pass + ' pass, ' + fail + ' fail');
