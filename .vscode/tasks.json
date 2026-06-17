@@ -2,6 +2,29 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "Verifica (sintassi + sim)",
+      "type": "shell",
+      "command": "npm run verify",
+      "group": { "kind": "test", "isDefault": true },
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Verifica + Deploy",
+      "type": "shell",
+      "command": "npm run verify && npm run deploy",
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Git: commit (messaggio)",
+      "type": "shell",
+      "command": "git add -A && git commit -m \"${input:commitMsg}\"",
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
       "label": "Push (clasp)",
       "type": "shell",
       "command": "npm run push",
@@ -73,6 +96,13 @@
       "command": "npm run logout",
       "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
       "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "commitMsg",
+      "type": "promptString",
+      "description": "Messaggio di commit (git add -A + commit)"
     }
   ]
 }

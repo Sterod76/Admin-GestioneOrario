@@ -556,6 +556,17 @@ Due comandi, **non** equivalenti:
   deployment** → la URL `/exec` (quella che usano gli utenti) serve il codice nuovo.
   **Usa sempre questo** dopo una modifica.
 
+**Da VS Code (senza scrivere comandi).** *Terminale → Esegui attività…* (oppure
+`Ctrl+Shift+P` → *Tasks: Run Task*) mostra le attività di `.vscode/tasks.json`. Le principali
+per lavorare in autonomia:
+
+- **Verifica (sintassi + sim)** — `npm run verify`: controlla la sintassi del client (gli
+  `<script>` di `index.html`), di tutti i `.gs`, e lancia tutte le sim. Esce con errore se
+  qualcosa non va. È anche la *Run Test Task* di default.
+- **Verifica + Deploy** — esegue la verifica e, **solo se passa**, fa `npm run deploy` sui
+  target. (È il modo consigliato per deployare da soli.)
+- **Git: commit (messaggio)** — chiede un messaggio, poi `git add -A` + `git commit`.
+
 I target sono in `config/local.json` (3 installazioni, ognuna con `scriptId` +
 `deploymentId` + `webappUrl`). Per aggiornare la web app pubblica serve un
 `deploymentId` valorizzato (altrimenti il target resta "push-only").
