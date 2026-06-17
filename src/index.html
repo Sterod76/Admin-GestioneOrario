@@ -437,6 +437,7 @@
   .cl-cost.cl-cost-zero { background: transparent; border: 1px solid #eee; color: #999; }
   .cl-cost.cl-cost-na { background: transparent; border: 1px dashed #ddd; color: #999; font-style: italic; }
   .cl-cost.cl-cost-warn { background: #fce8e6; border-color: #f5b5b2; color: #a50e0e; font-weight: 700; }
+  .cl-cost.cl-cost-svc { background: #f3e8fd; border-color: #d9b3f5; color: #6a1b9a; font-weight: 700; }
   /* Costo STIMATO da esami/anno (coppia n/d): ambra tratteggiata */
   .cl-cost.cl-cost-est { background: #fff8e1; border: 1px dashed #ffb300; }
   .cl-cost.cl-cost-est .cl-cost-val { color: #b35900; font-weight: 700; }
@@ -2017,6 +2018,15 @@ var _editActive = !!EDIT_MODE;
     selectedSig = (selectedSig === sig) ? null : sig;
     applySelectionHighlight();
     renderSelectionPanel();
+    _showSelectionCollisions();
+  }
+  // Per lo slot SELEZIONATO mostra le stesse evidenziazioni del drag (lineette
+  // docente/servizio nella colonna "Ora" + insegnamenti sorgente cerchiati). Niente
+  // selezione, o slot su un altro giorno → pulisce.
+  function _showSelectionCollisions() {
+    const sel = selectedSig ? (data.sessions || []).find(x => x.src && sigOf(x.src) === selectedSig) : null;
+    if (sel && sel.day === currentSlotDay) _dragShowTeacherBusy(sel);
+    else _dragClearTeacherBusy();
   }
   function applySelectionHighlight() {
     slotEls.forEach(el => {
@@ -2846,6 +2856,14 @@ var _editActive = !!EDIT_MODE;
         '<span class="cl-time">' + fmt(s.start) + '-' + fmt(s.end) + '</span>' +
       '</span>';
     }
+    // Chip per un impegno di SERVIZIO (fuori dip.): accento viola, corso/aula/orario.
+    function svcChip(e) {
+      return '<span class="cl-chip" style="border-left:3px solid #8a2be2">' +
+        '<span class="cl-code" style="color:#8a2be2">' + esc(e.corso || 'servizio') + '</span>' +
+        (e.aula ? '<span class="cl-room">' + esc(e.aula) + '</span>' : '') +
+        '<span class="cl-time">' + fmt(e.start) + '-' + fmt(e.end) + '</span>' +
+      '</span>';
+    }
     const byTeacher = {};
     sessions.forEach(s => {
       teachersOf(s).forEach(t => { (byTeacher[t] = byTeacher[t] || []).push(s); });
@@ -2873,9 +2891,39 @@ var _editActive = !!EDIT_MODE;
         html += '<div class="cl-teacher">👤 ' + esc(t) + '</div><ul class="cl-list">' + items.join('') + '</ul>';
       }
     });
-    box.innerHTML = '<div class="cl-section"><h3 class="cl-doc-h">Docenti — collisioni d\'orario ' +
-      '<span class="cl-count">(stesso docente in due slot sovrapposti)</span></h3>' +
-      (any ? html : '<div class="cl-none">— nessun conflitto docente —</div>') + '</div>';
+    // ── Sezione SERVIZIO: corso interno sovrapposto a un impegno fuori dipartimento ──
+    const extList = data.impegniEsterni || [];
+    let svcHtml = '', svcAny = false;
+    if (extList.length) Object.keys(byTeacher).sort().forEach(t => {
+      const tk = _teacherKey(t);
+      const myExt = extList.filter(e => { const ek = _extKey(e.cognome, e.nome); return tk.surname === ek.surname && (!tk.initial || !ek.initial || tk.initial === ek.initial); });
+      if (!myExt.length) return;
+      const seen = {}; const items = [];
+      byTeacher[t].forEach(s => {
+        myExt.forEach(e => {
+          if (e.day !== s.day) return;
+          const ovS = Math.max(s.start, e.start), ovE = Math.min(s.end, e.end);
+          if (ovE <= ovS) return;     // nessuna sovrapposizione temporale
+          const key = s.day + '|' + ovS + '|' + ovE + '|' + (s.code || '').toUpperCase() + '|' + (e.corso || '') + '|' + (e.aula || '');
+          if (seen[key]) return; seen[key] = 1;
+          items.push('<li><span class="cl-day">' + dayLabel[s.day] + ' ' + fmt(ovS) + '-' + fmt(ovE) + '</span>' +
+            '<span class="cl-cost cl-cost-svc">⚠ servizio</span>' +
+            chip(s) + '<span class="cl-x">✕</span>' + svcChip(e) + '</li>');
+        });
+      });
+      if (items.length) { svcAny = true; svcHtml += '<div class="cl-teacher">👤 ' + esc(t) + '</div><ul class="cl-list">' + items.join('') + '</ul>'; }
+    });
+    const svcBody = !extList.length
+      ? '<div class="cl-none">— tabella SERVIZIO non caricata (menu Orario → Gestione tabelle) —</div>'
+      : (svcAny ? svcHtml : '<div class="cl-none">— nessuna collisione con corsi di servizio —</div>');
+
+    box.innerHTML =
+      '<div class="cl-section"><h3 class="cl-doc-h">Docenti — collisioni d\'orario ' +
+        '<span class="cl-count">(stesso docente in due slot sovrapposti)</span></h3>' +
+        (any ? html : '<div class="cl-none">— nessun conflitto docente —</div>') + '</div>' +
+      '<div class="cl-section"><h3 class="cl-doc-h">Servizio — corsi fuori dipartimento ' +
+        '<span class="cl-count">(docente impegnato in un altro dipartimento nello stesso orario)</span></h3>' +
+        svcBody + '</div>';
   }
 
   // ===== Tab "Co-esami": matrice (LM obbligatori/forchetta · LT opzionali) =====
@@ -3367,6 +3415,7 @@ var _editActive = !!EDIT_MODE;
     // Riapplica la selezione e ricostruisci il pannello collisioni
     applySelectionHighlight();
     renderSelectionPanel();
+    _showSelectionCollisions();   // ripristina le lineette se uno slot è selezionato
   }
 
   // ----- Drag/Resize per la vista "Slot" -----
@@ -5127,7 +5176,7 @@ var _editActive = !!EDIT_MODE;
       if (e.target.closest('.sblock')) return;     // su uno slot: gestito dal drag handler
       if (e.target.closest('.slot-topbar')) return; // toolbar/day-tab
       if (e.target.closest('.slot-hover-info')) return; // pannello sotto
-      if (selectedSig) { selectedSig = null; applySelectionHighlight(); renderSelectionPanel(); }
+      if (selectedSig) { selectedSig = null; applySelectionHighlight(); renderSelectionPanel(); _dragClearTeacherBusy(); }
     });
   })();
 

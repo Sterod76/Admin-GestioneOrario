@@ -41,8 +41,18 @@ let currentView = 'collisions';
 let _collView = 'list';
 let _collSel = { of: null, ff: null, opz: null };
 
+// Helper di match docente↔servizio (usati dalla nuova sezione SERVIZIO di renderUbiquity)
+function extractFn(name) {
+  const s = html.indexOf('function ' + name + '(');
+  if (s < 0) { console.error('non trovata:', name); process.exit(2); }
+  let j = html.indexOf('{', s), d = 0;
+  for (let k = j; k < html.length; k++) { if (html[k] === '{') d++; else if (html[k] === '}') { d--; if (d === 0) return html.slice(s, k + 1); } }
+  console.error('brace non chiusa:', name); process.exit(2);
+}
+const svcHelpers = [extractFn('_normTok'), extractFn('_teacherKey'), extractFn('_extKey')].join('\n');
+
 // helper + renderCollisions + renderUbiquity nello STESSO scope
-eval(helperSrc + '\n' + fnSrc + '\n' + ubiqSrc);
+eval(svcHelpers + '\n' + helperSrc + '\n' + fnSrc + '\n' + ubiqSrc);
 
 function S(code, sheet, vincolo, anno, group, day, start, end, titolare) {
   return { code, sheet, vincolo, anno: String(anno), group, day, start, end, room: 'R', name: code + 'n', titolare: titolare || '' };
@@ -425,6 +435,36 @@ check('Somme: i totali delle matrici (OF+FF) sommano al banner (' + grands.join(
 // (il dataset E2E non ha coppie OBB-OBB). =====
 check('OBB-OBB vuoto: sezione "OBBLIGHI – OBBLIGHI" con "nessuna collisione"',
   /<h3>OBBLIGHI[^<]*OBBLIGHI<\/h3><div class="cl-none">[^<]*nessuna collisione/.test(eout));
+
+// ===== Obiquità: nuova sezione SERVIZIO (impegni FUORI dipartimento) =====
+// Bianchi A. ha un corso interno (SV1, LUN 09:00-10:00) e un impegno di servizio
+// che si sovrappone (LUN 09:30-...) → collisione. Un secondo impegno è in altro
+// giorno (no overlap). Verdi G. non ha impegni esterni → non compare.
+data.equiv = {};
+data.pds = [];
+data.impegniEsterni = [
+  { cognome: 'Bianchi', nome: 'Antonio', day: 0, start: 570, end: 660, corso: 'SVC1', aula: 'CHI A' }, // overlap con SV1
+  { cognome: 'Bianchi', nome: 'Antonio', day: 2, start: 540, end: 600, corso: 'SVC2', aula: 'X' }       // altro giorno → no
+];
+data.sessions = [
+  S('SV1', 'S1LM', 'OBB', '', '', 0, 540, 600, 'Bianchi A.'),  // LUN 09:00-10:00
+  S('SV2', 'S1LM', 'OBB', '', '', 1, 540, 600, 'Verdi G.')      // docente senza impegni esterni
+];
+renderUbiquity();
+const outSvc = captures['ubiquityBody'] || '';
+function hasS(s) { return outSvc.indexOf(s) !== -1; }
+check('SERVIZIO: sezione "Servizio — corsi fuori dipartimento" presente', hasS('Servizio — corsi fuori dipartimento'));
+check('SERVIZIO: marker ⚠ servizio', hasS('⚠ servizio'));
+check('SERVIZIO: collisione SVC1 (overlap stesso giorno)', hasS('SVC1'));
+check('SERVIZIO: docente BIANCHI elencato', hasS('BIANCHI'));
+check('SERVIZIO: corso interno SV1 nel chip', hasS('>SV1</span>'));
+check('SERVIZIO: SVC2 (altro giorno) NON elencato', !hasS('SVC2'));
+check('SERVIZIO: VERDI (senza impegni esterni) NON elencato', !hasS('VERDI'));
+// Senza dati SERVIZIO: messaggio "non caricata", nessun crash
+data.impegniEsterni = [];
+renderUbiquity();
+const outSvc0 = captures['ubiquityBody'] || '';
+check('SERVIZIO: senza dati → "non caricata"', outSvc0.indexOf('tabella SERVIZIO non caricata') !== -1);
 
 console.log('\nRISULTATO: ' + pass + ' pass, ' + fail + ' fail');
 process.exit(fail ? 1 : 0);

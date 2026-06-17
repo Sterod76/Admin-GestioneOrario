@@ -198,11 +198,13 @@ Vista **per giorno**: una colonna per aula, con la **capienza** nel sottotitolo.
 È la vista di editing fine: **+ Nuovo slot**, **Cestino**, mostra solo Aule/Labs,
 espandi tutto. Nel blocco, sotto codice e titolo, si mostrano i **CFU** (l'orario è
 ovvio dalla posizione; durante un drag/resize il blocco mostra però l'orario live).
-Gli slot che **superano l'80% della capienza** sono evidenziati (bordo rosso + ⚠,
-vedi §5). Selezionando uno slot, nel pannello in basso compaiono il dettaglio del
-codice — con **ore/settimana** (LEZ + LAB) e **CFU** — le sue collisioni e la
-capienza. *(I suggerimenti di spostamento restano disponibili nel **popover** del
-tab Collisioni, passando sopra la cella costo.)*
+Gli slot che **superano l'80% della capienza** sono segnalati da un **triangolo ⚠**
+(in basso a destra dello slot, vedi §5). Selezionando uno slot, nel pannello in basso
+compaiono il dettaglio del codice — con **ore/settimana** (LEZ + LAB) e **CFU** — le sue
+collisioni e la capienza; inoltre, **esattamente come durante il drag**, nella colonna
+«Ora» compaiono le **lineette di collisione** del docente (rossa = a Fisica, viola =
+servizio) e gli slot **sorgente** vengono cerchiati. *(I suggerimenti di spostamento
+restano disponibili nel **popover** del tab Collisioni, passando sopra la cella costo.)*
 
 > Anche in **VIEW / Revisore** (e per gli editor non in EDIT) gli slot restano
 > **selezionabili** — il pannello collisioni/capienza in basso funziona; è bloccato
@@ -386,6 +388,12 @@ le varianti compaiono a **destra**, come per le altre matrici.
 Tab **👤 Docenti** (ex "Obiquità"): **collisioni docente** — stesso docente (titolare
 *o* co-docente) in due slot **sovrapposti** (l'ubiquità non esiste). Raggruppati per
 docente; le collisioni fra slot dello **stesso codice** sono escluse (falsi positivi).
+
+In una **seconda sezione — «Servizio — corsi fuori dipartimento»** — sono elencate le
+collisioni fra un corso interno e un **impegno di servizio** del suo docente (dalla
+tabella `SERVIZIO`): stesso docente, stesso giorno, **orari sovrapposti**. Ogni riga
+mostra il corso interno ✕ l'impegno esterno (chip viola), col tag **⚠ servizio**. Se la
+tabella `SERVIZIO` non è caricata, la sezione lo segnala.
 
 ![Docenti — collisioni docente](docs/img/05-obiquita.png)
 
