@@ -693,21 +693,41 @@
      così le day-tab restano ferme. */
   #viewSlots { padding: 12px 16px; }
   .slot-hscroll { overflow-x: auto; overflow-y: visible; }
-  /* ── Stampa: SOLO la griglia Slot del giorno mostrato, in A3 orizzontale (→ Salva PDF) ── */
-  #slotPrintArea { display: none; }
+  /* ── "Save view as PDF": stampa SOLO la vista attiva. A4; orientamento per-vista via
+     #printPageStyle (calendario/aule/slot orizzontali, gli altri verticali). ── */
+  #printArea { display: none; }
+  body.draft #savePdfBtn { display: none; }   /* in redazione non c'è nulla da stampare */
   @media print {
-    @page { size: A3 landscape; margin: 6mm; }
-    body.print-slot { visibility: hidden !important; }
-    body.print-slot #slotPrintArea, body.print-slot #slotPrintArea * {
+    body.printing { visibility: hidden !important; }
+    body.printing #printArea, body.printing #printArea * {
       visibility: visible !important;
       -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
     }
-    body.print-slot #slotPrintArea {
-      display: block !important; position: absolute; left: 0; top: 0; width: 100%;
+    body.printing #printArea { display: block !important; position: absolute; left: 0; top: 0; width: 100%; }
+    body.printing #printArea > * { overflow: visible !important; }   /* niente clip dei container con scroll */
+    /* intestazione: a sx Bozza + vista + filtri, a dx "Pds generated on ..." */
+    body.printing #printArea .pr-head {
+      display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+      border-bottom: 1px solid #999; padding-bottom: 4px; margin-bottom: 8px;
+      font: 13px/1.3 Arial, sans-serif; color: #000;
     }
-    body.print-slot #slotPrintArea .sp-title { font: 600 16px/1.2 Arial, sans-serif; margin: 0 0 8px; color: #000; }
-    body.print-slot #slotPrintArea .slot-time-col { position: static !important; } /* niente sticky in stampa */
-    body.print-slot #slotPrintArea .sblock { box-shadow: none !important; }
+    body.printing #printArea .pr-left { font-weight: 700; }
+    body.printing #printArea .pr-right { color: #444; white-space: nowrap; }
+    body.printing #printArea .slot-time-col { position: static !important; }
+    body.printing #printArea .sblock, body.printing #printArea .ablock { box-shadow: none !important; }
+    /* evita di tagliare a metà blocchi, colonne, sezioni-aula, righe, item di lista */
+    body.printing #printArea .sblock,
+    body.printing #printArea .ablock,
+    body.printing #printArea .sess,
+    body.printing #printArea .slot-room-col,
+    body.printing #printArea .day-section,
+    body.printing #printArea tr,
+    body.printing #printArea .cl-section,
+    body.printing #printArea .cl-list li,
+    body.printing #printArea .cl-teacher,
+    body.printing #printArea .cxd-chip {
+      break-inside: avoid !important; page-break-inside: avoid !important;
+    }
   }
   /* Riga in alto: day-tab a sinistra + comandi a destra, stessa linea */
   .slot-topbar {
@@ -1115,6 +1135,7 @@
       </select>
       <select id="fGruppo"><option value="">Tutti i gruppi</option></select>
       <button type="button" id="btnFeedback" class="fb-open" style="display:none" title="Invia una segnalazione">💬 Feedback</button>
+      <button type="button" id="savePdfBtn" title="Salva la vista corrente come PDF (A4; calendario/aule/slot orizzontali, gli altri verticali) → scegli 'Salva come PDF'">📄 Save view as PDF</button>
     </div>
   </div>
   <div class="header-row aule">
@@ -1162,7 +1183,6 @@
       <button id="slotOnlyAule" type="button" title="Mostra solo le aule: collassa tutti i laboratori">🏫 Mostra solo Aule</button>
       <button id="slotOnlyLabs" type="button" title="Mostra solo i laboratori: collassa tutte le altre aule">🔬 Mostra solo Labs</button>
       <button id="slotExpandAll" type="button" title="Espandi tutte le colonne">⊞ Espandi tutto</button>
-      <button id="slotPrint" type="button" title="Stampa la griglia del giorno mostrato in A3 orizzontale (poi scegli 'Salva come PDF')">🖨️ Stampa</button>
     </div>
   </div>
   <div class="slot-hscroll">
@@ -5267,30 +5287,66 @@ var _editActive = !!EDIT_MODE;
     });
     refreshSlotView(); applyFilters();
   }
-  // Stampa SOLO la griglia Slot del giorno mostrato, in A3 orizzontale (l'utente poi sceglie
-  // "Salva come PDF"). Clona la griglia in #slotPrintArea con un titolo (semestre · giorno).
-  function printSlotGrid() {
-    const grid = document.getElementById('slotGrid');
-    const area = document.getElementById('slotPrintArea');
-    if (!grid || !area) { window.print(); return; }
-    const dayName = (data.days && data.days[currentSlotDay]) || '';
-    const sem = data.semester ? String(data.semester) : '';
+  // ── "Save view as PDF": stampa la VISTA ATTIVA (A4). Mappa vista→contenuto+orientamento;
+  //    clona il contenuto, aggiunge l'intestazione (Bozza+filtri / data), toglie i controlli. ──
+  const PRINT_VIEWS = {
+    sessions:   { sel: '#grid',           land: true,  label: 'Calendario' },
+    rooms:      { sel: '#viewRooms',      land: true,  label: 'Aule' },
+    slots:      { sel: '#slotGrid',       land: true,  label: 'Slot' },
+    collisions: { sel: '#collisionsBody', land: false, label: 'Collisioni' },
+    ubiquity:   { sel: '#ubiquityBody',   land: false, label: 'Docenti' },
+    coexam:     { sel: '#coexamBody',     land: false, label: 'Co-esami LM' },
+    coexamlt:   { sel: '#coexamBodyLT',   land: false, label: 'Co-esami LT' }
+  };
+  function _pdfFiltersSummary() {
+    const parts = [];
+    const q = (document.getElementById('q') || {}).value;
+    if (q && q.trim()) parts.push('ricerca: "' + q.trim() + '"');
+    const fp = document.getElementById('fPds');
+    if (fp && !fp.disabled && fp.value && fp.selectedIndex >= 0) parts.push(fp.options[fp.selectedIndex].text);
+    const fa = document.getElementById('fAnno');
+    if (fa && !fa.disabled && fa.value) parts.push('Anno ' + fa.value);
+    const fg = document.getElementById('fGruppo');
+    if (fg && !fg.disabled && fg.value && fg.selectedIndex >= 0) parts.push(fg.options[fg.selectedIndex].text);
+    return parts.join(' · ');
+  }
+  function savePdf() {
+    const view = currentView;
+    const cfg = PRINT_VIEWS[view] ||
+      { sel: '#view' + view.charAt(0).toUpperCase() + view.slice(1), land: false, label: '' };
+    let label = cfg.label;
+    if (!label) { const tb = document.querySelector('.view-tab.active'); label = tb ? tb.textContent.replace(/^[^A-Za-zÀ-ÿ]+/, '').trim() : ''; }
+    const src = document.querySelector(cfg.sel);
+    const area = document.getElementById('printArea');
+    if (!src || !area) { window.print(); return; }
+    // A4, orientamento per-vista
+    let ps = document.getElementById('printPageStyle');
+    if (!ps) { ps = document.createElement('style'); ps.id = 'printPageStyle'; document.head.appendChild(ps); }
+    ps.textContent = '@page { size: A4 ' + (cfg.land ? 'landscape' : 'portrait') + '; margin: 8mm; }';
+    // intestazione
     area.innerHTML = '';
-    const t = document.createElement('div');
-    t.className = 'sp-title';
-    t.textContent = (sem ? sem + ' · ' : '') + 'Orario ' + dayName;
-    area.appendChild(t);
-    const clone = grid.cloneNode(true);
-    clone.removeAttribute('id');            // evita id duplicato col grid originale
+    const head = document.createElement('div'); head.className = 'pr-head';
+    const left = document.createElement('div'); left.className = 'pr-left';
+    const filt = _pdfFiltersSummary();
+    left.textContent = 'Bozza — ' + (label || '') + (filt ? ' · ' + filt : '');
+    const right = document.createElement('div'); right.className = 'pr-right';
+    const d = new Date(), p2 = function (n) { return (n < 10 ? '0' : '') + n; };
+    right.textContent = 'Pds generated on ' + p2(d.getDate()) + '/' + p2(d.getMonth() + 1) + '/' + d.getFullYear();
+    head.appendChild(left); head.appendChild(right);
+    area.appendChild(head);
+    // clone del contenuto della vista, senza i controlli interattivi
+    const clone = src.cloneNode(true);
+    clone.removeAttribute('id');
+    clone.querySelectorAll('button, select, input, label, .slot-topbar, .slot-hover-info, .slot-drag-legend, .slot-template, .slot-trash, .cl-viewtoggle, .cx-pds').forEach(function (el) { el.remove(); });
     area.appendChild(clone);
-    document.body.classList.add('print-slot');
+    document.body.classList.add('printing');
     const cleanup = function () {
-      document.body.classList.remove('print-slot');
+      document.body.classList.remove('printing');
       area.innerHTML = '';
       window.removeEventListener('afterprint', cleanup);
     };
     window.addEventListener('afterprint', cleanup);
-    setTimeout(function () { window.print(); }, 30);
+    setTimeout(function () { window.print(); }, 40);
   }
   (function () {
     const a = document.getElementById('slotOnlyAule');
@@ -5299,10 +5355,10 @@ var _editActive = !!EDIT_MODE;
     if (a) a.addEventListener('click', showOnlyAule);
     if (b) b.addEventListener('click', showOnlyLabs);
     if (c) c.addEventListener('click', expandAllSlotRooms);
-    const pr = document.getElementById('slotPrint');
-    if (pr) pr.addEventListener('click', printSlotGrid);
     const tpl = document.getElementById('slotTemplate');
     if (tpl) attachTemplateDrag(tpl);
+    const pdf = document.getElementById('savePdfBtn');
+    if (pdf) pdf.addEventListener('click', savePdf);
   })();
 
   // Click fuori da uno slot (area vuota della griglia) → deseleziona.
@@ -6350,6 +6406,6 @@ var _editActive = !!EDIT_MODE;
   })();
 })();
 </script>
-<div id="slotPrintArea" aria-hidden="true"></div>
+<div id="printArea" aria-hidden="true"></div>
 </body>
 </html>

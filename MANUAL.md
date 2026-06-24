@@ -198,9 +198,13 @@ Vista **per giorno**: una colonna per aula, con la **capienza** nel sottotitolo.
 È la vista di editing fine: **+ Nuovo slot**, **Cestino**, mostra solo Aule/Labs,
 espandi tutto. Nel blocco, sotto codice e titolo, si mostrano i **CFU** (l'orario è
 ovvio dalla posizione; durante un drag/resize il blocco mostra però l'orario live).
-Il bottone **🖨️ Stampa** (visibile a **tutti** gli utenti) manda in stampa **solo la
-griglia del giorno mostrato**, impaginata in **A3 orizzontale** con un'intestazione
-(semestre · giorno): nella finestra di stampa scegli **"Salva come PDF"** e formato A3.
+Per esportare, usa il bottone **📄 Save view as PDF** in alto fra i filtri (visibile a
+**tutti** gli utenti): salva **la vista corrente** in PDF **A4** — Calendario/Aule/Slot in
+**orizzontale**, gli altri tab in **verticale** — con un'intestazione (a sinistra
+*Bozza · vista · filtri attivi*, a destra *Pds generated on GG/MM/AAAA*). Stampa **solo** il
+contenuto della vista (niente toolbar, **Log** o **Parking**) ed evita di tagliare a metà
+blocchi, **aule** e righe. Nella finestra di stampa scegli **"Salva come PDF"** (il formato/
+orientamento sono già impostati; la scala si regola lì se serve).
 Gli slot che **superano l'80% della capienza** sono segnalati da un **triangolo ⚠**
 (in basso a destra dello slot, vedi §5). Selezionando uno slot, nel pannello in basso
 compaiono il dettaglio del codice — con **ore/settimana** (LEZ + LAB) e **CFU** — le sue
