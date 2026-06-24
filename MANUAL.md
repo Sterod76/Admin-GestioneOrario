@@ -208,6 +208,11 @@ tagliare a metà blocchi/aule/righe. Specifiche per vista: il **Calendario** ent
 **tutti i giorni (LUN-SAB)** e le **ore a sinistra**; lo **Slot** stampa **solo le Aule** in
 una banda e **solo i Labs** in una banda sotto (tutto nella pagina). Nella finestra di stampa
 scegli **"Salva come PDF"** (formato/orientamento già impostati; la scala si regola lì se serve).
+>
+> **Calendario, set multipagina.** Dal tab **Calendario**, se il campo **ricerca è vuoto**, il PDF
+> contiene **un calendario per pagina**: Triennale **Anno 1**, **Anno 2**, **Anno 3**, poi **ogni
+> Piano di Studi**. Se invece hai una **ricerca attiva** (es. un cognome docente), salva **solo
+> quella vista**. (Le pagine senza lezioni vengono saltate.)
 Gli slot che **superano l'80% della capienza** sono segnalati da un **triangolo ⚠**
 (in basso a destra dello slot, vedi §5). Selezionando uno slot, nel pannello in basso
 compaiono il dettaglio del codice — con **ore/settimana** (LEZ + LAB) e **CFU** — le sue

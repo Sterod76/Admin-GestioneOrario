@@ -714,6 +714,9 @@
     body.printing #printArea .pr-left { font-weight: 700; }
     body.printing #printArea .pr-right { color: #444; white-space: nowrap; }
     body.printing #printArea .pr-sub { font: 700 13px/1.2 Arial, sans-serif; color: #000; margin: 8px 0 3px; }
+    /* set multipagina (calendario): un calendario per pagina */
+    body.printing #printArea .pr-page { break-inside: avoid; }
+    body.printing #printArea .pr-page + .pr-page { break-before: page; }
     body.printing #printArea .slot-time-col { position: static !important; }
     body.printing #printArea .sblock, body.printing #printArea .ablock { box-shadow: none !important; }
     /* evita di tagliare a metà blocchi, colonne, sezioni-aula, righe, item di lista */
@@ -5346,30 +5349,60 @@ var _editActive = !!EDIT_MODE;
     area.setAttribute('style', prev);
     if (scale < 0.999) body.style.zoom = String(scale);
   }
+  function _pdfHead(title) {
+    const head = document.createElement('div'); head.className = 'pr-head';
+    const left = document.createElement('div'); left.className = 'pr-left'; left.textContent = title;
+    const right = document.createElement('div'); right.className = 'pr-right';
+    const d = new Date(), p2 = function (n) { return (n < 10 ? '0' : '') + n; };
+    right.textContent = 'Pds generated on ' + p2(d.getDate()) + '/' + p2(d.getMonth() + 1) + '/' + d.getFullYear();
+    head.appendChild(left); head.appendChild(right);
+    return head;
+  }
+  function _pdfPageOrient(land) {
+    let ps = document.getElementById('printPageStyle');
+    if (!ps) { ps = document.createElement('style'); ps.id = 'printPageStyle'; document.head.appendChild(ps); }
+    ps.textContent = '@page { size: A4 ' + (land ? 'landscape' : 'portrait') + '; margin: 8mm; }';
+  }
+  function _pdfDoPrint() {
+    document.body.classList.add('printing');
+    const area = document.getElementById('printArea');
+    const cleanup = function () { document.body.classList.remove('printing'); area.innerHTML = ''; window.removeEventListener('afterprint', cleanup); };
+    window.addEventListener('afterprint', cleanup);
+    setTimeout(function () { window.print(); }, 50);
+  }
+  // Adatta ogni pagina (.pr-page) alla pagina A4: misura il grid off-screen e applica zoom.
+  function _fitPages(body, land) {
+    const area = document.getElementById('printArea');
+    const pageW = land ? 1040 : 720, pageH = land ? 690 : 1010;
+    const prev = area.getAttribute('style') || '';
+    area.style.cssText = 'display:block;position:fixed;left:-99999px;top:0;visibility:hidden;width:' + pageW + 'px;';
+    Array.prototype.forEach.call(body.querySelectorAll('.pr-page'), function (pg) {
+      const g = pg.querySelector('#grid') || pg.lastElementChild;
+      if (!g) return;
+      const w = g.scrollWidth, h = g.scrollHeight;
+      const s = Math.min(1, pageW / Math.max(w, 1), pageH / Math.max(h, 1));
+      if (s < 0.999) g.style.zoom = String(s);
+    });
+    area.setAttribute('style', prev);
+  }
+  // Dispatcher: Calendario SENZA ricerca → set multipagina; altrimenti la sola vista corrente.
   function savePdf() {
+    const q = ((document.getElementById('q') || {}).value || '').trim();
+    if (currentView === 'sessions' && !q) _savePdfCalendarSet();
+    else _savePdfSingle();
+  }
+  function _savePdfSingle() {
     const view = currentView;
-    const cfg = PRINT_VIEWS[view] ||
-      { sel: '#view' + view.charAt(0).toUpperCase() + view.slice(1), land: false, label: '' };
+    const cfg = PRINT_VIEWS[view] || { sel: '#view' + view.charAt(0).toUpperCase() + view.slice(1), land: false, label: '' };
     let label = cfg.label;
     if (!label) { const tb = document.querySelector('.view-tab.active'); label = tb ? tb.textContent.replace(/^[^A-Za-zÀ-ÿ]+/, '').trim() : ''; }
     const src = document.querySelector(cfg.sel);
     const area = document.getElementById('printArea');
     if (!src || !area) { window.print(); return; }
-    // A4, orientamento per-vista
-    let ps = document.getElementById('printPageStyle');
-    if (!ps) { ps = document.createElement('style'); ps.id = 'printPageStyle'; document.head.appendChild(ps); }
-    ps.textContent = '@page { size: A4 ' + (cfg.land ? 'landscape' : 'portrait') + '; margin: 8mm; }';
-    // intestazione: a sx Bozza + vista + filtri, a dx la data
+    _pdfPageOrient(!!cfg.land);
     area.innerHTML = '';
-    const head = document.createElement('div'); head.className = 'pr-head';
-    const left = document.createElement('div'); left.className = 'pr-left';
     const filt = _pdfFiltersSummary();
-    left.textContent = 'Bozza — ' + (label || '') + (filt ? ' · ' + filt : '');
-    const right = document.createElement('div'); right.className = 'pr-right';
-    const d = new Date(), p2 = function (n) { return (n < 10 ? '0' : '') + n; };
-    right.textContent = 'Pds generated on ' + p2(d.getDate()) + '/' + p2(d.getMonth() + 1) + '/' + d.getFullYear();
-    head.appendChild(left); head.appendChild(right); area.appendChild(head);
-    // corpo (zoomabile)
+    area.appendChild(_pdfHead('Bozza — ' + (label || '') + (filt ? ' · ' + filt : '')));
     const body = document.createElement('div'); body.id = 'printBody'; area.appendChild(body);
     if (view === 'slots') {
       _buildSlotBands(src, body);   // Aule sopra, Labs sotto
@@ -5380,14 +5413,43 @@ var _editActive = !!EDIT_MODE;
       body.appendChild(clone);
     }
     _fitPrintBody(body, !!cfg.land, view === 'slots');
-    document.body.classList.add('printing');
-    const cleanup = function () {
-      document.body.classList.remove('printing');
-      area.innerHTML = ''; body.style.zoom = '';
-      window.removeEventListener('afterprint', cleanup);
+    _pdfDoPrint();
+  }
+  // Calendario senza ricerca → un calendario per pagina: LT anno 1/2/3 + ogni PdS.
+  function _savePdfCalendarSet() {
+    const area = document.getElementById('printArea');
+    const grid = document.getElementById('grid');
+    if (!area || !grid) { _savePdfSingle(); return; }
+    const qe = document.getElementById('q'), fp = document.getElementById('fPds'),
+          fa = document.getElementById('fAnno'), fg = document.getElementById('fGruppo');
+    const roomBtns = Array.prototype.slice.call(document.querySelectorAll('.room-toggle'));
+    const saved = { q: qe.value, fp: fp.value, fa: fa.value, fg: fg.value, rooms: roomBtns.map(function (b) { return b.dataset.on; }) };
+    _pdfPageOrient(true);
+    area.innerHTML = '';
+    const body = document.createElement('div'); body.id = 'printBody'; area.appendChild(body);
+    roomBtns.forEach(function (b) { b.dataset.on = '0'; });   // niente override-aula durante il set
+    const addPage = function (title, fPdsVal, fAnnoVal) {
+      qe.value = ''; fp.value = fPdsVal; fa.value = fAnnoVal || '';
+      applyFilters();   // riabilita fAnno se LT e rifà il layout del calendario
+      const ss = grid.querySelectorAll('.session');
+      let any = false; for (let i = 0; i < ss.length; i++) { if (ss[i].offsetParent) { any = true; break; } }
+      if (!any) return;   // salta pagine vuote
+      const page = document.createElement('div'); page.className = 'pr-page';
+      page.appendChild(_pdfHead('Bozza — ' + title));
+      const gc = grid.cloneNode(true);   // tiene #grid (CSS grid id-based)
+      _cleanPrintClone(gc);
+      page.appendChild(gc);
+      body.appendChild(page);
     };
-    window.addEventListener('afterprint', cleanup);
-    setTimeout(function () { window.print(); }, 40);
+    [1, 2, 3].forEach(function (a) { addPage('Calendario · Triennale · Anno ' + a, 'LT', String(a)); });
+    (data.pds || []).forEach(function (p) { addPage('Calendario · ' + p.name, 'PDS:' + p.name, ''); });
+    // ripristina lo stato dei filtri e delle aule
+    roomBtns.forEach(function (b, i) { b.dataset.on = saved.rooms[i]; });
+    qe.value = saved.q; fp.value = saved.fp; fa.value = saved.fa; fg.value = saved.fg;
+    applyFilters();
+    if (!body.children.length) { area.innerHTML = ''; return; }
+    _fitPages(body, true);
+    _pdfDoPrint();
   }
   (function () {
     const a = document.getElementById('slotOnlyAule');
