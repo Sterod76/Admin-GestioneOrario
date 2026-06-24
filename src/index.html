@@ -5349,12 +5349,14 @@ var _editActive = !!EDIT_MODE;
     area.setAttribute('style', prev);
     if (scale < 0.999) body.style.zoom = String(scale);
   }
-  function _pdfHead(title) {
+  function _pdfHead(desc) {
+    const ssName = data.spreadsheetName || ('Orario ' + (data.semester || 'S1'));
     const head = document.createElement('div'); head.className = 'pr-head';
-    const left = document.createElement('div'); left.className = 'pr-left'; left.textContent = title;
+    const left = document.createElement('div'); left.className = 'pr-left';
+    left.textContent = 'Bozza - ' + ssName + (desc ? ' · ' + desc : '');   // come il titolo della pagina web
     const right = document.createElement('div'); right.className = 'pr-right';
     const d = new Date(), p2 = function (n) { return (n < 10 ? '0' : '') + n; };
-    right.textContent = 'Pds generated on ' + p2(d.getDate()) + '/' + p2(d.getMonth() + 1) + '/' + d.getFullYear();
+    right.textContent = 'PDF generated on ' + p2(d.getDate()) + '/' + p2(d.getMonth() + 1) + '/' + d.getFullYear();
     head.appendChild(left); head.appendChild(right);
     return head;
   }
@@ -5402,7 +5404,7 @@ var _editActive = !!EDIT_MODE;
     _pdfPageOrient(!!cfg.land);
     area.innerHTML = '';
     const filt = _pdfFiltersSummary();
-    area.appendChild(_pdfHead('Bozza — ' + (label || '') + (filt ? ' · ' + filt : '')));
+    area.appendChild(_pdfHead((label || '') + (filt ? ' · ' + filt : '')));
     const body = document.createElement('div'); body.id = 'printBody'; area.appendChild(body);
     if (view === 'slots') {
       _buildSlotBands(src, body);   // Aule sopra, Labs sotto
@@ -5435,7 +5437,7 @@ var _editActive = !!EDIT_MODE;
       let any = false; for (let i = 0; i < ss.length; i++) { if (ss[i].offsetParent) { any = true; break; } }
       if (!any) return;   // salta pagine vuote
       const page = document.createElement('div'); page.className = 'pr-page';
-      page.appendChild(_pdfHead('Bozza — ' + title));
+      page.appendChild(_pdfHead(title));
       const gc = grid.cloneNode(true);   // tiene #grid (CSS grid id-based)
       _cleanPrintClone(gc);
       page.appendChild(gc);

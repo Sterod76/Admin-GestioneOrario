@@ -201,7 +201,7 @@ ovvio dalla posizione; durante un drag/resize il blocco mostra però l'orario li
 Per esportare, usa il bottone **📄 Save view as PDF** in alto fra i filtri (visibile a
 **tutti** gli utenti): salva **la vista corrente** in PDF **A4** — Calendario/Aule/Slot in
 **orizzontale**, gli altri tab in **verticale** — con un'intestazione (a sinistra
-*Bozza · vista · filtri attivi*, a destra *Pds generated on GG/MM/AAAA*). Stampa **solo** il
+*Bozza - <nome del gsheet> · vista · filtri attivi*, a destra *PDF generated on GG/MM/AAAA*). Stampa **solo** il
 contenuto della vista (niente toolbar, **Log**, **Parking** né le **evidenziazioni di
 collisione/selezione**) e adatta il contenuto alla pagina (zoom automatico), evitando di
 tagliare a metà blocchi/aule/righe. Specifiche per vista: il **Calendario** entra con
