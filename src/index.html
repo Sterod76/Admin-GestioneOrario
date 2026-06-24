@@ -713,6 +713,7 @@
     }
     body.printing #printArea .pr-left { font-weight: 700; }
     body.printing #printArea .pr-right { color: #444; white-space: nowrap; }
+    body.printing #printArea .pr-sub { font: 700 13px/1.2 Arial, sans-serif; color: #000; margin: 8px 0 3px; }
     body.printing #printArea .slot-time-col { position: static !important; }
     body.printing #printArea .sblock, body.printing #printArea .ablock { box-shadow: none !important; }
     /* evita di tagliare a metà blocchi, colonne, sezioni-aula, righe, item di lista */
@@ -5290,7 +5291,7 @@ var _editActive = !!EDIT_MODE;
   // ── "Save view as PDF": stampa la VISTA ATTIVA (A4). Mappa vista→contenuto+orientamento;
   //    clona il contenuto, aggiunge l'intestazione (Bozza+filtri / data), toglie i controlli. ──
   const PRINT_VIEWS = {
-    sessions:   { sel: '#grid',           land: true,  label: 'Calendario' },
+    sessions:   { sel: '#grid',           land: true,  label: 'Calendario', keepId: true },
     rooms:      { sel: '#viewRooms',      land: true,  label: 'Aule' },
     slots:      { sel: '#slotGrid',       land: true,  label: 'Slot' },
     collisions: { sel: '#collisionsBody', land: false, label: 'Collisioni' },
@@ -5310,6 +5311,41 @@ var _editActive = !!EDIT_MODE;
     if (fg && !fg.disabled && fg.value && fg.selectedIndex >= 0) parts.push(fg.options[fg.selectedIndex].text);
     return parts.join(' · ');
   }
+  // Rimuove dal clone i controlli e gli ARTEFATTI di selezione/collisione (che NON vanno
+  // in stampa): bande collisione, pallini co-esame, cerchiature, pannelli, bottoni.
+  function _cleanPrintClone(node) {
+    node.querySelectorAll('button, select, input, label, .slot-topbar, .slot-hover-info, .slot-drag-legend, .slot-template, .slot-trash, .cl-viewtoggle, .cx-pds, .slot-busy-band, .sblock-coex-ov').forEach(function (e) { e.remove(); });
+    node.querySelectorAll('.selected, .sblock-teacher-src').forEach(function (e) { e.classList.remove('selected', 'sblock-teacher-src'); });
+  }
+  // Slot: due bande impilate — solo Aule sopra, solo Labs sotto (ognuna con la colonna Ora).
+  function _buildSlotBands(src, body) {
+    [['Aule', false], ['Labs', true]].forEach(function (b) {
+      const g = src.cloneNode(true); g.removeAttribute('id');
+      g.querySelectorAll('.slot-room-col').forEach(function (col) {
+        const room = col.getAttribute('data-room') || '';
+        if (/^lab\b/i.test(room) !== b[1]) { col.remove(); return; }
+        col.classList.remove('collapsed', 'hidden');   // in stampa mostra tutte, anche se collassate a schermo
+      });
+      if (!g.querySelectorAll('.slot-room-col').length) return; // nessuna aula/lab di questo tipo
+      _cleanPrintClone(g);
+      g.querySelectorAll('.slot-time-col').forEach(function (c) { c.style.position = 'static'; });
+      const h = document.createElement('div'); h.className = 'pr-sub'; h.textContent = b[0];
+      body.appendChild(h); body.appendChild(g);
+    });
+  }
+  // Adatta il contenuto alla pagina con zoom (misura off-screen a larghezza pagina). Per lo
+  // slot adatta anche l'ALTEZZA (deve entrare tutto). Solo riduce, mai ingrandisce.
+  function _fitPrintBody(body, land, fitHeight) {
+    const area = document.getElementById('printArea');
+    const pageW = land ? 1040 : 720, pageH = land ? 715 : 1040;
+    const prev = area.getAttribute('style') || '';
+    area.style.cssText = 'display:block;position:fixed;left:-99999px;top:0;visibility:hidden;width:' + pageW + 'px;';
+    const w = body.scrollWidth, hgt = body.scrollHeight;
+    let scale = w > pageW ? pageW / w : 1;
+    if (fitHeight && hgt > 0) scale = Math.min(scale, pageH / hgt);
+    area.setAttribute('style', prev);
+    if (scale < 0.999) body.style.zoom = String(scale);
+  }
   function savePdf() {
     const view = currentView;
     const cfg = PRINT_VIEWS[view] ||
@@ -5323,7 +5359,7 @@ var _editActive = !!EDIT_MODE;
     let ps = document.getElementById('printPageStyle');
     if (!ps) { ps = document.createElement('style'); ps.id = 'printPageStyle'; document.head.appendChild(ps); }
     ps.textContent = '@page { size: A4 ' + (cfg.land ? 'landscape' : 'portrait') + '; margin: 8mm; }';
-    // intestazione
+    // intestazione: a sx Bozza + vista + filtri, a dx la data
     area.innerHTML = '';
     const head = document.createElement('div'); head.className = 'pr-head';
     const left = document.createElement('div'); left.className = 'pr-left';
@@ -5332,17 +5368,22 @@ var _editActive = !!EDIT_MODE;
     const right = document.createElement('div'); right.className = 'pr-right';
     const d = new Date(), p2 = function (n) { return (n < 10 ? '0' : '') + n; };
     right.textContent = 'Pds generated on ' + p2(d.getDate()) + '/' + p2(d.getMonth() + 1) + '/' + d.getFullYear();
-    head.appendChild(left); head.appendChild(right);
-    area.appendChild(head);
-    // clone del contenuto della vista, senza i controlli interattivi
-    const clone = src.cloneNode(true);
-    clone.removeAttribute('id');
-    clone.querySelectorAll('button, select, input, label, .slot-topbar, .slot-hover-info, .slot-drag-legend, .slot-template, .slot-trash, .cl-viewtoggle, .cx-pds').forEach(function (el) { el.remove(); });
-    area.appendChild(clone);
+    head.appendChild(left); head.appendChild(right); area.appendChild(head);
+    // corpo (zoomabile)
+    const body = document.createElement('div'); body.id = 'printBody'; area.appendChild(body);
+    if (view === 'slots') {
+      _buildSlotBands(src, body);   // Aule sopra, Labs sotto
+    } else {
+      const clone = src.cloneNode(true);
+      if (!cfg.keepId) clone.removeAttribute('id');   // il calendario TIENE #grid (CSS grid id-based)
+      _cleanPrintClone(clone);
+      body.appendChild(clone);
+    }
+    _fitPrintBody(body, !!cfg.land, view === 'slots');
     document.body.classList.add('printing');
     const cleanup = function () {
       document.body.classList.remove('printing');
-      area.innerHTML = '';
+      area.innerHTML = ''; body.style.zoom = '';
       window.removeEventListener('afterprint', cleanup);
     };
     window.addEventListener('afterprint', cleanup);
