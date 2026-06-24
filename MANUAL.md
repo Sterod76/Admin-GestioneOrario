@@ -593,6 +593,15 @@ Menu **🕒 Orario → 🔓 Sconnetti editor**: forza il rilascio del lock di mo
 (vedi §3). Serve se un editor è rimasto "appeso" (scheda chiusa senza uscire da EDIT)
 e blocca l'EDIT agli altri — anche se il lock scade comunque da solo dopo ~24 h.
 
+Menu **🕒 Orario → 🔁 Import / Export**: salva/ripristina un **backup JSON** dei fogli
+sorgente (`SxLT`/`SxLM` + PdS) nello **stesso folder Drive** del gsheet.
+- **📤 Esporta JSON** e **📥 Importa JSON** aprono un dialogo che chiede il **nome del
+  file**: è già compilato col **nome del gsheet** (default) ma resta **editabile**, così
+  puoi tenere più backup con nomi diversi (l'estensione `.json` è aggiunta in automatico).
+- In import, dopo aver scelto il nome il dialogo mostra **cosa verrà sostituito** e chiede
+  conferma prima di scrivere. La `MATRICE` non viene mai reimportata (è alimentata da
+  IMPORTRANGE); dopo l'import vengono rigenerati `SxAULE` e lo snapshot della web app.
+
 ---
 
 ## 9. Struttura del codice e verifiche
