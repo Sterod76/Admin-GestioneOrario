@@ -1,19 +1,17 @@
 /**
  * Export/Import JSON dei fogli sorgente SxLT / SxLM.
  *
- * Il file vive nello STESSO folder Drive del gsheet. Sia in export sia in import
- * un piccolo dialogo HtmlService chiede il NOME del file: il campo è
- * PRE-COMPILATO col nome del gsheet (default) ma resta EDITABILE, così si può
- * salvare/leggere un backup con un nome diverso. Il dialogo parla col server via
- * google.script.run (richiede lo scope Drive, già concesso). Si usa un dialogo e
- * non ui.prompt() perché il prompt nativo NON consente di pre-compilare il campo.
+ * NB: NESSUN uso di DriveApp e NESSUN uso di google.script.run a runtime.
+ * Lo script funziona anche con admin Workspace restrittivi.
  *
- *   EXPORT: dialog → exportJsonWithName(name) scrive <name>.json nel folder.
- *   IMPORT: dialog → peekImportByName(name) mostra cosa verrà sostituito →
- *           conferma → applyImportByName(name) applica e rigenera SxAULE/snapshot.
+ *   EXPORT: HTML dialog. Il JSON viene SERIALIZZATO lato server e
+ *           EMBEDDATO nell'HTML al rendering (via scriptlet template).
+ *           Il browser triggera il download via Blob. Niente RPC.
  *
- * Il foglio PdS è incluso (settings); la MATRICE solo come backup (in import NON
- * viene riscritta: è alimentata da IMPORTRANGE).
+ *   IMPORT: ui.prompt() nativo (no HtmlService). L'utente incolla il JSON
+ *           nella textbox e il server lo riceve via getResponseText().
+ *
+ * Il foglio PdS NON è incluso nell'export e viene ignorato in import.
  *
  * Formato JSON (v2, include "fmt" per roundtrip della formattazione):
  *   { version, semester, exportedAt, S1LT: {tabColor, header, rows, fmt}, ... }
@@ -22,7 +20,7 @@
 const STORAGE_VERSION = 2;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// EXPORT — dialog per il nome (default = nome gsheet, editabile) → scrive nel folder
+// EXPORT — HTML dialog con JSON embedded (no google.script.run runtime)
 // ─────────────────────────────────────────────────────────────────────────────
 
 function exportToJson() {
@@ -34,27 +32,11 @@ function exportToJson() {
     return n.toUpperCase().startsWith(cfg.prefix) && n !== cfg.output;
   });
   if (!sources.length) {
-    ui.alert('Esporta JSON', 'Nessun foglio "' + cfg.prefix + '*" trovato.', ui.ButtonSet.OK);
+    ui.alert('Export', 'Nessun foglio "' + cfg.prefix + '*" trovato.', ui.ButtonSet.OK);
     return;
   }
-  _showNameDialog_('export', '📤 Esporta JSON', ss.getName());
-}
 
-// Chiamata dal dialogo (google.script.run) col nome scelto. Scrive <name>.json e
-// ritorna il messaggio di esito (mostrato nel dialogo). Lancia con messaggio
-// leggibile in caso di errore (loggato anche sull'Execution log via _logRethrow_).
-function exportJsonWithName(name) {
-  try { return _exportJsonImpl_(name); } catch (e) { _logRethrow_('exportJsonWithName', e); }
-}
-function _exportJsonImpl_(name) {
-  const cfg = detectAuleConfig();
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sources = ss.getSheets().filter(s => {
-    const n = s.getName();
-    return n.toUpperCase().startsWith(cfg.prefix) && n !== cfg.output;
-  });
-  if (!sources.length) throw new Error('Nessun foglio "' + cfg.prefix + '*" trovato.');
-
+  // Niente prompt: il file ha lo STESSO nome del gsheet con estensione .json.
   const out = {
     version: STORAGE_VERSION,
     semester: cfg.prefix,
@@ -74,21 +56,39 @@ function _exportJsonImpl_(name) {
   const coexSheet = ss.getSheetByName(COEX_SHEET_NAME);
   if (coexSheet) { out[COEX_SHEET_NAME] = serializeSheet_(coexSheet); hasCoex = true; }
   const json = JSON.stringify(out, null, 2);
-  const fname = _jsonFileName_(name, ss.getName());
+  const fname = ss.getName() + '.json';
   const sizeKb = Math.round(json.length / 1024);
 
-  // Scrivi nel folder Drive del gsheet (stesso folder). Sovrascrivi se esiste.
-  const folder = _gsheetFolder_();
+  // Scrivi nel folder Drive del gsheet (stesso folder).
+  let folder;
+  try {
+    const parents = DriveApp.getFileById(ss.getId()).getParents();
+    if (!parents.hasNext()) {
+      ui.alert('Esporta JSON',
+        'Il gsheet non è in un folder Drive accessibile.\nSposta lo Spreadsheet in un folder.', ui.ButtonSet.OK);
+      return;
+    }
+    folder = parents.next();
+  } catch (e) {
+    ui.alert('Esporta JSON',
+      'Errore accesso Drive: ' + e.message + '\n\n(Possibile blocco scope Drive da parte dell\'admin Workspace.)',
+      ui.ButtonSet.OK);
+    return;
+  }
+
+  // Sovrascrivi se esiste, altrimenti crea
   const existing = folder.getFilesByName(fname);
   let action;
   if (existing.hasNext()) { existing.next().setContent(json); action = 'sovrascritto'; }
   else { folder.createFile(fname, json, MimeType.PLAIN_TEXT); action = 'creato'; }
-  return 'File ' + action + ':\n  ' + fname + '\n' +
+  ui.alert('Esporta JSON',
+    'File ' + action + ':\n  ' + fname + '\n' +
     'Folder: ' + folder.getName() + '\n' +
     'Fogli: ' + sources.map(s => s.getName()).join(', ') + '\n' +
     'Non-disponibilità aule: ' + nUnavail + '\n' +
     'PdS: ' + (hasPds ? 'incluso' : '—') + ' · MATRICE: ' + (hasCoex ? 'inclusa (solo backup)' : '—') + '\n' +
-    'Dimensione: ' + sizeKb + ' KB';
+    'Dimensione: ' + sizeKb + ' KB',
+    ui.ButtonSet.OK);
 }
 
 function serializeSheet_(sh) {
@@ -130,200 +130,95 @@ function serializeSheet_(sh) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// IMPORT — dialog per il nome (default = nome gsheet, editabile) → peek → conferma
+// IMPORT — ui.prompt() nativo (single-line textbox, accetta paste lungo)
 // ─────────────────────────────────────────────────────────────────────────────
 
 function importFromJson() {
-  _showNameDialog_('import', '📥 Importa JSON', SpreadsheetApp.getActiveSpreadsheet().getName());
-}
-
-// Step 1 (dal dialogo): legge il file <name>.json, valida e ritorna un riepilogo
-// di cosa verrà sostituito. NON modifica nulla. Ritorna { fname, summary };
-// lancia con messaggio leggibile se il file manca o non è valido.
-function peekImportByName(name) {
-  try { return _peekImportImpl_(name); } catch (e) { _logRethrow_('peekImportByName', e); }
-}
-function _peekImportImpl_(name) {
-  const cfg = detectAuleConfig();
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const fname = _jsonFileName_(name, ss.getName());
-  const text = _readJsonFile_(fname);
-  let data;
-  try { data = JSON.parse(text); } catch (e) { throw new Error('JSON malformato in "' + fname + '": ' + e.message); }
-  // Semestre = quello dichiarato nel file (è l'export di QUESTO gsheet); fallback al rilevato.
-  const semester = (data.semester ? String(data.semester).toUpperCase() : cfg.prefix);
-  const metaKeys = ['version', 'semester', 'year', 'exportedAt'];
-  const sheetKeys = Object.keys(data).filter(k =>
-    metaKeys.indexOf(k) === -1 &&
-    k !== PDS_SHEET_NAME &&
-    k.toUpperCase().indexOf(semester) === 0 &&
-    data[k] && typeof data[k] === 'object' &&
-    Array.isArray(data[k].header) && Array.isArray(data[k].rows));
-  if (!sheetKeys.length) throw new Error('Nessun foglio "' + semester + '*" valido nel file "' + fname + '".');
-  const sheetInfo = sheetKeys.map(k => '• ' + k + ' (' + data[k].rows.length + ' righe)').join('\n');
-  const hasPdsInFile = !!(data[PDS_SHEET_NAME] && data[PDS_SHEET_NAME].header && data[PDS_SHEET_NAME].rows);
-  const nUn = Array.isArray(data._unavail) ? data._unavail.length : 0;
-  const extra =
-    (hasPdsInFile ? '\n• ' + PDS_SHEET_NAME + ' (settings dei piani)' : '') +
-    (nUn ? '\n• non-disponibilità aule (' + nUn + ')' : '');
-  return {
-    fname: fname,
-    summary: 'Verranno SOSTITUITI (vecchi dati cancellati, nuovi scritti):\n' + sheetInfo + extra +
-      '\n\nBordi e formattazione preservati. La MATRICE NON viene importata\n' +
-      '(è alimentata da IMPORTRANGE). Altri fogli/semestri non toccati.'
-  };
-}
-
-// Step 2 (dal dialogo, dopo conferma): applica davvero l'import + rigenera SxAULE
-// e riscrive lo snapshot della web app. Ritorna il messaggio di esito.
-function applyImportByName(name) {
-  try { return _applyImportImpl_(name); } catch (e) { _logRethrow_('applyImportByName', e); }
-}
-function _applyImportImpl_(name) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const fname = _jsonFileName_(name, ss.getName());
-  const text = _readJsonFile_(fname);
-  let data;
-  try { data = JSON.parse(text); } catch (e) { throw new Error('JSON malformato in "' + fname + '": ' + e.message); }
-  if (!data.semester) data.semester = detectAuleConfig().prefix;
-
-  const msg = applyImportFromJson(JSON.stringify(data));
-  // Dopo l'import: rigenera SxAULE dalle sessioni appena importate (+ ripristina le
-  // non-disponibilità) e RISCRIVE lo snapshot della web app — altrimenti il sito,
-  // che legge lo snapshot, continuerebbe a mostrare i dati vecchi.
-  let extraMsg = '';
-  const un = Array.isArray(data._unavail) ? data._unavail : [];
+  const ui = SpreadsheetApp.getUi();
   try {
-    tabellaAule({ ss: ss, interactive: false, extraUnavail: un, removedUnavail: [] });
-    const d = getOrarioData(); d.pendingEdits = []; _writeSnapshot_(d);
-    extraMsg = '\nSxAULE rigenerato e snapshot Web App aggiornato' +
-      (un.length ? ' (non-disponibilità ripristinate: ' + un.length + ')' : '') + '.' +
-      '\n→ Ricarica la web app (o premi 📥 Carica) per vedere i dati.';
-  } catch (e) { extraMsg = '\n⚠ Rigenerazione/snapshot non riuscita: ' + ((e && e.message) || e); }
-  return 'Import completato (' + fname + ')\n\n' + msg + extraMsg;
-}
+    // Niente prompt: si carica il file con lo STESSO nome del gsheet (.json).
+    const cfg = detectAuleConfig();
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const fname = ss.getName() + '.json';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helper condivisi: nome file, folder Drive, lettura file, dialogo HTML
-// ─────────────────────────────────────────────────────────────────────────────
+    // Carica file dal folder Drive del gsheet
+    let folder;
+    try {
+      const parents = DriveApp.getFileById(ss.getId()).getParents();
+      if (!parents.hasNext()) {
+        ui.alert('Importa JSON', 'Il gsheet non è in un folder accessibile.\nSposta lo Spreadsheet in un folder Drive.', ui.ButtonSet.OK);
+        return;
+      }
+      folder = parents.next();
+    } catch (e) {
+      ui.alert('Importa JSON', 'Errore accesso Drive: ' + e.message + '\n\n(Possibile blocco scope Drive da parte dell\'admin Workspace.)', ui.ButtonSet.OK);
+      return;
+    }
+    const files = folder.getFilesByName(fname);
+    if (!files.hasNext()) {
+      ui.alert('Importa JSON',
+        'File "' + fname + '" non trovato nel folder "' + folder.getName() + '".\n\nEsporta prima con "Esporta JSON" (crea un file con lo stesso nome del gsheet).',
+        ui.ButtonSet.OK);
+      return;
+    }
+    const text = files.next().getBlob().getDataAsString();
+    if (!text || !/^\{/.test(text.trim())) {
+      ui.alert('Importa JSON', 'File "' + fname + '" non sembra contenere JSON valido.', ui.ButtonSet.OK);
+      return;
+    }
 
-// Logga su Execution log e rilancia: i google.script.run perdono lo stack curato
-// lato server, così le failure di import/export restano tracciate per il
-// post-mortem (Estensioni → Apps Script → Esecuzioni).
-function _logRethrow_(label, e) {
-  try { Logger.log('ERROR ' + label + ': ' + ((e && e.message) || e) + '\n' + ((e && e.stack) || '')); } catch (e2) {}
-  throw e;
-}
+    let data;
+    try { data = JSON.parse(text); }
+    catch (e) { throw new Error('JSON malformato: ' + e.message); }
+    // Semestre = quello dichiarato nel file (è l'export di QUESTO gsheet); fallback al rilevato.
+    const semester = (data.semester ? String(data.semester).toUpperCase() : cfg.prefix);
+    if (!data.semester) data.semester = semester;
 
-// Normalizza il nome scelto in un filename .json: trim, fallback al nome del
-// gsheet se vuoto, niente doppio ".json".
-function _jsonFileName_(name, fallback) {
-  let base = String(name == null ? '' : name).trim();
-  if (!base) base = String(fallback == null ? '' : fallback).trim() || 'orario';
-  base = base.replace(/\.json$/i, '');
-  return base + '.json';
-}
+    // Conferma esplicita: mostra quali fogli verranno sostituiti
+    const metaKeys = ['version', 'semester', 'year', 'exportedAt'];
+    const sheetKeys = Object.keys(data).filter(k =>
+      metaKeys.indexOf(k) === -1 &&
+      k !== PDS_SHEET_NAME &&
+      k.toUpperCase().indexOf(semester) === 0 &&
+      data[k] && typeof data[k] === 'object' &&
+      Array.isArray(data[k].header) && Array.isArray(data[k].rows));
+    if (!sheetKeys.length) {
+      ui.alert('Importa JSON', 'Nessun foglio "' + semester + '*" valido nel file.', ui.ButtonSet.OK);
+      return;
+    }
+    const sheetInfo = sheetKeys.map(k => '  • ' + k + ' (' + data[k].rows.length + ' righe)').join('\n');
+    const hasPdsInFile = !!(data[PDS_SHEET_NAME] && data[PDS_SHEET_NAME].header && data[PDS_SHEET_NAME].rows);
+    const nUn = Array.isArray(data._unavail) ? data._unavail.length : 0;
+    const extra =
+      (hasPdsInFile ? '  • ' + PDS_SHEET_NAME + ' (settings dei piani)\n' : '') +
+      (nUn ? '  • non-disponibilità aule (' + nUn + ')\n' : '');
+    const confirm = ui.alert('Conferma import da "' + fname + '"',
+      'Verranno SOSTITUITI (vecchi dati cancellati, nuovi scritti):\n' +
+      sheetInfo + '\n' + extra + '\n' +
+      'Bordi e formattazione preservati. La MATRICE co-esami NON viene importata\n' +
+      '(è alimentata da IMPORTRANGE). Altri fogli/semestri non toccati.\n\nProcedere?',
+      ui.ButtonSet.OK_CANCEL);
+    if (confirm !== ui.Button.OK) return;
 
-// Folder Drive che contiene il gsheet (dove vivono i .json). Lancia con messaggio
-// leggibile se Drive non è accessibile o il gsheet non è in un folder.
-function _gsheetFolder_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let parents;
-  try { parents = DriveApp.getFileById(ss.getId()).getParents(); }
-  catch (e) { throw new Error('Errore accesso Drive: ' + e.message + '\n(Possibile blocco scope Drive da parte dell\'admin Workspace.)'); }
-  if (!parents.hasNext()) throw new Error('Il gsheet non è in un folder Drive accessibile.\nSposta lo Spreadsheet in un folder.');
-  return parents.next();
-}
-
-// Legge il contenuto testuale del file <fname> dal folder del gsheet. Lancia se
-// manca o non sembra JSON.
-function _readJsonFile_(fname) {
-  const folder = _gsheetFolder_();
-  const files = folder.getFilesByName(fname);
-  if (!files.hasNext()) {
-    throw new Error('File "' + fname + '" non trovato nel folder "' + folder.getName() +
-      '".\nEsporta prima con "Esporta JSON", oppure controlla il nome.');
+    const msg = applyImportFromJson(JSON.stringify(data));
+    // Dopo l'import: rigenera SxAULE dalle sessioni appena importate (+ ripristina le
+    // non-disponibilità) e RISCRIVE lo snapshot della web app — altrimenti il sito,
+    // che legge lo snapshot, continuerebbe a mostrare i dati vecchi.
+    let extraMsg = '';
+    const un = Array.isArray(data._unavail) ? data._unavail : [];
+    try {
+      tabellaAule({ ss: ss, interactive: false, extraUnavail: un, removedUnavail: [] });
+      const d = getOrarioData(); d.pendingEdits = []; _writeSnapshot_(d);
+      extraMsg = '\nSxAULE rigenerato e snapshot Web App aggiornato' +
+        (un.length ? ' (non-disponibilità ripristinate: ' + un.length + ')' : '') + '.' +
+        '\n→ Ricarica la web app (o premi 📥 Carica) per vedere i dati.';
+    } catch (e) { extraMsg = '\n⚠ Rigenerazione/snapshot non riuscita: ' + ((e && e.message) || e); }
+    ui.alert('Import completato (' + fname + ')', msg + extraMsg, ui.ButtonSet.OK);
+  } catch (e) {
+    const msg = (e && e.message) ? e.message : String(e);
+    Logger.log('ERROR importFromJson: ' + msg + '\n' + (e && e.stack ? e.stack : ''));
+    try { ui.alert('Import fallito', msg + '\n\n(Vedi log: Estensioni → Apps Script → Esecuzioni)', ui.ButtonSet.OK); } catch (e2) {}
   }
-  const text = files.next().getBlob().getDataAsString();
-  if (!text || !/^\s*\{/.test(text)) throw new Error('File "' + fname + '" non sembra contenere JSON valido.');
-  return text;
-}
-
-// Mostra il dialogo HTML che chiede il nome file (pre-compilato col default,
-// editabile). mode = 'export' | 'import'.
-function _showNameDialog_(mode, title, defName) {
-  const html = HtmlService.createHtmlOutput(_nameDialogHtml_(mode, defName))
-    .setWidth(470).setHeight(mode === 'import' ? 410 : 300);
-  SpreadsheetApp.getUi().showModalDialog(html, title);
-}
-
-// HTML del dialogo. In export: bottone → exportJsonWithName → mostra esito.
-// In import: bottone → peekImportByName → mostra riepilogo → "Conferma import"
-// → applyImportByName → mostra esito. Tutta la conferma avviene QUI dentro,
-// senza ui.alert annidati (che con un modale già aperto fallirebbero).
-function _nameDialogHtml_(mode, defName) {
-  const isImport = (mode === 'import');
-  const safe = escapeHtml(defName);
-  const primaryLabel = isImport ? 'Carica e verifica' : 'Esporta';
-  const intro = isImport
-    ? 'Nome del file .json da importare. Il campo è già compilato col nome del gsheet: modificalo se vuoi caricare un altro backup.'
-    : 'Nome del file .json da creare. Il campo è già compilato col nome del gsheet: modificalo se vuoi un nome diverso.';
-  return [
-    '<!DOCTYPE html><html><head><base target="_top"><meta charset="utf-8">',
-    '<style>',
-    '  body{font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#202124;margin:0;padding:14px;}',
-    '  p.intro{margin:0 0 10px;color:#5f6368;line-height:1.4;}',
-    '  .row{display:flex;align-items:center;gap:6px;}',
-    '  input#fn{flex:1;font-size:14px;padding:6px 8px;border:1px solid #bbb;border-radius:4px;}',
-    '  span.ext{color:#5f6368;}',
-    '  .bar{display:flex;gap:8px;margin-top:14px;}',
-    '  button{font-size:13px;padding:7px 14px;border-radius:4px;border:1px solid #1967d2;background:#1967d2;color:#fff;cursor:pointer;}',
-    '  button.sec{background:#fff;color:#1967d2;}',
-    '  button[disabled]{opacity:.5;cursor:default;}',
-    '  pre#summary{display:none;white-space:pre-wrap;background:#f1f3f4;border-radius:4px;padding:8px;margin:12px 0 0;max-height:150px;overflow:auto;font-size:12px;}',
-    '  div#msg{white-space:pre-wrap;margin-top:12px;max-height:150px;overflow:auto;}',
-    '  div#msg.err{color:#c5221f;}',
-    '</style></head><body>',
-    '<p class="intro">' + escapeHtml(intro) + '</p>',
-    '<div class="row"><input id="fn" type="text" value="' + safe + '" spellcheck="false"><span class="ext">.json</span></div>',
-    '<pre id="summary"></pre>',
-    '<div class="bar">',
-    '  <button id="go">' + primaryLabel + '</button>',
-    '  <button id="confirm" class="sec" style="display:none">Conferma import</button>',
-    '  <button id="close" class="sec" onclick="google.script.host.close()">Chiudi</button>',
-    '</div>',
-    '<div id="msg"></div>',
-    '<script>',
-    '  var IMPORT=' + (isImport ? 'true' : 'false') + ', pendingName=null;',
-    '  function $(id){return document.getElementById(id);}',
-    '  function setMsg(t,err){var m=$("msg");m.textContent=t||"";m.className=err?"err":"";}',
-    '  function fn(){return $("fn").value;}',
-    '  function busy(b){$("go").disabled=b;$("confirm").disabled=b;}',
-    '  $("fn").focus();$("fn").select();',
-    '  $("fn").addEventListener("keydown",function(e){if(e.key!=="Enter")return;e.preventDefault();var b=($("confirm").style.display!=="none")?$("confirm"):$("go");if(b.offsetParent!==null&&!b.disabled)b.click();});',
-    '  $("go").onclick=function(){',
-    '    busy(true);setMsg(IMPORT?"Lettura file…":"Esportazione in corso…");',
-    '    if(IMPORT){',
-    '      google.script.run.withSuccessHandler(function(r){',
-    '        busy(false);setMsg("");pendingName=r.fname;',
-    '        var s=$("summary");s.textContent=r.summary;s.style.display="block";',
-    '        $("go").style.display="none";$("confirm").style.display="";',
-    '      }).withFailureHandler(function(e){busy(false);setMsg((e&&e.message)?e.message:String(e),true);}).peekImportByName(fn());',
-    '    }else{',
-    '      google.script.run.withSuccessHandler(function(r){',
-    '        busy(false);setMsg(r);$("go").style.display="none";',
-    '      }).withFailureHandler(function(e){busy(false);setMsg((e&&e.message)?e.message:String(e),true);}).exportJsonWithName(fn());',
-    '    }',
-    '  };',
-    '  $("confirm").onclick=function(){',
-    '    busy(true);setMsg("Import in corso… non chiudere la finestra.");',
-    '    google.script.run.withSuccessHandler(function(r){',
-    '      busy(false);setMsg(r);$("confirm").style.display="none";',
-    '    }).withFailureHandler(function(e){busy(false);setMsg((e&&e.message)?e.message:String(e),true);}).applyImportByName(pendingName||fn());',
-    '  };',
-    '<\/script>',
-    '</body></html>'
-  ].join('\n');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
