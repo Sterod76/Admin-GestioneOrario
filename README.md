@@ -58,7 +58,7 @@ singolo e si rifiuta sul multi-target. Procedura: [`docs/USO-RAPIDO.md`](docs/US
 
 ```
 src/        codice Apps Script (.gs + index.html) — vedi guida-tecnica
-scripts/    setup/push/deploy/verify (.js) + sim_*.js + build_manual_screens.js
+scripts/    operativi (setup/push/deploy/verify/whoami) + sim_*.js — vedi scripts/README.md
 config/     local.json (gitignored) + esempi
 matrice/    pipeline Python della matrice co-esami
 docs/       documentazione + img/ (screenshot del MANUAL)
