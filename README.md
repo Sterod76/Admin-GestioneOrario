@@ -22,7 +22,6 @@ Questo è un repository contenente il codice per fare funzionare l'applicativo d
 - [`docs/deploy-webapp.md`](docs/deploy-webapp.md) — deploy della web app: HEAD vs versioned deployments, URL `/exec` e `/dev`, cosa fa `clasp deploy`, ruolo di `index.html`, come pubblicare più pagine HTML.
 - [`docs/appsscript-manifest.md`](docs/appsscript-manifest.md) — riferimento ai campi di `src/appsscript.json` (timezone, runtime, `webapp.executeAs`, `webapp.access`, ecc.) con tutti i valori possibili e esempi.
 - [`docs/duplicare-gsheet.md`](docs/duplicare-gsheet.md) — duplicare il gsheet per un nuovo CdS / semestre / istanza: due procedure (solo browser oppure VS Code+clasp), passo-passo.
-- [`docs/Orario CdS - Documentazione tecnica.docx`](docs/Orario%20CdS%20-%20Documentazione%20tecnica.docx) — versione storica breve (panoramica iniziale del progetto).
 
 ## Prerequisiti
 
