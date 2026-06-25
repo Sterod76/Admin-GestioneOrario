@@ -9,6 +9,7 @@ un gsheet sorgente, codice **Google Apps Script** che genera l'occupazione aule,
 - 👉 [`docs/USO-RAPIDO.md`](docs/USO-RAPIDO.md) — **da qui**: commit, deploy, target da VS Code (task + flussi tipici).
 - [`MANUAL.md`](MANUAL.md) — manuale utente della web app (tab, collisioni, capienza, SERVIZIO).
 - [`docs/guida-tecnica-completa.md`](docs/guida-tecnica-completa.md) — architettura, fogli, file `.gs`, concetti.
+- [`WEBAPP.md`](WEBAPP.md) — come è organizzato il client `src/index.html` (viste, dati, render, editing).
 - [`docs/deploy-webapp.md`](docs/deploy-webapp.md) — HEAD vs versioni, `/exec` vs `/dev`, `clasp deploy`.
 - [`docs/duplicare-gsheet.md`](docs/duplicare-gsheet.md) — creare una nuova istanza (2 procedure).
 - [`docs/appsscript-manifest.md`](docs/appsscript-manifest.md) — campi di `src/appsscript.json`.

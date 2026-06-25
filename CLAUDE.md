@@ -29,7 +29,7 @@ per il tooling (commit/deploy/target da VS Code).
 
 ## Mappa file
 
-- `src/index.html` — client (UI, render, editing). `BOOTSTRAP` = dati iniettati dal server.
+- `src/index.html` — client (UI, render, editing). `BOOTSTRAP` = dati iniettati dal server. Mappa: **`WEBAPP.md`**.
 - `src/WebApp.gs` — `doGet`, `getOrarioData`, snapshot bucket LT/LM/PDS, Carica/Salva.
 - `src/Config.gs` — costanti colonne, parser (`parseDocenti_`, `parseMutuazione`).
 - `src/TabellaAule.gs`, `src/Coexam.gs`, `src/Menu.gs` — aule, lettura `MATRICE`, menu.
