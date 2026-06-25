@@ -1,8 +1,10 @@
 {
   "version": "2.0.0",
+  "_nota": "Comandi runnabili da Ctrl+Shift+P -> 'Tasks: Run Task' (o Terminal -> Run Task). Default test = Ctrl+Shift+T-ish via 'Run Test Task'; default build = Ctrl+Shift+B. Scheda d'uso: docs/USO-RAPIDO.md.",
   "tasks": [
     {
-      "label": "Verifica (sintassi + sim)",
+      "label": "🔍 Verifica (sintassi + sim)",
+      "detail": "node scripts/verify.js — controlla client + tutti i .gs + tutte le sim. Lancialo PRIMA di pubblicare.",
       "type": "shell",
       "command": "npm run verify",
       "group": { "kind": "test", "isDefault": true },
@@ -10,30 +12,17 @@
       "problemMatcher": []
     },
     {
-      "label": "Verifica + Deploy",
+      "label": "🚀 Rilascio completo (verifica → deploy → commit → push)",
+      "detail": "Flusso completo: verifica, pubblica su TUTTI i target /exec, poi salva su git e push su Codeberg. Chiede il messaggio di commit.",
       "type": "shell",
-      "command": "npm run verify && npm run deploy",
-      "group": "build",
-      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
-      "problemMatcher": []
-    },
-    {
-      "label": "Git: commit (messaggio)",
-      "type": "shell",
-      "command": "git add -A && git commit -m \"${input:commitMsg}\"",
-      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
-      "problemMatcher": []
-    },
-    {
-      "label": "Push (clasp)",
-      "type": "shell",
-      "command": "npm run push",
+      "command": "npm run verify && npm run deploy && git add -A && git commit -m \"${input:commitMsg}\" && git push origin main",
       "group": { "kind": "build", "isDefault": true },
       "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
       "problemMatcher": []
     },
     {
-      "label": "Deploy (push + redeploy webapp)",
+      "label": "📤 Deploy web app (tutti i target /exec)",
+      "detail": "npm run deploy — push del codice + redeploy della web app pubblica su tutte le installazioni. NON committa su git.",
       "type": "shell",
       "command": "npm run deploy",
       "group": "build",
@@ -41,35 +30,89 @@
       "problemMatcher": []
     },
     {
-      "label": "Pull (clasp)",
+      "label": "🧪 Verifica + Deploy",
+      "detail": "Verifica e, se passa, pubblica su tutti i target. Senza toccare git.",
+      "type": "shell",
+      "command": "npm run verify && npm run deploy",
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "⬆️ clasp push (solo @HEAD / URL /dev)",
+      "detail": "npm run push — invia src/ ad Apps Script ma aggiorna SOLO l'URL /dev, non il pubblico /exec. Per il pubblico usa Deploy.",
+      "type": "shell",
+      "command": "npm run push",
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "💾 Git: commit + push (Codeberg)",
+      "detail": "git add -A + commit (chiede il messaggio) + push su Codeberg. NON pubblica la web app (per quello usa Deploy/Rilascio).",
+      "type": "shell",
+      "command": "git add -A && git commit -m \"${input:commitMsg}\" && git push origin main",
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "📝 Git: commit (solo locale)",
+      "detail": "git add -A + commit, senza push.",
+      "type": "shell",
+      "command": "git add -A && git commit -m \"${input:commitMsg}\"",
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "🆙 Git: push (Codeberg)",
+      "detail": "git push origin main — invia i commit già fatti su Codeberg.",
+      "type": "shell",
+      "command": "git push origin main",
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "🎯 Apri config target (config/local.json)",
+      "detail": "Apre il file con le installazioni (array targets[]). Modificalo a mano per aggiungere/cambiare un target. Schema in docs/USO-RAPIDO.md.",
+      "type": "shell",
+      "command": "code config/local.json",
+      "presentation": { "reveal": "silent", "panel": "shared" },
+      "problemMatcher": []
+    },
+    {
+      "label": "📥 Pull (clasp)",
+      "detail": "npm run pull — scarica in src/ il codice attualmente su Apps Script (sovrascrive i file locali!).",
       "type": "shell",
       "command": "npm run pull",
       "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
       "problemMatcher": []
     },
     {
-      "label": "Setup IDs",
+      "label": "🔧 Setup IDs (interattivo)",
+      "detail": "npm run setup — configura una SINGOLA installazione. ⚠ Si rifiuta di sovrascrivere un config multi-target: per i target esistenti usa 'Apri config target'.",
       "type": "shell",
       "command": "npm run setup",
       "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
       "problemMatcher": []
     },
     {
-      "label": "List deployments",
+      "label": "📋 List deployments",
+      "detail": "npm run deployments — elenca i deployment del progetto clasp corrente.",
       "type": "shell",
       "command": "npm run deployments",
       "presentation": { "reveal": "always", "panel": "dedicated", "clear": false },
       "problemMatcher": []
     },
     {
-      "label": "Open Apps Script editor",
+      "label": "🌐 Apri editor Apps Script",
+      "detail": "npm run open — apre nel browser l'editor Apps Script del progetto.",
       "type": "shell",
       "command": "npm run open",
       "presentation": { "reveal": "silent", "panel": "dedicated" },
       "problemMatcher": []
     },
     {
-      "label": "Tail logs",
+      "label": "📜 Tail logs",
+      "detail": "npm run logs — stampa gli ultimi log d'esecuzione di Apps Script.",
       "type": "shell",
       "command": "npm run logs",
       "isBackground": true,
@@ -77,21 +120,23 @@
       "problemMatcher": []
     },
     {
-      "label": "clasp: whoami (account corrente)",
+      "label": "👤 clasp: whoami (account corrente)",
+      "detail": "npm run whoami — mostra l'account Google con cui clasp è loggato.",
       "type": "shell",
       "command": "npm run whoami",
       "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
       "problemMatcher": []
     },
     {
-      "label": "clasp: login (cambia account)",
+      "label": "🔑 clasp: login (cambia account)",
+      "detail": "logout + login — usalo se l'account clasp non è quello giusto (vedi expectedAccount in config/local.json).",
       "type": "shell",
       "command": "npm run logout && npm run login",
       "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
       "problemMatcher": []
     },
     {
-      "label": "clasp: logout",
+      "label": "🚪 clasp: logout",
       "type": "shell",
       "command": "npm run logout",
       "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },

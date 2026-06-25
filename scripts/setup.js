@@ -41,6 +41,19 @@ function prompt(rl, q, def) {
   const current = readJson(LOCAL_PATH) || {};
   const claspCur = readJson(CLASP_PATH) || {};
 
+  // GUARDIA: questo setup gestisce una SINGOLA installazione (formato flat). Se il
+  // config locale è già multi-target (array targets[], es. le 4 installazioni
+  // dell'Orario), sovrascriverlo qui le cancellerebbe. Aborta, salvo --force.
+  if (Array.isArray(current.targets) && current.targets.length && !process.argv.includes('--force')) {
+    rl.close();
+    console.error('\n⚠  config/local.json è MULTI-TARGET (' + current.targets.length + ' installazioni).');
+    console.error('   `npm run setup` scrive solo il formato a target singolo e le cancellerebbe.');
+    console.error('\n   Per aggiungere/modificare un target: edita a mano config/local.json');
+    console.error('   (task VS Code "🎯 Apri config target"). Schema in docs/USO-RAPIDO.md.');
+    console.error('\n   Se vuoi DAVVERO ripartire da un singolo target: npm run setup -- --force\n');
+    process.exit(2);
+  }
+
   console.log('\nSetup progetto Orario CdS\n=========================\n');
 
   const scriptId = await prompt(rl, 'Apps Script ID', current.scriptId || claspCur.scriptId || example.scriptId);

@@ -17,6 +17,7 @@ Questo è un repository contenente il codice per fare funzionare l'applicativo d
 
 ## Documentazione
 
+- 👉 [`docs/USO-RAPIDO.md`](docs/USO-RAPIDO.md) — **scheda operativa**: come fare commit, deploy, aggiornare i target ecc. **da soli in VS Code** (task pronti + i 3 flussi tipici). Parti da qui per l'uso quotidiano.
 - [`docs/guida-tecnica-completa.md`](docs/guida-tecnica-completa.md) — guida tecnica completa: architettura, struttura dello Spreadsheet, file Apps Script uno per uno, mutuazioni, vincoli, conflict detection.
 - [`docs/deploy-webapp.md`](docs/deploy-webapp.md) — deploy della web app: HEAD vs versioned deployments, URL `/exec` e `/dev`, cosa fa `clasp deploy`, ruolo di `index.html`, come pubblicare più pagine HTML.
 - [`docs/appsscript-manifest.md`](docs/appsscript-manifest.md) — riferimento ai campi di `src/appsscript.json` (timezone, runtime, `webapp.executeAs`, `webapp.access`, ecc.) con tutti i valori possibili e esempi.
@@ -80,6 +81,30 @@ I valori vengono scritti in `config/local.json` e `.clasp.json` (entrambi gitign
 | `npm run status` | `clasp status` — mostra cosa verrebbe pushato. |
 | `npm run open` | Apre l'editor Apps Script nel browser. |
 | `npm run logs` | Stampa gli ultimi log d'esecuzione. |
+
+## Aggiornare i target (più installazioni)
+
+Questo progetto pubblica su **più installazioni** in un solo `npm run deploy`. Le
+installazioni vivono nell'array **`targets[]`** di `config/local.json` (gitignorato);
+`deploy.js` itera su ciascuna (push del codice sul suo `scriptId` + redeploy sul suo
+`deploymentId`). Template completo: [`config/local.multitarget.example.json`](config/local.multitarget.example.json).
+
+Per aggiungere/modificare un'installazione **edita `config/local.json` a mano** (task
+VS Code **🎯 Apri config target**) aggiungendo un blocco all'array:
+
+```json
+{
+  "label": "Nome leggibile",
+  "scriptId": "ID Apps Script",
+  "deploymentId": "ID deployment web app (/exec)",
+  "webappUrl": "https://script.google.com/.../exec"
+}
+```
+
+> ⚠ **`npm run setup` gestisce solo il formato a target singolo**: se il file è già
+> multi-target, si **rifiuta** di sovrascriverlo (per non cancellare le installazioni).
+> Usalo solo per creare da zero una nuova istanza separata. Procedura passo-passo per
+> aggiungere un target / istanza: [`docs/USO-RAPIDO.md`](docs/USO-RAPIDO.md) §3.
 
 ## Struttura del repository
 

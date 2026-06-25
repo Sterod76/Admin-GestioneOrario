@@ -1,0 +1,26 @@
+{
+  "_nota": "Schema MULTI-TARGET reale usato dall'Orario (più installazioni). Copia questo file in config/local.json (gitignorato) e compila gli ID. `npm run deploy` itera su ogni target: per ciascuno fa clasp push -f sul suo scriptId e clasp deploy -i sul suo deploymentId (stesso URL /exec). Un target SENZA deploymentId viene solo pushato (non deployato). NB: `npm run setup` NON gestisce questo formato — edita questo file a mano.",
+  "expectedAccount": "tuo.account@unipi.it",
+  "deploymentDescription": "BozzaOrario",
+  "targets": [
+    {
+      "label": "Calendario Development",
+      "scriptId": "<SCRIPT_ID_INSTALLAZIONE_1>",
+      "deploymentId": "<DEPLOYMENT_ID_INSTALLAZIONE_1>",
+      "webappUrl": "https://script.google.com/.../exec",
+      "deploymentDescription": "BozzaOrario"
+    },
+    {
+      "label": "S1 AA2026/27",
+      "scriptId": "<SCRIPT_ID_INSTALLAZIONE_2>",
+      "deploymentId": "<DEPLOYMENT_ID_INSTALLAZIONE_2>",
+      "webappUrl": "https://script.google.com/.../exec"
+    },
+    {
+      "label": "S2 AA2026/27",
+      "scriptId": "<SCRIPT_ID_INSTALLAZIONE_3>",
+      "deploymentId": "<DEPLOYMENT_ID_INSTALLAZIONE_3>",
+      "webappUrl": "https://script.google.com/.../exec"
+    }
+  ]
+}

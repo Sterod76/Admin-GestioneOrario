@@ -1,7 +1,8 @@
 # Istruzioni progetto — Orario CdS
 
 Web app Google Apps Script (bound) per l'orario didattico. Vedi **`MANUAL.md`** per
-l'uso completo e gli screenshot.
+l'uso completo (utente finale), **`README.md`** §Comandi e **`docs/USO-RAPIDO.md`**
+per il tooling (commit/deploy/target da VS Code).
 
 ## Regole operative
 
@@ -10,15 +11,21 @@ l'uso completo e gli screenshot.
   `node scripts/build_manual_screens.js` → cattura i tab con Edge headless in
   `docs/img/` (procedura in §10 del manuale).
 - **Deploy = `npm run deploy`**, non `npm run push`. `push` aggiorna solo `@HEAD`
-  (URL `/dev`); solo `deploy` aggiorna la web app pubblica `/exec`. I target sono in
-  `config/local.json` (2 installazioni).
-- **Prima di deployare**, verifica:
-  - sintassi del client: estrai `<script>` da `src/index.html`, sostituisci i
-    `<?!= ?>`/`<?= ?>` con valori e fai `node --check`;
-  - i `.gs`: copia in `.js` temporaneo e `node --check`;
-  - le sim: `node scripts/sim_*.js` (devono essere tutte verdi). Aggiorna le sim
-    quando cambi la logica che coprono.
-- Commit/push git solo se richiesto dall'utente.
+  (URL `/dev`); solo `deploy` aggiorna la web app pubblica `/exec`. I target sono
+  nell'array `targets[]` di `config/local.json` (4 installazioni); `deploy.js` itera
+  su tutti. **Non** usare/scrivere `npm run setup` su quel file (è multi-target, lo
+  romperebbe).
+- **Prima di deployare**, verifica con **`npm run verify`** (= `scripts/verify.js`:
+  client `<script>` + tutti i `.gs` + tutte le sim — devono essere tutte verdi).
+  Aggiorna le sim quando cambi la logica che coprono. A mano: estrai `<script>` da
+  `src/index.html` (sostituendo `<?!= ?>`/`<?= ?>`) → `node --check`; `.gs` → copia in
+  `.js` temp → `node --check`.
+- **Flusso canonico quando l'utente lo chiede**: `npm run verify` → `npm run deploy`
+  → commit → `git push origin main` (remote `origin` = **Codeberg**). Commit/push git
+  e deploy **solo se richiesti** dall'utente.
+- **Gotcha commit (Windows)**: il path del repo contiene `[ ]`, e `git commit -m`
+  lungo/multilinea può far scattare un falso positivo del sandbox. Scrivi il messaggio
+  in un file temp (es. `C:\Users\...\Temp\msg.txt`) e usa `git commit -F <file>`.
 
 ## Mappa file
 
