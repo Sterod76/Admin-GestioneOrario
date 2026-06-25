@@ -56,11 +56,14 @@ Le installazioni vivono nell'array **`targets[]`** di `config/local.json` (gitig
    {
      "label": "Nome leggibile",
      "scriptId": "ID dello script Apps Script",
+     "spreadsheetId": "ID del Google Sheet",
      "deploymentId": "ID del deployment web app (/exec)",
+     "deploymentDescription": "BozzaOrario",
      "webappUrl": "https://script.google.com/.../exec"
    }
    ```
    - `scriptId`: editor Apps Script → **Impostazioni progetto → ID**.
+   - `spreadsheetId`: dall'URL del foglio (`/spreadsheets/d/`**`<QUESTO>`**`/edit`).
    - `deploymentId` + `webappUrl`: editor → **Deploy → Gestisci deployment** (o
      **Nuovo deployment → Web app** la prima volta).
    - Un target **senza** `deploymentId` viene solo *pushato*, non pubblicato.

@@ -96,7 +96,9 @@ VS Code **🎯 Apri config target**) aggiungendo un blocco all'array:
 {
   "label": "Nome leggibile",
   "scriptId": "ID Apps Script",
+  "spreadsheetId": "ID Google Sheet",
   "deploymentId": "ID deployment web app (/exec)",
+  "deploymentDescription": "BozzaOrario",
   "webappUrl": "https://script.google.com/.../exec"
 }
 ```

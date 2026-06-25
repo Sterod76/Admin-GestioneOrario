@@ -6,20 +6,25 @@
     {
       "label": "Calendario Development",
       "scriptId": "<SCRIPT_ID_INSTALLAZIONE_1>",
+      "spreadsheetId": "<SPREADSHEET_ID_INSTALLAZIONE_1>",
       "deploymentId": "<DEPLOYMENT_ID_INSTALLAZIONE_1>",
-      "webappUrl": "https://script.google.com/.../exec",
-      "deploymentDescription": "BozzaOrario"
+      "deploymentDescription": "BozzaOrario",
+      "webappUrl": "https://script.google.com/.../exec"
     },
     {
       "label": "S1 AA2026/27",
       "scriptId": "<SCRIPT_ID_INSTALLAZIONE_2>",
+      "spreadsheetId": "<SPREADSHEET_ID_INSTALLAZIONE_2>",
       "deploymentId": "<DEPLOYMENT_ID_INSTALLAZIONE_2>",
+      "deploymentDescription": "BozzaOrario",
       "webappUrl": "https://script.google.com/.../exec"
     },
     {
       "label": "S2 AA2026/27",
       "scriptId": "<SCRIPT_ID_INSTALLAZIONE_3>",
+      "spreadsheetId": "<SPREADSHEET_ID_INSTALLAZIONE_3>",
       "deploymentId": "<DEPLOYMENT_ID_INSTALLAZIONE_3>",
+      "deploymentDescription": "BozzaOrario",
       "webappUrl": "https://script.google.com/.../exec"
     }
   ]
