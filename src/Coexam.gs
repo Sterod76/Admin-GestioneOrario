@@ -9,8 +9,9 @@
  *
  * Simmetrica: basta compilare triangolo superiore + diagonale (se entrambi i
  * triangoli sono compilati e discordano, si tiene il MAX con warning).
- * Cella vuota = n/d. Codici normalizzati (trim+UPPERCASE); i codici mutuati
- * (figli) sono rimappati sul codice padre.
+ * Cella vuota = n/d. Codici normalizzati (trim+UPPERCASE) e lasciati GREZZI: le classi
+ * di equivalenza (mutuazioni + foglio CORRISPONDENZE) le fonde il client (canon),
+ * sommando E/N su tutta la classe.
  *
  * Costo collisione (lato client): costo = oreOverlap/settimana * N. Se la coppia
  * è n/d ma esistono E per entrambi i codici, N viene STIMATO = min(Ea, Eb).
@@ -29,22 +30,29 @@ function _findCoexSheet_(ss) {
   return null;
 }
 
-// Mappa figlio->parent dai mutuati, per esprimere la matrice in codici parent
-// (le righe mutuate non generano sessioni: i codici figli non collidono mai).
-function _childToParentMap_(ss) {
-  const cfg = detectAuleConfigFor_(ss);
-  const sources = ss.getSheets().filter(s => {
-    const n = s.getName();
-    return n.toUpperCase().startsWith(cfg.prefix) && n !== cfg.output;
-  });
-  const byParent = buildMutuantiMap(sources); // { parent: [{childCode, childCds}] }
-  const child2parent = {};
-  Object.keys(byParent).forEach(parent => {
-    byParent[parent].forEach(m => {
-      child2parent[String(m.childCode).toUpperCase()] = String(parent).toUpperCase();
-    });
-  });
-  return child2parent;
+// Legge il foglio CORRISPONDENZE (import del CSV equivalenze_codici): una riga per
+// classe, col A = TITOLO (ignorata), col B.. = codici equivalenti. Ritorna un array
+// di classi (array di codici UPPER, almeno 2). Foglio assente/vuoto → [].
+function readCorrispondenze_(ss) {
+  let sh = null;
+  const sheets = ss.getSheets();
+  for (let i = 0; i < sheets.length; i++) {
+    if (sheets[i].getName().toUpperCase() === CORRISP_SHEET_NAME) { sh = sheets[i]; break; }
+  }
+  if (!sh) return [];
+  const lastRow = sh.getLastRow(), lastCol = sh.getLastColumn();
+  if (lastRow < 1 || lastCol < 2) return [];
+  const grid = sh.getRange(1, 1, lastRow, lastCol).getValues();
+  const classes = [];
+  for (let r = 0; r < grid.length; r++) {
+    const codes = [];
+    for (let c = 1; c < grid[r].length; c++) {   // salta col A (TITOLO)
+      const v = String(grid[r][c] == null ? '' : grid[r][c]).trim().toUpperCase();
+      if (v) codes.push(v);
+    }
+    if (codes.length >= 2) classes.push(codes);   // serve almeno una coppia per fare classe
+  }
+  return classes;
 }
 
 /**
@@ -60,8 +68,9 @@ function readCoexamMatrix_(ss) {
   if (lastRow < 2 || lastCol < 2) return empty;
 
   const grid = sh.getRange(1, 1, lastRow, lastCol).getValues();
-  const c2p = _childToParentMap_(ss);
-  function norm(x) { const s = String(x == null ? '' : x).trim().toUpperCase(); return s ? (c2p[s] || s) : ''; }
+  // Codici GREZZI (trim+UPPER): le classi di equivalenza (mutuazioni + CORRISPONDENZE)
+  // vengono fuse a valle dal client (canon), che SOMMA E/N su tutta la classe.
+  function norm(x) { return String(x == null ? '' : x).trim().toUpperCase(); }
 
   // codici di colonna dalla riga 1 (da col 2 in poi)
   const colCode = [];

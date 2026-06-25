@@ -39,8 +39,9 @@ mutuazioni). Le classi di equivalenza sono in **[`equivalenze_codici.csv`](equiv
 classe vanno trattati come **uno solo**.
 
 > ℹ️ **Le equivalenze NON si applicano qui**: la matrice esce coi **codici grezzi**. Il
-> collapse dei codici equivalenti avviene **nella web app dell'orario** (come già per le
-> mutuazioni, via `canon()`/`data.equiv`), che ingerisce le classi di `equivalenze_codici`.
+> collapse avviene **nella web app** (via `canon()`/`data.equiv`, come per le mutuazioni):
+> importa `equivalenze_codici.csv` nel foglio **`CORRISPONDENZE`** del gsheet-orario e la web
+> app somma `E`/`N` su tutta la classe (oltre alle mutuazioni). Foglio assente → solo mutuazioni.
 
 ## Flusso
 

@@ -171,9 +171,12 @@ costo = ore_sovrapposte/settimana × N        N = studenti con entrambi gli esam
 Coppia assente → 0; codice non in matrice → `n/d`. La web app conserva l'**intero** dataset
 `MATRICE` (tutti i codici, LT inclusi).
 
-**Classi di equivalenza = mutuazioni.** Più codici che sono lo stesso esame (short/long,
-LT↔LM) si uniscono dichiarandoli **mutuati** (col D): E sommate, N sommate, niente collisione
-fra membri, niente doppio conteggio. Nessuna tabella extra da mantenere.
+**Classi di equivalenza.** Più codici che sono lo stesso esame (short/long, LT↔LM, rinomini)
+vengono **fusi**: `E` ed `N` **sommate su tutta la classe**, niente collisione fra membri, e i
+codici restano mostrati **come sono** (codice del PdS). Due sorgenti, unite:
+- le **mutuazioni** (col D "Codice mutuato");
+- il foglio **`CORRISPONDENZE`** (import del CSV `equivalenze_codici`: una riga per classe,
+  `TITOLO` + codici). Foglio assente → solo mutuazioni.
 
 ## 7. Pipeline matrice
 

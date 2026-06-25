@@ -832,24 +832,12 @@ function getOrarioData() {
 
   const mutuantiByParent = buildMutuantiMap(sources);
 
-  // Classi di equivalenza dai gruppi di mutuazione: ogni codice MUTUANTE punta al
-  // capostipite (parent). Mappa { codiceMembro(UPPER) → capostipite(UPPER) }, con
-  // risoluzione transitiva (catene A→B→C). I codici non mutuati non compaiono
-  // (canonico = sé stesso). Usata dal client per fondere E/N (versioni short/long,
-  // corso condiviso LT↔LM, ecc.) in matrici co-esami, capienza e collisioni.
-  const equivMap = {};
-  Object.keys(mutuantiByParent).forEach(parent => {
-    const P = String(parent).trim().toUpperCase();
-    (mutuantiByParent[parent] || []).forEach(m => {
-      const child = String(m.childCode).trim().toUpperCase();
-      if (child && child !== P) equivMap[child] = P;
-    });
-  });
-  Object.keys(equivMap).forEach(k => {
-    let c = equivMap[k]; const seen = {};
-    while (equivMap[c] && equivMap[c] !== c && !seen[c]) { seen[c] = 1; c = equivMap[c]; }
-    equivMap[k] = c;
-  });
+  // Classi di equivalenza: UNIONE di mutuazioni (capostipite↔mutuanti) e del foglio
+  // CORRISPONDENZE (classi di codici equivalenti, import del CSV). Mappa
+  // { codiceMembro(UPPER) → rappresentante(UPPER) }. Usata dal client (canon) per
+  // fondere E/N (versioni short/long, corso condiviso LT↔LM, rinomini…) nei co-esami,
+  // nella capienza e nelle collisioni. Foglio CORRISPONDENZE assente → solo mutuazioni.
+  const equivMap = buildEquivMap_(mutuantiByParent, readCorrispondenze_(ss));
 
   const sheetsInfo = [];
   const sessions = [];

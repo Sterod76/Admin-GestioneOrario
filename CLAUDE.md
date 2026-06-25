@@ -41,6 +41,10 @@ per il tooling (commit/deploy/target da VS Code).
 - Foglio `MATRICE` = sola lettura (IMPORTRANGE dal gsheet fisso). La web app conserva
   l'**intero** `perCode`/`pairs` (tutti i codici, LT inclusi); il tab Co-esami mostra
   solo il sottoinsieme LM OBB/FOR.
+- Classi di equivalenza (`canon`/`data.equiv`, `buildEquivMap_` in `Mutuazione.gs`) =
+  **mutuazioni** (col D) **+** foglio `CORRISPONDENZE` (`readCorrispondenze_`, import del
+  CSV `matrice/equivalenze_codici.csv`): `E`/`N` co-esami sommate sulla classe. Matrice
+  letta coi codici **grezzi** (`readCoexamMatrix_`), fusione a valle nel client.
 - Colonna **J = "docenti"**: 1° = titolare, gli altri co-docenti (parser `parseDocenti_`).
 - Funzione di costo: `ore_overlap × N`. Capienza: `E / n.gruppi > 80% posti`.
 - PowerShell: i path con `[` `]` vanno trattati con `-LiteralPath` (le parentesi sono

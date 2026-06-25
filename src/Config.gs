@@ -124,6 +124,10 @@ function detectAuleConfigFor_(ss) {
 // Foglio FISSO della matrice esami (unico, non per-semestre). Popolato via
 // IMPORTRANGE da un gsheet esterno; la Web App lo legge in sola lettura.
 const COEX_SHEET_NAME = 'MATRICE';
+// Foglio CORRISPONDENZE: import del CSV equivalenze_codici (una riga per classe:
+// col A = TITOLO, col B.. = codici equivalenti). Alimenta le classi di equivalenza
+// usate dai co-esami (oltre alle mutuazioni). Assente → nessuna corrispondenza.
+const CORRISP_SHEET_NAME = 'CORRISPONDENZE';
 const HEADER_ROWS = 1;
 
 function getTableFormat() {
