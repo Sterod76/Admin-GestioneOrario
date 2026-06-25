@@ -76,8 +76,8 @@ function normalizzaDocenti() {
 /**
  * Crea/prepara la Tabella nativa Google "SERVIZIO" (impegni di docenza FUORI dal
  * dipartimento) con header intelligibili. Tabella vera (filtri + ordinamento sull'header)
- * via servizio avanzato Sheets. I dati si incollano dai CSV generati dai tool in impegni/
- * (un semestre per gsheet) oppure si recuperano da UP; poi "Carica/Pubblica" nel Web Calendar.
+ * via servizio avanzato Sheets. I dati si recuperano da University Planner col comando
+ * "Recupera SERVIZIO da UP" (un semestre per gsheet); poi "Carica/Pubblica" nel Web Calendar.
  * Non distruttiva: se la tabella esiste già, conserva i dati e ne ridimensiona la Tabella.
  */
 function preparaImpegniEsterni() {
@@ -97,11 +97,9 @@ function preparaImpegniEsterni() {
   ui.alert('SERVIZIO',
     (created ? 'Creata' : 'Aggiornata') + ' la tabella "SERVIZIO".' +
     (tableErr ? '\n\n⚠️ Tabella nativa non creata: ' + tableErr : '') + '\n\n' +
-    'Due modi per popolarla:\n' +
-    '• incolla (dalla riga 2) il CSV del semestre giusto generato dai tool in impegni/\n' +
-    '  (impegni_esterni_S1.csv nel gsheet S1, impegni_esterni_S2.csv nel gsheet S2),\n' +
-    '  rispettando gli header: ' + SERVIZIO_HEADERS.join(', ') + ';\n' +
-    '• oppure incolla solo le Matricole e usa "🛰️ Recupera SERVIZIO da UP".\n' +
+    'Come popolarla:\n' +
+    '• incolla solo le Matricole (colonna Matricola) e usa "🛰️ Recupera SERVIZIO da UP";\n' +
+    '• oppure incolla (dalla riga 2) righe già pronte con gli header: ' + SERVIZIO_HEADERS.join(', ') + '.\n' +
     'NB: incolla i dati DOPO aver creato la tabella, così le matricole con zeri iniziali\n' +
     'restano intatte (la colonna è già formattata come testo).\n\n' +
     'Poi nel Web Calendar fai "Carica / Pubblica" per caricarli.',

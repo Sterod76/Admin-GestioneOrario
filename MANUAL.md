@@ -283,13 +283,11 @@ di spostamento restano disponibili nel **popover** del tab Collisioni, passando 
 > Inizio · Fine · Corso · Aula`), che elenca quando ogni docente insegna in altri
 > dipartimenti. È una vera **Tabella di Google** (filtri e ordinamento integrati nell'header).
 > La voce di menu **🛠️ Gestione tabelle → 🌐 Prepara tabella SERVIZIO** la crea (vuota o
-> conservando i dati). I dati si ottengono da **University Planner** in due modi:
-> - **da PC**, coi tool in `impegni/` (vedi `impegni/README.md`): si **incolla** nella tabella
->   il CSV del semestre (`impegni_esterni_S1.csv` nel gsheet S1, `_S2` in S2);
-> - **dal gsheet**, con **🛠️ Gestione tabelle → 🛰️ Recupera SERVIZIO da UP**: basta avere la
->   colonna **Matricola** (Cognome/Nome si recuperano da UP se mancanti), il comando chiede
->   l'**anno accademico** e riscrive la tabella col semestre di quel gsheet (S1 = ottobre AA,
->   S2 = aprile AA+1).
+> conservando i dati). I dati si recuperano da **University Planner** con
+> **🛠️ Gestione tabelle → 🛰️ Recupera SERVIZIO da UP**: basta avere la colonna
+> **Matricola** (Cognome/Nome si recuperano da UP se mancanti), il comando chiede
+> l'**anno accademico** e riscrive la tabella col semestre di quel gsheet (S1 = ottobre AA,
+> S2 = aprile AA+1). In alternativa puoi incollare a mano righe già pronte rispettando gli header.
 >
 > Poi **Carica / Pubblica** nel Web Calendar. Il match docente è per **cognome + iniziale**.
 >

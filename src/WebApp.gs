@@ -774,7 +774,7 @@ function cleanupLegacyProperties() {
 // Legge la tabella "SERVIZIO" (impegni di docenza FUORI dal dipartimento, da
 // University Planner). Per nome header (robusto all'ordine): Cognome, Nome, Matricola,
 // Giorno, Inizio, Fine, Corso, Aula. Ritorna [{cognome, nome, day(0..5), start, end,
-// corso, aula}]. Foglio assente o vuoto → []. Vedi tool in impegni/.
+// corso, aula}]. Foglio assente o vuoto → []. Si popola col menu "Recupera SERVIZIO da UP".
 function readImpegniEsterni_(ss) {
   const sh = ss.getSheetByName('SERVIZIO');
   if (!sh) return [];
@@ -782,7 +782,7 @@ function readImpegniEsterni_(ss) {
   if (lastRow < 2 || lastCol < 1) return [];
   const values = sh.getRange(1, 1, lastRow, lastCol).getValues();
   const hdr = values[0].map(h => String(h || '').trim().toLowerCase());
-  // Accetta header sia italiani (foglio) sia inglesi (output diretto dei tool impegni/).
+  // Accetta header sia italiani (foglio) sia i relativi alias inglesi (weekday/start_time/...).
   const idx = function () {
     for (var i = 0; i < arguments.length; i++) { var j = hdr.indexOf(arguments[i]); if (j >= 0) return j; }
     return -1;
