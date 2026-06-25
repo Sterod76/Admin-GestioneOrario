@@ -15,11 +15,6 @@ __pycache__/
 # (niente commenti in coda alle righe: in .gitignore non sono supportati)
 # export Esse3 completo (dati personali):
 FISICA_MONIT_CAR_TAB*.csv
-# output di scripts/strip_exams.py:
-*_stripped.csv
-# chiave di anonimizzazione (segreta) + dataset esami pseudonimi:
-analisi/.anon_salt
-analisi/*_anon.csv
 
 # Build artifacts temporanei
 .tmp_*
@@ -42,14 +37,11 @@ Thumbs.db
 # Candidati classi equivalenza (rigenerabili da build_equiv_classes.py)
 matrice/equiv_classes_candidates.json
 
-# Dati orario/coperture/impegni (nomi, matricole, orari docenti) — solo locali,
-# rigenerabili dai tool in impegni/. NON committare.
+# Export manuali con dati personali (orari/coperture/slot docenti) che potrebbero
+# finire in root: guard PII, NON committare mai.
 Orario S*.xlsx
 ExportCopertureBasic.xlsx
 all_professor_slots*.csv
-impegni/impegni_esterni_*.csv
-impegni/ImpegniEsterni_*.csv
-impegni/matricole.csv
 
 # Progetto gemello con repo Git proprio (non annidare nel repo Orario)
 Admin-PreferenzeOrario/

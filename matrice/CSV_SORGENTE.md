@@ -154,10 +154,6 @@ dell'export), `LODE_FLG_ESA` (lode all'esame) *(inferito)*.
   completo. Usa `MATRICOLA`, `COD`, `AA_SUP_ID` e (per il filtro coorti opzionale)
   `AA_IMM1`. **Include TUTTE le carriere** (`L2` + `LM`): *non* filtra per
   `TIPO_CORSO_COD`. Finestra AA di superamento `AA_SUP_ID ∈ {2022, 2023, 2024}`.
-- **`scripts/strip_exams.py`** (utility): estrae un sottoinsieme di 10 colonne
-  (`MATRICOLA`, `AA_IMM1`, `CDS_COD`, `TIPO_CORSO_COD`, `AA_SUP_ID`, `DATA_SUP`,
-  `COD`, `DES`, `VOTO`, `CREDITI`) in un CSV "stripped" UTF-8/comma per analisi più
-  comode.
 
 ## Ricette rapide
 
