@@ -10,8 +10,11 @@ L'unità è la **carriera = (matricola, CdS)**: una coppia si forma **solo** se 
 matricola ha superato i due esami **nello stesso corso di studio** (entrambi LT o
 entrambi LM). Poi tutto in **un'unica matrice** (LT e LM insieme).
 
-- **E** (diagonale): carriere distinte che hanno superato il codice nel periodo.
-- **N** (fuori diagonale): carriere che hanno superato **entrambi**.
+- **E** (diagonale): carriere che hanno superato il codice; **N** (fuori diagonale):
+  carriere che hanno superato **entrambi**.
+- **Normalizzati per anno**: i conteggi sono divisi per la **durata del periodo in anni**
+  e **arrotondati all'intero** → tassi annui interi, confrontabili a prescindere dalla
+  lunghezza del periodo (le celle che arrotondano a 0 restano vuote).
 
 ## Strumento: `coesami_periodo.ipynb`
 
@@ -35,10 +38,9 @@ mutuazioni). Le classi di equivalenza sono in **[`equivalenze_codici.csv`](equiv
 (75 classi, `TITOLO` + codici, una classe per riga; importabile in gsheet). I codici di una
 classe vanno trattati come **uno solo**.
 
-> 🚧 **Da integrare**: il remap dei codici al rappresentante di classe (a partire da
-> `equivalenze_codici`) **non è ancora applicato nel notebook** — al momento la matrice
-> esce coi codici grezzi. Le corrispondenze si applicano **a valle** (remap prima del
-> conteggio per non contare due volte chi ha più varianti).
+> ℹ️ **Le equivalenze NON si applicano qui**: la matrice esce coi **codici grezzi**. Il
+> collapse dei codici equivalenti avviene **nella web app dell'orario** (come già per le
+> mutuazioni, via `canon()`/`data.equiv`), che ingerisce le classi di `equivalenze_codici`.
 
 ## Flusso
 
@@ -57,5 +59,5 @@ dump Esse3 (resapp, in memoria)
 | File | Cosa |
 |---|---|
 | `coesami_periodo.ipynb` | genera la matrice dal dump (periodo, dedup spacchettamenti) |
-| `equivalenze_codici.csv` | classi di codici equivalenti (`TITOLO` + codici; da applicare a valle) |
+| `equivalenze_codici.csv` | classi di codici equivalenti (`TITOLO` + codici; applicate nella web app) |
 | `CSV_SORGENTE.md` | specifiche del dump Esse3 |
