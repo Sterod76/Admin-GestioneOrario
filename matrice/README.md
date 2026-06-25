@@ -31,9 +31,9 @@ salva **solo** la matrice.
 ## Equivalenze fra codici
 
 Lo stesso insegnamento cambia codice negli anni (rinomini, IT/EN, short/long,
-mutuazioni). Le classi di equivalenza sono in **[`equivalenze_codici.md`](equivalenze_codici.md)**
-(75 classi) e nella versione importabile **`equivalenze_codici.csv`** (`TITOLO` + codici,
-una classe per riga). I codici di una classe vanno trattati come **uno solo**.
+mutuazioni). Le classi di equivalenza sono in **[`equivalenze_codici.csv`](equivalenze_codici.csv)**
+(75 classi, `TITOLO` + codici, una classe per riga; importabile in gsheet). I codici di una
+classe vanno trattati come **uno solo**.
 
 > 🚧 **Da integrare**: il remap dei codici al rappresentante di classe (a partire da
 > `equivalenze_codici`) **non è ancora applicato nel notebook** — al momento la matrice
@@ -57,5 +57,5 @@ dump Esse3 (resapp, in memoria)
 | File | Cosa |
 |---|---|
 | `coesami_periodo.ipynb` | genera la matrice dal dump (periodo, dedup spacchettamenti) |
-| `equivalenze_codici.md` / `.csv` | classi di codici equivalenti (da applicare a valle) |
+| `equivalenze_codici.csv` | classi di codici equivalenti (`TITOLO` + codici; da applicare a valle) |
 | `CSV_SORGENTE.md` | specifiche del dump Esse3 |

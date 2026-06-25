@@ -54,4 +54,4 @@ laurea (`VOTO_FINALE`, `LODE_FLG`), meta verbalizzazione. Accedi per nome quando
   `_`/`.` indica uno **spacchettamento** (il notebook tiene il codice base — vedi README).
 - Il notebook `coesami_periodo.ipynb` scarica questo CSV **da resapp**, filtra per
   **`DATA_SUP`** nel periodo scelto e usa `MATRICOLA`/`COD`/`TIPO_CORSO_COD`. Le
-  **equivalenze** fra codici stanno in `equivalenze_codici.md` (applicate a valle).
+  **equivalenze** fra codici stanno in `equivalenze_codici.csv` (applicate a valle).
