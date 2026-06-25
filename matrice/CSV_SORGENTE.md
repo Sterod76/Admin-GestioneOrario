@@ -39,6 +39,7 @@ Accedi **per nome colonna**, non per indice. Con pandas: specifica `sep='|'`, `e
 | Codice esame | `COD` | es. `302BB`, `0001B` |
 | Titolo | `DES` | |
 | AA superamento | `AA_SUP_ID` | `2024` = AA 2024/25; **`9999999999`** = n/d → escludere |
+| Data superamento | `DATA_SUP` | `gg-mm-aaaa` (resapp); usata per il **filtro periodo** |
 | Voto / CFU | `VOTO` / `CREDITI` | |
 
 Le altre 52 colonne: anagrafica (`COGNOME`, `NOME`, `COD_FIS`, residenza), carriera
@@ -49,7 +50,8 @@ laurea (`VOTO_FINALE`, `LODE_FLG`), meta verbalizzazione. Accedi per nome quando
 
 - Una matricola può avere righe **sia L2 sia LM** → per il livello deduplica per
   `MATRICOLA` + `TIPO_CORSO_COD`, non per sola matricola.
-- `COD`: i corsi moderni terminano in **`B`** (regex tool `^[0-9]+[A-Za-z]*B$`);
-  `125ZW` = PROVA FINALE (scartata); suffissi `AA/CC/DD/EE/II` inclusi solo se in `EXTRA_CODES`.
-- Il tool `genera_matrice_esami_lm.py` legge **direttamente** questo CSV, tutte le
-  carriere (L2+LM), finestra `AA_SUP_ID ∈ {2022,2023,2024}`.
+- `COD`: i corsi moderni terminano in **`B`**; `125ZW` = PROVA FINALE; un suffisso
+  `_`/`.` indica uno **spacchettamento** (il notebook tiene il codice base — vedi README).
+- Il notebook `coesami_periodo.ipynb` scarica questo CSV **da resapp**, filtra per
+  **`DATA_SUP`** nel periodo scelto e usa `MATRICOLA`/`COD`/`TIPO_CORSO_COD`. Le
+  **equivalenze** fra codici stanno in `equivalenze_codici.md` (applicate a valle).

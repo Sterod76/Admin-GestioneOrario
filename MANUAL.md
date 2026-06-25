@@ -177,14 +177,15 @@ fra membri, niente doppio conteggio. Nessuna tabella extra da mantenere.
 
 ## 7. Pipeline matrice
 
-La matrice si **genera** dall'export Esse3, non si compila a mano:
+La matrice si **genera** dal dump Esse3 (non si compila a mano), col notebook
+`matrice/coesami_periodo.ipynb` (scarica da resapp, in memoria):
 
 ```
-FISICA_MONIT_CAR_TAB.csv → python matrice/genera_matrice_esami_lm.py → MatriceEsamiLM.csv
+dump Esse3 (resapp) → matrice/coesami_periodo.ipynb → MatriceCoesami_<periodo>.csv
    → incolla nel gsheet FISSO → =IMPORTRANGE → foglio "MATRICE" → Web App
 ```
-Dettagli e filtri: [`matrice/README.md`](matrice/README.md). Dopo l'aggiornamento:
-autorizza l'IMPORTRANGE (una volta per gsheet) e fai **Carica/Pubblica**.
+Dettagli (periodo, dedup spacchettamenti, equivalenze): [`matrice/README.md`](matrice/README.md).
+Dopo l'aggiornamento: autorizza l'IMPORTRANGE (una volta per gsheet) e fai **Carica/Pubblica**.
 
 ## 8. Pubblicazione
 

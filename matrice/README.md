@@ -1,56 +1,50 @@
-# Matrice co-esami (LM + LT)
+# Matrice co-esami
 
-Costruisce/aggiorna la **matrice co-esami** usata dalla Web App per stimare il costo
-delle sovrapposizioni d'orario.
+Costruisce la **matrice co-esami** usata dalla Web App per stimare il costo delle
+sovrapposizioni d'orario. `costo = ore_sovrapposte/settimana × N`.
 
 ## Cosa misura
 
-Per ogni coppia di insegnamenti, **quanti studenti li sostengono entrambi**. Due
-grandezze, **somme intere** sugli AA **2022/23–2024/25**:
+Per ogni coppia di insegnamenti, **quante carriere** li hanno sostenuti entrambi.
+L'unità è la **carriera = (matricola, CdS)**: una coppia si forma **solo** se la stessa
+matricola ha superato i due esami **nello stesso corso di studio** (entrambi LT o
+entrambi LM). Poi tutto in **un'unica matrice** (LT e LM insieme).
 
-- **E** (diagonale): studenti distinti che **superano** quell'esame nei 3 AA.
-- **N** (fuori diagonale): studenti che superano **entrambi** nello **stesso AA**, sommato sui 3 AA.
+- **E** (diagonale): carriere distinte che hanno superato il codice nel periodo.
+- **N** (fuori diagonale): carriere che hanno superato **entrambi**.
 
-Nella Web App: `costo = ore_sovrapposte/settimana × N`. Coppia assente → costo 0;
-codice non in matrice → `n/d`.
+## Strumento: `coesami_periodo.ipynb`
 
-## Sorgente
+Notebook unico. Scarica il dump Esse3 **direttamente da resapp** (HTTP Basic,
+credenziali chieste a runtime, **tutto in memoria** — il dump non tocca mai il disco) e
+salva **solo** la matrice.
 
-Export Esse3 **`FISICA_MONIT_CAR_TAB.csv`** (pipe-delimited, Latin-1, una riga per
-esame). Sta solo in locale (dati personali, **non** committare). Colonne usate:
-`MATRICOLA`, `COD`, `AA_SUP_ID`, `AA_IMM1`. Specifiche complete: [`CSV_SORGENTE.md`](CSV_SORGENTE.md).
+1. Parametri: periodo `START`/`END` in **YYMMDD** (filtra per `DATA_SUP`).
+2. **Dedup spacchettamenti**: stessa matricola, **stesso giorno**, un codice prefisso di
+   un altro (es. `204BB` e `204BB_`) → tiene **solo il più corto**.
+3. Costruisce la matrice (coppie solo entro la stessa carriera) e salva
+   `MatriceCoesami_<START>_<END>.csv` (gitignored: è un output rigenerabile).
 
-Filtri del tool: AA superamento ∈ {2022,2023,2024}; **coorti** opzionali (`AA_IMM1`);
-codici che **terminano in B** + eccezioni in `EXTRA_CODES`; **tutte** le carriere (L2+LM).
+> Endpoint: `https://resapp.adm.unipi.it/powerbi_ext/fisica/FISICA_MONIT_CAR_TAB.csv`.
+> Specifiche del CSV sorgente: [`CSV_SORGENTE.md`](CSV_SORGENTE.md).
 
-## Classi di equivalenza
+## Equivalenze fra codici
 
-Lo stesso insegnamento cambia codice negli anni (rinomini, IT/EN, long/short `S`,
-varianti `A`). Se non si uniscono, E ed N si spezzano fra le varianti e il codice
-attuale risulta vuoto. `equiv_classes.json` mappa `aliases` → `canonical` (codice
-attuale del PdS); `genera_matrice_esami_lm.py` rimappa al canonico **prima** di contare.
+Lo stesso insegnamento cambia codice negli anni (rinomini, IT/EN, short/long,
+mutuazioni). Le classi di equivalenza sono in **[`equivalenze_codici.md`](equivalenze_codici.md)**
+(75 classi) e nella versione importabile **`equivalenze_codici.csv`** (`TITOLO` + codici,
+una classe per riga). I codici di una classe vanno trattati come **uno solo**.
 
-> Le **mutuazioni** LT↔LM (es. `0024B`↔`289BB`) **non** vanno qui: le gestisce l'Orario.
+> 🚧 **Da integrare**: il remap dei codici al rappresentante di classe (a partire da
+> `equivalenze_codici`) **non è ancora applicato nel notebook** — al momento la matrice
+> esce coi codici grezzi. Le corrispondenze si applicano **a valle** (remap prima del
+> conteggio per non contare due volte chi ha più varianti).
 
-`build_equiv_classes.py` rigenera i **candidati** (`equiv_classes_candidates.json`,
-gitignored) raggruppando per titolo → **vanno rivisti a mano**.
-
-## Tool
-
-```bash
-python matrice/genera_matrice_esami_lm.py [csv] [--coorti=2021,2022]   # → MatriceEsamiLM.csv
-python matrice/build_equiv_classes.py                                   # → candidati (da curare)
-```
-
-Output `MatriceEsamiLM.csv`: matrice quadrata, riga1/colA = codici ordinati per E
-decrescente, diagonale = E, sopra-diagonale = N, celle vuote = 0. Conteggi **interi**
-(no medie/decimali → niente problemi di locale all'import in Sheets). Flag in cima allo
-script: `flag_dividiAA` (media annua), `flag_round` (arrotonda); default entrambi off.
-
-## Flusso di aggiornamento
+## Flusso
 
 ```
-FISICA_MONIT_CAR_TAB.csv → genera_matrice_esami_lm.py → MatriceEsamiLM.csv
+dump Esse3 (resapp, in memoria)
+   → coesami_periodo.ipynb → MatriceCoesami_<periodo>.csv
    → incolla nel gsheet FISSO della matrice → =IMPORTRANGE → foglio "MATRICE" → Web App
 ```
 
@@ -62,8 +56,6 @@ FISICA_MONIT_CAR_TAB.csv → genera_matrice_esami_lm.py → MatriceEsamiLM.csv
 
 | File | Cosa |
 |---|---|
-| `genera_matrice_esami_lm.py` | genera la matrice (applica le classi di equivalenza) |
-| `equiv_classes.json` | classi curate alias → canonico |
-| `build_equiv_classes.py` | rigenera i candidati (da rivedere) |
-| `MatriceEsamiLM.csv` | output (committato: è il dato importato) |
-| `CSV_SORGENTE.md` | specifiche del CSV Esse3 |
+| `coesami_periodo.ipynb` | genera la matrice dal dump (periodo, dedup spacchettamenti) |
+| `equivalenze_codici.md` / `.csv` | classi di codici equivalenti (da applicare a valle) |
+| `CSV_SORGENTE.md` | specifiche del dump Esse3 |

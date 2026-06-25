@@ -34,8 +34,8 @@ Thumbs.db
 .vscode/launch.local.json
 .vscode/*.local.json
 
-# Candidati classi equivalenza (rigenerabili da build_equiv_classes.py)
-matrice/equiv_classes_candidates.json
+# Output del notebook co-esami (rigenerabile)
+matrice/MatriceCoesami_*.csv
 
 # Export manuali con dati personali (orari/coperture/slot docenti) che potrebbero
 # finire in root: guard PII, NON committare mai.
