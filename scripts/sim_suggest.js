@@ -13,7 +13,7 @@ function extract(name) {
   return html.slice(s, e);
 }
 const FNS = ['slotLevelOf', 'canon', '_coexSync', 'coexamN', 'effN', 'coexamE', 'roomCapacity', 'groupDivisor',
-  'capacityInfo', '_gCompatCost', '_pdsVincSets', '_sharePdsVinc', 'pairCountsForCost', 'teachersOfSess',
+  'capacityInfo', '_annoOverlap', '_gCompatCost', '_pdsVincSets', '_sharePdsVinc', 'pairCountsForCost', 'teachersOfSess',
   '_marginalCost', '_roomFreeAt', '_rowFreeOnDay', '_teacherFreeAt', 'suggestMoves',
   'fmtCost', 'sessBySig', 'collisionSuggHtml'];
 

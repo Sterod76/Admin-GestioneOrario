@@ -84,7 +84,16 @@ data = {
     { code:'D4', sheet:'S1LM', vincolo:'OBB', anno:'', group:'', day:3, start:570, end:630, room:'R', name:'D4n', titolare:'Neri', docenti:['Neri'] },
     // Stesso CODICE (D5) col medesimo docente, sovrapposti → falsa collisione: ESCLUSA
     { code:'D5', sheet:'S1LM', vincolo:'OBB', anno:'', group:'', day:4, start:540, end:600, room:'R', name:'D5n', titolare:'Gialli', docenti:['Gialli'] },
-    { code:'D5', sheet:'S1LM', vincolo:'OBB', anno:'', group:'A', day:4, start:570, end:630, room:'R', name:'D5n', titolare:'Gialli', docenti:['Gialli'] }
+    { code:'D5', sheet:'S1LM', vincolo:'OBB', anno:'', group:'A', day:4, start:570, end:630, room:'R', name:'D5n', titolare:'Gialli', docenti:['Gialli'] },
+    // Anno multi-cifra (LT): Y1 anno "12" collide con Y2 anno "1" (condividono l'anno 1),
+    // NON con Y3 anno "3". SAB 09:00-11:00, stesso gruppo A.
+    S('Y1','S1LT','OBB','12','A',5,540,660),
+    S('Y2','S1LT','OBB','1','A',5,540,660),
+    S('Y3','S1LT','OBB','3','A',5,540,660),
+    // Mutuati (stesso canon via data.equiv) col medesimo docente, sovrapposti → NON
+    // è collisione docente (E2 → E1). SAB.
+    { code:'E1', sheet:'S1LM', vincolo:'OBB', anno:'', group:'', day:5, start:600, end:660, room:'R', name:'E1n', titolare:'Mutui', docenti:['Mutui'] },
+    { code:'E2', sheet:'S1LM', vincolo:'OBB', anno:'', group:'', day:5, start:630, end:690, room:'R', name:'E2n', titolare:'Mutui', docenti:['Mutui'] }
   ],
   pds: [
     { name: 'P1', codes: ['M1','M2','M3','M4'],
@@ -92,7 +101,8 @@ data = {
   ],
   // Matrice co-esami. X1-X3=8 (ordine naturale DOPO X1-X2 ma costo MAGGIORE →
   // testa l'ordinamento), X1-X2=3. M1/M2 noti senza coppia → 0; M3/M4 fuori matrice → n/d.
-  coexam: { pairs: { 'X1|X2': 3, 'X1|X3': 8 }, perCode: { M1: 10, M2: 8 }, codes: ['X1','X2','X3','M1','M2'], count: 2 }
+  coexam: { pairs: { 'X1|X2': 3, 'X1|X3': 8 }, perCode: { M1: 10, M2: 8 }, codes: ['X1','X2','X3','M1','M2'], count: 2 },
+  equiv: { E2: 'E1' }   // E2 mutuante di E1 → canon('E2') === canon('E1')
 };
 
 renderCollisions();
@@ -119,6 +129,16 @@ check('Triennale: X1 ✕ X3 presente (A vs A2)', hasPair('X1', 'X3'));
 check('Triennale: X2 ✕ X3 ASSENTE (A1 vs A2 non compat)', !hasPair('X2', 'X3'));
 check('Triennale: X4 (anno 2) ASSENTE', !has(codeTok('X4')));
 check('Triennale: X5 (gruppo B) ASSENTE', !has(codeTok('X5')));
+// --- #5: anno multi-cifra (digit-intersection) ---
+check('_annoOverlap "12" vs "1" → true', _annoOverlap('12', '1') === true);
+check('_annoOverlap "12" vs "2" → true', _annoOverlap('12', '2') === true);
+check('_annoOverlap "12" vs "3" → false', _annoOverlap('12', '3') === false);
+check('_annoOverlap "" vs "" → true (ripiego uguaglianza)', _annoOverlap('', '') === true);
+check('_annoOverlap "" vs "1" → false', _annoOverlap('', '1') === false);
+check('Triennale: Y1(12) ✕ Y2(1) PRESENTE (condividono anno 1)', hasPair('Y1', 'Y2'));
+check('Triennale: Y1(12) ✕ Y3(3) ASSENTE (nessun anno comune)', !hasPair('Y1', 'Y3'));
+// --- #5: mutuati (stesso canon) non sono collisione docente ---
+check('Docenti: E1/E2 mutuati col medesimo docente → "Mutui" ASSENTE', !hasU('Mutui'));
 // PdS P1: OBB-OBB, OBB-FOR, FOR-FOR insieme nello stesso gruppo
 check('P1: M1 ✕ M2 (OBB-OBB) presente', hasPair('M1', 'M2'));
 check('P1: M1 ✕ M3 (OBB-FOR) presente', hasPair('M1', 'M3'));

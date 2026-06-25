@@ -1838,7 +1838,7 @@ var _editActive = !!EDIT_MODE;
     const la = slotLevelOf(a.sheet), lb = slotLevelOf(b.sheet);
     if (la !== lb) return false;
     if (la === 'LT') return String(a.vincolo || '').toUpperCase() === 'OBB' && String(b.vincolo || '').toUpperCase() === 'OBB' &&
-      a.anno === b.anno && _gCompatCost(a.group, b.group);
+      _annoOverlap(a.anno, b.anno) && _gCompatCost(a.group, b.group);
     if (la === 'LM') return _sharePdsVinc(a.code, b.code);
     return false;
   }
@@ -2132,6 +2132,16 @@ var _editActive = !!EDIT_MODE;
     const eq = data.equiv || {};
     return eq[C] || C;
   }
+  // _annoOverlap(x, y): true se i due "anno" condividono almeno un anno. L'anno è
+  // multi-cifra ("12" = anni 1 E 2): due corsi LT collidono se hanno un anno in
+  // comune (es. "12" collide con "1" e con "2"). Se uno non ha cifre (anno vuoto)
+  // → ripiego sull'uguaglianza esatta (comportamento storico). LM non usa l'anno.
+  function _annoOverlap(x, y) {
+    x = String(x == null ? '' : x); y = String(y == null ? '' : y);
+    const dx = x.match(/\d/g), dy = y.match(/\d/g);
+    if (!dx || !dy) return x === y;
+    return dx.some(d => dy.indexOf(d) !== -1);
+  }
   let _coexCache = { ref: null, eref: null, pairs: {}, perCode: {}, codes: new Set() };
   function _coexSync() {
     const cx = data.coexam || {};
@@ -2195,7 +2205,7 @@ var _editActive = !!EDIT_MODE;
     const lvl = slotLevelOf(sess.sheet);
     const coll = (data.sessions || []).filter(o =>
       o !== sess && o.day === sess.day && slotLevelOf(o.sheet) === lvl &&
-      o.code !== sess.code && o.start < sess.end && o.end > sess.start
+      canon(o.code) !== canon(sess.code) && o.start < sess.end && o.end > sess.start
     ).sort((a, b) => a.start - b.start);
     const seen = {}; const collU = [];
     coll.forEach(o => { const k = o.code + '|' + o.room + '|' + o.start; if (!seen[k]) { seen[k] = 1; collU.push(o); } });
@@ -2546,7 +2556,7 @@ var _editActive = !!EDIT_MODE;
       }
       // Stessi insiemi delle 3 sezioni, ma deduplicati globalmente per coppia.
       const ltObbAll = sessions.filter(s => lvl(s) === 'LT' && String(s.vincolo || '').toUpperCase() === 'OBB');
-      consider(pairsWithin(ltObbAll, (a, b) => a.anno === b.anno && gCompat(a.group, b.group)));
+      consider(pairsWithin(ltObbAll, (a, b) => _annoOverlap(a.anno, b.anno) && gCompat(a.group, b.group)));
       (data.pds || []).forEach(pds => {
         const obb = pdsSet(pds, 'OBB'), fr = pdsSet(pds, 'FOR');
         if (obb.size) consider(pairsWithin(sessByCodes(obb)));
@@ -2573,7 +2583,7 @@ var _editActive = !!EDIT_MODE;
     // Mappe collisioni per sezione (riusate da lista E matrice).
     const obbMap = {};
     const ltObb = sessions.filter(s => lvl(s) === 'LT' && String(s.vincolo || '').toUpperCase() === 'OBB');
-    collect(obbMap, pairsWithin(ltObb, (a, b) => a.anno === b.anno && gCompat(a.group, b.group)), 'def', 'Triennale');
+    collect(obbMap, pairsWithin(ltObb, (a, b) => _annoOverlap(a.anno, b.anno) && gCompat(a.group, b.group)), 'def', 'Triennale');
     (data.pds || []).forEach(pds => {
       const obb = pdsSet(pds, 'OBB');
       if (obb.size) collect(obbMap, pairsWithin(sessByCodes(obb)), 'def', pds.name);
@@ -2863,7 +2873,7 @@ var _editActive = !!EDIT_MODE;
       let h = '';
       const ltObbS = sessions.filter(s => lvl(s) === 'LT' && String(s.vincolo || '').toUpperCase() === 'OBB');
       const ltM = {};
-      collectColored(ltM, pairsWithin(ltObbS, (a, b) => a.anno === b.anno && gCompat(a.group, b.group)), function () { return _cOBB; });
+      collectColored(ltM, pairsWithin(ltObbS, (a, b) => _annoOverlap(a.anno, b.anno) && gCompat(a.group, b.group)), function () { return _cOBB; });
       if (Object.keys(ltM).length) {
         h += '<div class="cl-section"><h3>Triennale ' +
           '<span class="cl-count">(obblighi LT · stesso anno e gruppo compatibile)</span></h3>' + renderItems(ltM) + '</div>';
@@ -2994,7 +3004,7 @@ var _editActive = !!EDIT_MODE;
         const a = list[i], b = list[j];
         if (a === b || !overlap(a, b)) continue;
         const c1 = (a.code || '').toUpperCase(), c2 = (b.code || '').toUpperCase();
-        if (c1 === c2) continue; // stesso codice → falsa collisione (stesso corso)
+        if (canon(a.code) === canon(b.code)) continue; // stesso esame (anche mutuato) → falsa collisione
         const ovS = Math.max(a.start, b.start), ovE = Math.min(a.end, b.end);
         const lo = c1 <= c2 ? a : b, hi = c1 <= c2 ? b : a;
         const key = a.day + '|' + ovS + '|' + ovE + '|' + c1 + '|' + c2 + '|' + (lo.room || '') + '|' + (hi.room || '');
@@ -3791,7 +3801,7 @@ var _editActive = !!EDIT_MODE;
   function _ltCoexHit(a, b) {
     return String(a.vincolo || '').toUpperCase() === 'OBB'
       && String(b.vincolo || '').toUpperCase() === 'OBB'
-      && String(a.anno || '') === String(b.anno || '')
+      && _annoOverlap(a.anno, b.anno)
       && _gCompatCost(a.group, b.group);
   }
   function _dragShowCoex(session, draggedBlock) {

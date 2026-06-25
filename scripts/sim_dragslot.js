@@ -21,7 +21,7 @@ let _coexRoleCtxCache = null;
 const fnSrc = [extractFn('sigOf'), extractFn('teachersOfSess'), extractFn('canon'),
   extractFn('_teacherBusySessions'), extractFn('_teacherBusyIntervals'),
   extractFn('_coexRoleCtx'), extractFn('_coexPairType'),
-  extractFn('_gCompatCost'), extractFn('_ltCoexHit'),
+  extractFn('_annoOverlap'), extractFn('_gCompatCost'), extractFn('_ltCoexHit'),
   extractFn('_normTok'), extractFn('_teacherKey'), extractFn('_extKey'),
   extractFn('_externalBusyIntervals')].join('\n');
 eval(fnSrc);
