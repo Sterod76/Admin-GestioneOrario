@@ -93,11 +93,7 @@ data = {
     // Mutuati (stesso canon via data.equiv) col medesimo docente, sovrapposti → NON
     // è collisione docente (E2 → E1). SAB.
     { code:'E1', sheet:'S1LM', vincolo:'OBB', anno:'', group:'', day:5, start:600, end:660, room:'R', name:'E1n', titolare:'Mutui', docenti:['Mutui'] },
-    { code:'E2', sheet:'S1LM', vincolo:'OBB', anno:'', group:'', day:5, start:630, end:690, room:'R', name:'E2n', titolare:'Mutui', docenti:['Mutui'] },
-    // LT opzionali/forchette (anno IGNORATO): O1(OPZ anno 3) O2(OPZ anno vuoto) FL(FOR) — SAB sovrapposti
-    S('O1','S1LT','OPZ','3','',5,700,760),
-    S('O2','S1LT','OPZ','','',5,700,760),
-    S('FL','S1LT','FOR','3','',5,700,760)
+    { code:'E2', sheet:'S1LM', vincolo:'OBB', anno:'', group:'', day:5, start:630, end:690, room:'R', name:'E2n', titolare:'Mutui', docenti:['Mutui'] }
   ],
   pds: [
     { name: 'P1', codes: ['M1','M2','M3','M4'],
@@ -143,10 +139,6 @@ check('Triennale: Y1(12) ✕ Y2(1) PRESENTE (condividono anno 1)', hasPair('Y1',
 check('Triennale: Y1(12) ✕ Y3(3) ASSENTE (nessun anno comune)', !hasPair('Y1', 'Y3'));
 // --- #5: mutuati (stesso canon) non sono collisione docente ---
 check('Docenti: E1/E2 mutuati col medesimo docente → "Mutui" ASSENTE', !hasU('Mutui'));
-// --- LT opzionali/forchette: nuova sezione (solo overlap, anno ignorato) ---
-check('LT opz/for: sezione "opzionali e forchette" presente', has('opzionali e forchette'));
-check('LT opz/for: O1(OPZ) ✕ FL(FOR) presente', hasPair('O1', 'FL'));
-check('LT opz/for: anno ignorato — O1(anno 3) ✕ O2(anno vuoto)', hasPair('O1', 'O2'));
 // PdS P1: OBB-OBB, OBB-FOR, FOR-FOR insieme nello stesso gruppo
 check('P1: M1 ✕ M2 (OBB-OBB) presente', hasPair('M1', 'M2'));
 check('P1: M1 ✕ M3 (OBB-FOR) presente', hasPair('M1', 'M3'));

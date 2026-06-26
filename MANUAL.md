@@ -98,8 +98,10 @@ lineetta → chi/quale evento. Sotto, «Impegni dei docenti coinvolti» elenca t
 impegni settimanali (interni + servizio). Durante il **drag** gli stessi overlay sono live,
 più un **riquadro grigio** (dove atterra) e un **rettangolo costo** (costo + differenziale
 ±). I pallini: **rosso** OBB-OBB, **mezzo rosso/giallo** OBB-FOR, **giallo** FOR-FOR, verdi
-per gli opzionali; numero = `N` co-esami (grigio se 0). LT: pallino rosso senza numero
-(due obblighi stesso anno, gruppi compatibili).
+per gli opzionali; numero = `N` co-esami (grigio se 0). **LT**: tra **obblighi** pallino
+rosso **senza numero** (stesso anno, gruppi compatibili); le coppie con una **forchetta/
+opzionale** sono invece **valorizzate** (pallino col tipo + `N`), con l'**anno ignorato**
+(tutti al terzo).
 
 **Impegni di servizio** (lineette viola): dalla Tabella nativa **`SERVIZIO`**. Menu
 **🛠️ Gestione tabelle → 🌐 Prepara tabella SERVIZIO** la crea; **🛰️ Recupera SERVIZIO da
