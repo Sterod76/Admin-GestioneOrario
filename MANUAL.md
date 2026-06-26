@@ -159,11 +159,14 @@ orari, totale ore, ore/CFU colorato). Ordina per Codice o Ore/CFU; la ricerca fi
 ## 5. Capienza
 
 ```
-studenti = E ÷ n.gruppi   (1 senza gruppo · 2 con "A" · 4 con "A1")
+studenti stimati (min.) = E ÷ n.gruppi   (1 senza gruppo · 2 con "A" · 4 con "A1")
 sovraffollamento = studenti > 80% capienza
 ```
-Capienza = 2° campo della cella aula in `SxAULE`. Slot sovraffollati: bordo rosso + ⚠ nel
-tab Slot (selezionandolo vedi E, ÷gruppi, posti, %). `E` è la somma sui 3 AA.
+`E` = **esami/anno** (diagonale matrice). Gli "studenti stimati" sono una **stima
+minima**: gli esami superati/anno **sottostimano** i frequentanti reali (chi non supera, o
+supera in anni successivi), **soprattutto in LT**. Capienza = 2° campo della cella aula in
+`SxAULE`. Slot sovraffollati: bordo rosso + ⚠ nel tab Slot; selezionandolo vedi *studenti
+stimati ~N (E esami/anno ÷ gruppi) su posti = %*.
 
 ## 6. Costo e matrice
 

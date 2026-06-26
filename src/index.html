@@ -2269,9 +2269,11 @@ var _editActive = !!EDIT_MODE;
     const cinfo = capacityInfo(s);
     if (cinfo) {
       const pct = Math.round(cinfo.ratio * 100);
-      const divTxt = cinfo.div > 1 ? (' (E ' + cinfo.E + ' ÷ ' + cinfo.div + ' gruppi)') : (' (E ' + cinfo.E + ')');
-      html += '<div class="shi-cap' + (cinfo.over ? ' shi-cap-over' : '') + '">' +
-        (cinfo.over ? '⚠ ' : '') + 'Capienza ' + esc(s.room) + ': studenti stimati <b>~' + Math.round(cinfo.eff) +
+      const divTxt = cinfo.div > 1 ? (' (' + cinfo.E + ' esami/anno ÷ ' + cinfo.div + ' gruppi)') : (' (' + cinfo.E + ' esami/anno)');
+      const capTip = 'Stima MINIMA dei frequentanti: si basa sugli esami superati/anno, che ' +
+        'sottostimano chi segue davvero (chi non supera, o supera in anni successivi), soprattutto in LT.';
+      html += '<div class="shi-cap' + (cinfo.over ? ' shi-cap-over' : '') + '" title="' + capTip + '">' +
+        (cinfo.over ? '⚠ ' : '') + 'Capienza ' + esc(s.room) + ': studenti stimati (min.) <b>~' + Math.round(cinfo.eff) +
         '</b>' + divTxt + ' su <b>' + cinfo.cap + '</b> posti = <b>' + pct + '%</b>' +
         (cinfo.over ? ' — oltre l\'80%' : '') + '</div>';
     } else if (s.group || coexamE(s.code) != null || roomCapacity(s.room) != null) {
@@ -3835,12 +3837,14 @@ var _editActive = !!EDIT_MODE;
           if (!_ltCoexHit({ vincolo: session.vincolo, anno: session.anno, group: session.group },
             { vincolo: b.dataset.vincolo, anno: b.dataset.anno, group: b.dataset.gruppo })) return;
           type = 'OO'; showN = false; lab = 'obbligo-obbligo (LT: stesso anno/gruppo)';
-        } else {
-          // LT con almeno una forchetta/opzionale: co-esame VALORIZZATO (N), ANNO
-          // IGNORATO (tutti al terzo anno) — tipo dal vincolo di corso via _coexPairType.
+        } else if (myV !== 'OBB' && bV !== 'OBB') {
+          // LT, ENTRAMBE forchetta/opzionale: co-esame VALORIZZATO (N), ANNO IGNORATO
+          // (tutti al terzo anno) — tipo dal vincolo di corso via _coexPairType.
           type = _coexPairType(myCode, code);
           if (!type) return;
           showN = true; lab = LAB[type] || type;
+        } else {
+          return;  // LT: coppia con un OBBLIGO (e non OBB-OBB) → non mostrata
         }
       } else {
         type = _coexPairType(myCode, code);
