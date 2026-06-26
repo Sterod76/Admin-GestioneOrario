@@ -12,9 +12,10 @@ per il tooling (commit/deploy/target da VS Code).
   `docs/img/` (procedura in §10 del manuale).
 - **Deploy = `npm run deploy`**, non `npm run push`. `push` aggiorna solo `@HEAD`
   (URL `/dev`); solo `deploy` aggiorna la web app pubblica `/exec`. I target sono
-  nell'array `targets[]` di `config/local.json` (4 installazioni); `deploy.js` itera
-  su tutti. **Non** usare/scrivere `npm run setup` su quel file (è multi-target, lo
-  romperebbe).
+  nell'array `targets[]` di `config/local.json` (una voce per installazione); `deploy.js`
+  itera su tutti. **Non** usare/scrivere `npm run setup` su quel file (è multi-target, lo
+  romperebbe); per aggiungere un target si edita `config/local.json` a mano (vedi
+  `docs/USO-RAPIDO.md` §3).
 - **Prima di deployare**, verifica con **`npm run verify`** (= `scripts/verify.js`:
   client `<script>` + tutti i `.gs` + tutte le sim — devono essere tutte verdi).
   Aggiorna le sim quando cambi la logica che coprono. A mano: estrai `<script>` da
@@ -32,8 +33,12 @@ per il tooling (commit/deploy/target da VS Code).
 - `src/index.html` — client (UI, render, editing). `BOOTSTRAP` = dati iniettati dal server. Mappa: **`WEBAPP.md`**.
 - `src/WebApp.gs` — `doGet`, `getOrarioData`, snapshot bucket LT/LM/PDS, Carica/Salva.
 - `src/Config.gs` — costanti colonne, parser (`parseDocenti_`, `parseMutuazione`).
-- `src/TabellaAule.gs`, `src/Coexam.gs`, `src/Menu.gs` — aule, lettura `MATRICE`, menu.
-- `matrice/` — tool Python della matrice co-esami (+ README).
+- `src/TabellaAule.gs`, `src/Coexam.gs`, `src/Menu.gs` — aule, lettura `MATRICE`/`CORRISPONDENZE`, menu.
+- `src/ImpegniEsterni.gs` — tabella `SERVIZIO` + fetch impegni da University Planner.
+  `src/Storage.gs` — Import/Export JSON dei fogli. `src/Mutuazione.gs` — mutuazioni + `buildEquivMap_`.
+- `matrice/` — notebook `coesami_periodo.ipynb` (dump Esse3 da resapp → matrice co-esami per
+  periodo, normalizzata/anno, interi) + `equivalenze_codici.csv` (classi → foglio
+  `CORRISPONDENZE`) + `README.md`/`CSV_SORGENTE.md`.
 - `scripts/` — `push.js`/`deploy.js` (multi-target), `sim_*.js`, `build_manual_screens.js`.
 
 ## Note tecniche
