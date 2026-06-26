@@ -2878,6 +2878,21 @@ var _editActive = !!EDIT_MODE;
         h += '<div class="cl-section"><h3>Triennale ' +
           '<span class="cl-count">(obblighi LT · stesso anno e gruppo compatibile)</span></h3>' + renderItems(ltM) + '</div>';
       }
+      // LT opzionali e forchette: collisioni per SOLA sovrapposizione d'orario (anno
+      // IGNORATO — sono tutte al terzo anno; nessun vincolo di gruppo). Informativa:
+      // la N è mostrata per riga ma NON entra nel totale del banner (come le opzionali LM).
+      const ltOF = sessions.filter(s => {
+        const v = String(s.vincolo || '').toUpperCase();
+        return lvl(s) === 'LT' && (v === 'FOR' || v === 'OPZ');
+      });
+      const ltOFm = {};
+      collectColored(ltOFm, pairsWithin(ltOF), s => String(s.vincolo || '').toUpperCase() === 'FOR' ? _cFOR : _cOPZ);
+      if (Object.keys(ltOFm).length) {
+        h += '<div class="cl-section"><h3>Triennale — opzionali e forchette ' +
+          '<span class="cl-count">(<span class="cl-lg-for">forchetta</span> · ' +
+          '<span class="cl-lg-opz">opzionale</span> · solo sovrapposizione d\'orario, anno ignorato)</span></h3>' +
+          renderItems(ltOFm) + '</div>';
+      }
       (data.pds || []).forEach(pds => {
         const vb = pds.vincoloByCode || {};
         // canon (classe di equivalenza) → ruolo nel PdS; OBB ha priorità su FOR.
