@@ -1133,6 +1133,11 @@
   .pubtab td.pt-doc { font-size: 12px; }
   .pubtab .pt-pill { display: block; text-align: center; line-height: 1.15; margin: 0 0 3px; }
   .pubtab .pt-pill:last-child { margin: 0; }
+  /* Stampa PDF: niente scroll-box → tutte le righe su più pagine; header ripetuto in cima. */
+  body.printing .pubtab-wrap { max-height: none; overflow: visible; border: 0; }
+  body.printing table.pubtab thead th { position: static; }
+  body.printing table.pubtab thead { display: table-header-group; }
+  body.printing table.pubtab tr { break-inside: avoid; }
 </style>
 </head>
 <body>
@@ -5510,7 +5515,7 @@ var _editActive = !!EDIT_MODE;
   }
   function _savePdfSingle() {
     const view = currentView;
-    const cfg = PRINT_VIEWS[view] || { sel: '#view' + view.charAt(0).toUpperCase() + view.slice(1), land: false, label: '' };
+    const cfg = PRINT_VIEWS[view] || { sel: '#view' + view.charAt(0).toUpperCase() + view.slice(1), land: view.indexOf('mirror') === 0, label: '' };
     let label = cfg.label;
     if (!label) { const tb = document.querySelector('.view-tab.active'); label = tb ? tb.textContent.replace(/^[^A-Za-zÀ-ÿ]+/, '').trim() : ''; }
     const src = document.querySelector(cfg.sel);
@@ -5646,7 +5651,7 @@ var _editActive = !!EDIT_MODE;
     // Viste "grafiche" (Aule e Slot): visibilità totale, selettori in cima
     // disabilitati (TRANNE il search), toggle aule disabilitati.
     const inGraphicalView = (typeof currentView !== 'undefined') &&
-      (currentView === 'rooms' || currentView === 'slots');
+      (currentView === 'rooms' || currentView === 'slots' || currentView.indexOf('mirror') === 0);
     const fPdsVal = document.getElementById('fPds').value;
     const isTriennale = (fPdsVal === 'LT');
     const fPds = document.getElementById('fPds');

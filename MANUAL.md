@@ -85,7 +85,8 @@ fine: **+ Nuovo slot**, **Cestino**, Aule/Labs, espandi. Slot oltre **80% capien
 (§5).
 
 **📄 Save view as PDF** (in alto, per tutti): salva la vista corrente in **A4**
-(Calendario/Aule/Slot orizzontali, gli altri verticali), intestazione *Bozza - <gsheet> ·
+(Calendario/Aule/Slot e le tabelle **S\*LT/S\*LM** orizzontali — queste ultime con tutte le
+colonne in larghezza e tutte le righe su più pagine; gli altri tab verticali), intestazione *Bozza - <gsheet> ·
 vista · filtri* a sx e *PDF generated on GG/MM/AAAA* a dx. Stampa solo il contenuto (niente
 toolbar/Log/Parking né evidenziazioni), zoom automatico. Calendario: tutti i giorni + ore a
 sx; Slot: banda Aule + banda Labs. **Calendario con ricerca vuota** → un calendario per
