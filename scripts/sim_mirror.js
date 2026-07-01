@@ -113,6 +113,19 @@ check('public: FIS001 gruppo A separato (Gr A)', pub.indexOf('Gr A') !== -1);
 check('public: pillola orario+aula (Aula B)', pub.indexOf('pt-pill') !== -1 && pub.indexOf('Aula B') !== -1);
 check('public: CFU dopo il codice (9 CFU)', pub.indexOf('9 CFU') !== -1);
 check('public: colonna Docenti (Rossi)', pub.indexOf('>Docenti<') !== -1 && pub.indexOf('Rossi') !== -1);
+
+// filtro codici *T e *RI (isolato: griglia temporanea, poi ripristino)
+const _gridBak = data.rawSheets.S1LT.grid;
+data.rawSheets.S1LT.grid = [H,
+  ['1', '6', '099RI', '', 'Riconoscimento', 'LEZ', 'OPZ', '', '', 'Tizio', '', '', '', '', '', '', '', 'I'],
+  ['1', '6', '0000T', '', 'Tirocinio', 'LEZ', 'OPZ', '', '', 'Caio', '', '', '', '', '', '', '', 'I'],
+  ['1', '6', 'FIS009', '', 'Normale', 'LEZ', 'OBB', '', '', 'Sempronio', '', '', '', '', '', '', '', 'I']];
+qValue = '';
+const pubF = render(null);
+check('public: esclude codici *T (0000T assente)', pubF.indexOf('0000T') === -1);
+check('public: esclude codici *RI (099RI assente)', pubF.indexOf('099RI') === -1);
+check('public: tiene i codici normali (FIS009 presente)', pubF.indexOf('FIS009') !== -1);
+data.rawSheets.S1LT.grid = _gridBak;
 _isPublic = false;
 
 console.log('\nRISULTATO: ' + pass + ' pass, ' + fail + ' fail');

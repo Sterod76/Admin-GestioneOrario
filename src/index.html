@@ -1115,7 +1115,8 @@
   /* Tabella semplificata utente standard (Consultazione): S*LT / S*LM per giorno */
   table.pubtab { border-collapse: collapse; width: 100%; font-size: 13px; table-layout: fixed; }
   table.pubtab th, table.pubtab td { border: 1px solid #e0e3e7; padding: 3px 6px; vertical-align: top; text-align: left; }
-  table.pubtab thead th { background: #eef2f7; font-weight: 600; }
+  table.pubtab thead th { background: #d3dbe4; font-weight: 600; }
+  table.pubtab tbody tr:nth-child(even) { background: #f5f7fa; }
   table.pubtab th.pt-corso, table.pubtab td.pt-corso { width: 210px; }
   /* colonne-giorno: larghe quanto "10:30–12:30" + ~10%, contenuto centrato */
   table.pubtab th.pt-day, table.pubtab td.pt-day { width: 7em; text-align: center; }
@@ -3443,6 +3444,7 @@ var _editActive = !!EDIT_MODE;
       const DAYS = ['LUN', 'MAR', 'MER', 'GIO', 'VEN'];   // niente Sabato
       const rows = [];
       groups.forEach(g => {
+        if (/(?:RI|T)$/.test(String(g.code || '').toUpperCase())) return;   // via codici *T (es. 0000T) e *RI (es. 035RI)
         let nm = '', cfu = '';
         for (let i = 0; i < g.rows.length; i++) { if (!nm && g.rows[i].name) nm = g.rows[i].name; if (!cfu && g.rows[i].cfu) cfu = g.rows[i].cfu; }
         const title = nm.length > 30 ? (nm.slice(0, 30) + ' [...]') : nm;
