@@ -29,6 +29,7 @@ const _mirrorSheets = ['S1LT'];
 let _mirrorSort = {};
 let data = {};
 let _isPublic = false;   // ramo tabella semplificata (utente standard)
+let _pubSort = {};       // ordinamento per colonna della tabella semplificata
 eval(src);
 
 const H  = ['Anno','CFU','Codice','Mutuato','Nome','Tipo','Vincolo','Gruppo','','Titolare','SSD','LUN','MAR','MER','GIO','VEN','SAB','Periodo'];
@@ -112,7 +113,10 @@ check('public: NIENTE totale ore', pub.indexOf('Totale ore') === -1);
 check('public: FIS001 gruppo A separato ([canale A])', pub.indexOf('[canale A]') !== -1);
 check('public: pillola orario+aula (Aula B)', pub.indexOf('pt-pill') !== -1 && pub.indexOf('Aula B') !== -1);
 check('public: CFU dopo il codice (9 CFU)', pub.indexOf('9 CFU') !== -1);
-check('public: colonna Docenti (Rossi)', pub.indexOf('>Docenti<') !== -1 && pub.indexOf('Rossi') !== -1);
+check('public: colonna Docenti (Rossi)', pub.indexOf('Docenti') !== -1 && pub.indexOf('Rossi') !== -1);
+check('public: header ordinabili (pt-sort) + freccia default su Corso', pub.indexOf('pt-sort') !== -1 && pub.indexOf('Corso ▲') !== -1);
+check('public: header sticky wrapper (pubtab-wrap)', pub.indexOf('pubtab-wrap') !== -1);
+check('public: titolo uppercase (CSS pt-title text-transform)', html.indexOf('.pubtab .pt-title') !== -1 && html.indexOf('text-transform: uppercase') !== -1);
 
 // filtro codici *T e *RI (isolato: griglia temporanea, poi ripristino)
 const _gridBak = data.rawSheets.S1LT.grid;

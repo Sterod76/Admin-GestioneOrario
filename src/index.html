@@ -1113,17 +1113,23 @@
   .mode-toggle button.active[data-m="view"] { background: #b95000; color: #fff; }
   .mode-toggle button:disabled { cursor: not-allowed; opacity: .55; }
   /* Tabella semplificata utente standard (Consultazione): S*LT / S*LM per giorno */
-  table.pubtab { border-collapse: collapse; width: 100%; font-size: 13px; table-layout: fixed; }
-  table.pubtab th, table.pubtab td { border: 1px solid #e0e3e7; padding: 3px 6px; vertical-align: top; text-align: left; }
-  table.pubtab thead th { background: #d3dbe4; font-weight: 600; }
-  table.pubtab tbody tr:nth-child(even) { background: #f5f7fa; }
+  .pubtab-wrap { overflow: auto; max-height: calc(100vh - 200px); border: 1px solid var(--border); border-radius: 6px; }
+  table.pubtab { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 13px; table-layout: fixed; }
+  table.pubtab th, table.pubtab td { border-right: 1px solid #d7dde4; border-bottom: 1px solid #d7dde4; padding: 3px 6px; vertical-align: top; text-align: left; }
+  /* Header sticky: NON scrolla (le righe scorrono sotto). Cliccabile per ordinare. */
+  table.pubtab thead th { position: sticky; top: 0; z-index: 2; background: #b9cde6; font-weight: 700; cursor: pointer; user-select: none; }
+  table.pubtab thead th.pt-sort:hover { background: #a6c0e0; }
+  /* Zebra più marcata + hover */
+  table.pubtab tbody tr:nth-child(odd) { background: #ffffff; }
+  table.pubtab tbody tr:nth-child(even) { background: #e6eefb; }
+  table.pubtab tbody tr:hover { background: #fff3d0; }
   table.pubtab th.pt-corso, table.pubtab td.pt-corso { width: 210px; }
   /* colonne-giorno: larghe quanto "10:30–12:30" + ~10%, contenuto centrato */
   table.pubtab th.pt-day, table.pubtab td.pt-day { width: 7em; text-align: center; }
   .pubtab .pt-code { font-weight: 700; }
   .pubtab .pt-cfu { color: #5f6368; font-size: 11px; }
   .pubtab .pt-grp { font-weight: 600; color: #5f6368; font-size: 11px; }
-  .pubtab .pt-title { display: block; color: #202124; font-size: 12px; }
+  .pubtab .pt-title { display: block; color: #202124; font-size: 12px; text-transform: uppercase; }
   .pubtab td.pt-doc { font-size: 12px; }
   .pubtab .pt-pill { display: block; text-align: center; line-height: 1.15; margin: 0 0 3px; }
   .pubtab .pt-pill:last-child { margin: 0; }
@@ -1513,6 +1519,14 @@ var _editActive = !!EDIT_MODE;
     _mirrorSort[sheetName] = cur;
     renderSheetMirror(sheetName);
   }
+  // Ordinamento tabella semplificata (utente standard), per colonna: { sheet:{key,dir} }
+  const _pubSort = {};
+  function togglePubSort(sheetName, key) {
+    const cur = _pubSort[sheetName] || { key: 'corso', dir: 1 };
+    if (cur.key === key) cur.dir = -cur.dir; else { cur.key = key; cur.dir = 1; }
+    _pubSort[sheetName] = cur;
+    renderSheetMirror(sheetName);
+  }
   (function buildMirrorTabs() {
     const tabBar = document.querySelector('.view-tabs');
     let anchor = document.getElementById('viewUbiquity');
@@ -1531,7 +1545,9 @@ var _editActive = !!EDIT_MODE;
       // Click sui bottoni di ordinamento (delegato: l'innerHTML cambia a ogni render)
       v.addEventListener('click', (e) => {
         const b = e.target.closest('.msort-btn');
-        if (b && b.dataset.key) toggleMirrorSort(nm, b.dataset.key);
+        if (b && b.dataset.key) { toggleMirrorSort(nm, b.dataset.key); return; }
+        const pb = e.target.closest('.pt-sort');
+        if (pb && pb.dataset.key) togglePubSort(nm, pb.dataset.key);
       });
       anchor.insertAdjacentElement('afterend', v);
       anchor = v;
@@ -3458,11 +3474,23 @@ var _editActive = !!EDIT_MODE;
         Object.keys(byGrp).sort((a, b) => String(a).localeCompare(String(b), 'it', { numeric: true }))
           .forEach(grp => rows.push({ code: g.code, title: title, cfu: cfu, grp: grp, sess: byGrp[grp].sess, tits: byGrp[grp].tits }));
       });
-      rows.sort((a, b) => a.code.localeCompare(b.code, 'it', { numeric: true }) ||
-        String(a.grp).localeCompare(String(b.grp), 'it', { numeric: true }));
       if (!rows.length) { host.innerHTML = '<div class="mb-none">Nessun risultato per la ricerca.</div>'; return; }
-      let h = '<table class="pubtab"><thead><tr><th class="pt-corso">Corso</th>' +
-        DAYS.map(d => '<th class="pt-day">' + d + '</th>').join('') + '<th class="pt-doc">Docenti</th></tr></thead><tbody>';
+      const codeCmp = (a, b) => a.code.localeCompare(b.code, 'it', { numeric: true }) ||
+        String(a.grp).localeCompare(String(b.grp), 'it', { numeric: true });
+      const dayStart = (row, d) => { let m = 1e9; row.sess.forEach(s => { if (s.day === d && s.start < m) m = s.start; }); return m; };
+      const sort = _pubSort[sheetName] || { key: 'corso', dir: 1 };
+      rows.sort((a, b) => {
+        let p;
+        if (sort.key === 'doc') p = String(a.tits[0] || '~').localeCompare(String(b.tits[0] || '~'), 'it');
+        else if (sort.key.indexOf('day') === 0) p = dayStart(a, +sort.key.slice(3)) - dayStart(b, +sort.key.slice(3));
+        else p = codeCmp(a, b);
+        return p ? sort.dir * p : codeCmp(a, b);
+      });
+      const arr = k => sort.key === k ? (sort.dir > 0 ? ' ▲' : ' ▼') : '';
+      let h = '<div class="pubtab-wrap"><table class="pubtab"><thead><tr>' +
+        '<th class="pt-corso pt-sort" data-key="corso">Corso' + arr('corso') + '</th>' +
+        DAYS.map((d, i) => '<th class="pt-day pt-sort" data-key="day' + i + '">' + d + arr('day' + i) + '</th>').join('') +
+        '<th class="pt-doc pt-sort" data-key="doc">Docenti' + arr('doc') + '</th></tr></thead><tbody>';
       rows.forEach(row => {
         h += '<tr><td class="pt-corso"><span class="pt-code" style="color:' + sheetColor + '">' + esc(row.code) + '</span>' +
           (row.cfu ? ' <span class="pt-cfu">' + esc(row.cfu) + ' CFU</span>' : '') +
@@ -3476,7 +3504,7 @@ var _editActive = !!EDIT_MODE;
         const doc = row.tits.length ? row.tits.map(t => docentiHtml(t)).join('; ') : '';
         h += '<td class="pt-doc">' + doc + '</td></tr>';
       });
-      host.innerHTML = h + '</tbody></table>';
+      host.innerHTML = h + '</tbody></table></div>';
       return;
     }
 
