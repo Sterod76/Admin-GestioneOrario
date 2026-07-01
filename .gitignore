@@ -37,6 +37,9 @@ Thumbs.db
 # Output del notebook co-esami (rigenerabile)
 matrice/MatriceCoesami_*.csv
 
+# Elenchi per matricola del funnel-coorte (contengono matricole, pseudonimo): MAI nel repo
+matrice/elenco_*.csv
+
 # Export manuali con dati personali (orari/coperture/slot docenti) che potrebbero
 # finire in root: guard PII, NON committare mai.
 Orario S*.xlsx

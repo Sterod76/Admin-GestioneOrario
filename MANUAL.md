@@ -54,8 +54,9 @@ conferma. Se il lock ti viene tolto, il Salva è rifiutato (ricarica e riapplica
 forzato: menu **🕒 Orario → 🔓 Sconnetti editor**.
 
 **Livelli (foglio CONFIG)**: `WebEditors` (tutto) · `WebAuditors`/`WebRevisori`/`WebReviewers`
-(tutti i tab, sola lettura) · chiunque altro = **Consultazione** (solo Calendario + Slot,
-sola lettura ma slot selezionabili per vedere i dettagli).
+(tutti i tab, sola lettura) · chiunque altro = **Consultazione**: vede **Calendario** + due
+**tabelle semplificate** (`LT` e `LM`) — una riga per codice/gruppo, colonne Lun–Ven con
+orario e aula. Niente tab Slot né barra Aule/Labs.
 
 **Visibilità** (menu **👁️**): *Pubblicato* (default) / *In redazione* (gli utenti generici
 vedono "Calendario in fase di redazione"; editor/revisori lavorano comunque).

@@ -28,6 +28,7 @@ function parseQuery(q) { const t = (q || '').split(/\s+/).filter(Boolean).slice(
 const _mirrorSheets = ['S1LT'];
 let _mirrorSort = {};
 let data = {};
+let _isPublic = false;   // ramo tabella semplificata (utente standard)
 eval(src);
 
 const H  = ['Anno','CFU','Codice','Mutuato','Nome','Tipo','Vincolo','Gruppo','','Titolare','SSD','LUN','MAR','MER','GIO','VEN','SAB','Periodo'];
@@ -101,6 +102,16 @@ check('shortTitle: trim attorno alla "/" ("  Foo /Bar")', shortTitle('  Foo /Bar
 check('shortTitle: senza "/" invariato', shortTitle('Meccanica Quantistica') === 'Meccanica Quantistica');
 check('shortTitle: più "/" → prima parte', shortTitle('A / B / C') === 'A');
 check('shortTitle: vuoto/null → ""', shortTitle('') === '' && shortTitle(null) === '');
+
+// --- Ramo public: tabella semplificata (una riga per codice+gruppo, Lun-Ven) ---
+_isPublic = true; qValue = '';
+const pub = render(null);
+check('public: rende <table class="pubtab">', pub.indexOf('class="pubtab"') !== -1);
+check('public: header LUN..VEN, niente SAB', pub.indexOf('>LUN<') !== -1 && pub.indexOf('>VEN<') !== -1 && pub.indexOf('>SAB<') === -1);
+check('public: NIENTE totale ore', pub.indexOf('Totale ore') === -1);
+check('public: FIS001 gruppo A separato (Gr A)', pub.indexOf('Gr A') !== -1);
+check('public: pillola orario+aula (Aula B)', pub.indexOf('pt-pill') !== -1 && pub.indexOf('Aula B') !== -1);
+_isPublic = false;
 
 console.log('\nRISULTATO: ' + pass + ' pass, ' + fail + ' fail');
 process.exit(fail ? 1 : 0);

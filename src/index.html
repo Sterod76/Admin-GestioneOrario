@@ -1112,6 +1112,15 @@
   .mode-toggle button.active[data-m="edit"] { background: #137333; color: #fff; }
   .mode-toggle button.active[data-m="view"] { background: #b95000; color: #fff; }
   .mode-toggle button:disabled { cursor: not-allowed; opacity: .55; }
+  /* Tabella semplificata utente standard (Consultazione): S*LT / S*LM per giorno */
+  table.pubtab { border-collapse: collapse; width: 100%; font-size: 13px; }
+  table.pubtab th, table.pubtab td { border: 1px solid #e0e3e7; padding: 4px 6px; vertical-align: top; text-align: left; }
+  table.pubtab thead th { background: #eef2f7; font-weight: 600; }
+  table.pubtab th.pt-corso, table.pubtab td.pt-corso { width: 250px; }
+  .pubtab .pt-code { font-weight: 700; }
+  .pubtab .pt-grp { font-weight: 600; color: #5f6368; font-size: 11px; }
+  .pubtab .pt-title { display: block; color: #202124; font-size: 12px; }
+  .pubtab .pt-pill { display: inline-block; background: #f1f3f4; border-radius: 4px; padding: 1px 5px; margin: 1px 2px 1px 0; line-height: 1.15; white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -1522,9 +1531,14 @@ var _editActive = !!EDIT_MODE;
       anchor = v;
     });
   })();
-  // Public/Consultazione: oltre ad Aule/Collisioni/ecc. nascondi anche i tab
-  // "mirror" dei fogli — restano solo Calendario + Slot.
-  if (_isPublic) document.querySelectorAll('.view-tab.tab-mirror').forEach(tb => { tb.style.display = 'none'; });
+  // Public/Consultazione: i tab "mirror" (S*LT/S*LM) restano VISIBILI ma renderizzati
+  // in versione SEMPLIFICATA (vedi renderSheetMirror). In compenso, per il public si
+  // nascondono il tab Slot e la barra "Aule/Labs" → restano Calendario + LT + LM.
+  if (_isPublic) {
+    if (slotsTab) slotsTab.style.display = 'none';
+    const _sv = document.getElementById('viewSlots'); if (_sv) _sv.style.display = 'none';
+    const _rc = document.getElementById('roomChecks'); if (_rc) _rc.style.display = 'none';
+  }
 
   // Popover suggerimenti sul tab Collisioni: hover sulla cella costo (.cl-cost).
   (function setupCollisionPopover() {
@@ -3416,6 +3430,43 @@ var _editActive = !!EDIT_MODE;
       g.cfuNum = (isFinite(cfuNum) && cfuNum > 0) ? cfuNum : null;
       g.oreCfu = g.cfuNum ? (totalMin / 60) / g.cfuNum : null;
     });
+
+    // Utente standard (Consultazione): tabella SEMPLIFICATA. Una riga per (codice,
+    // gruppo) — stesso codice con gruppi diversi = righe separate, il resto unito;
+    // colonne Lun-Ven con orario+aula; codice + titolo troncato a 30 char; niente totali.
+    if (typeof _isPublic !== 'undefined' && _isPublic) {
+      const DAYS = ['LUN', 'MAR', 'MER', 'GIO', 'VEN'];   // niente Sabato
+      const rows = [];
+      groups.forEach(g => {
+        let nm = ''; for (let i = 0; i < g.rows.length; i++) if (g.rows[i].name) { nm = g.rows[i].name; break; }
+        const title = nm.length > 30 ? nm.slice(0, 30) : nm;
+        const byGrp = {};
+        g.rowsData.forEach(rd => {
+          const grp = rd.r.grp || '';
+          (byGrp[grp] = byGrp[grp] || []).push.apply(byGrp[grp], rd.sess);
+        });
+        Object.keys(byGrp).sort((a, b) => String(a).localeCompare(String(b), 'it', { numeric: true }))
+          .forEach(grp => rows.push({ code: g.code, title: title, grp: grp, sess: byGrp[grp] }));
+      });
+      rows.sort((a, b) => a.code.localeCompare(b.code, 'it', { numeric: true }) ||
+        String(a.grp).localeCompare(String(b.grp), 'it', { numeric: true }));
+      if (!rows.length) { host.innerHTML = '<div class="mb-none">Nessun risultato per la ricerca.</div>'; return; }
+      let h = '<table class="pubtab"><thead><tr><th class="pt-corso">Corso</th>' +
+        DAYS.map(d => '<th>' + d + '</th>').join('') + '</tr></thead><tbody>';
+      rows.forEach(row => {
+        h += '<tr><td class="pt-corso"><span class="pt-code" style="color:' + sheetColor + '">' + esc(row.code) +
+          (row.grp ? ' <span class="pt-grp">Gr ' + esc(row.grp) + '</span>' : '') + '</span>' +
+          (row.title ? '<span class="pt-title">' + esc(row.title) + '</span>' : '') + '</td>';
+        for (let d = 0; d < 5; d++) {
+          const cell = row.sess.filter(s => s.day === d).sort((a, b) => a.start - b.start)
+            .map(s => '<span class="pt-pill">' + fmt(s.start) + '–' + fmt(s.end) + '<br>' + esc(s.room) + '</span>').join('');
+          h += '<td>' + cell + '</td>';
+        }
+        h += '</tr>';
+      });
+      host.innerHTML = h + '</tbody></table>';
+      return;
+    }
 
     // Ordinamento per-tab: per Codice o per Ore/CFU (senza CFU → in fondo)
     const sort = _mirrorSort[sheetName] || { key: 'code', dir: 1 };
