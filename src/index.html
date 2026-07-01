@@ -3466,7 +3466,7 @@ var _editActive = !!EDIT_MODE;
       rows.forEach(row => {
         h += '<tr><td class="pt-corso"><span class="pt-code" style="color:' + sheetColor + '">' + esc(row.code) + '</span>' +
           (row.cfu ? ' <span class="pt-cfu">' + esc(row.cfu) + ' CFU</span>' : '') +
-          (row.grp ? ' <span class="pt-grp">Gr ' + esc(row.grp) + '</span>' : '') +
+          (row.grp ? ' <span class="pt-grp">[canale ' + esc(row.grp) + ']</span>' : '') +
           (row.title ? '<span class="pt-title">' + esc(row.title) + '</span>' : '') + '</td>';
         for (let d = 0; d < 5; d++) {
           const cell = row.sess.filter(s => s.day === d).sort((a, b) => a.start - b.start)

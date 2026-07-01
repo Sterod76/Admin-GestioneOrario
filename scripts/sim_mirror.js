@@ -109,7 +109,7 @@ const pub = render(null);
 check('public: rende <table class="pubtab">', pub.indexOf('class="pubtab"') !== -1);
 check('public: header LUN..VEN, niente SAB', pub.indexOf('>LUN<') !== -1 && pub.indexOf('>VEN<') !== -1 && pub.indexOf('>SAB<') === -1);
 check('public: NIENTE totale ore', pub.indexOf('Totale ore') === -1);
-check('public: FIS001 gruppo A separato (Gr A)', pub.indexOf('Gr A') !== -1);
+check('public: FIS001 gruppo A separato ([canale A])', pub.indexOf('[canale A]') !== -1);
 check('public: pillola orario+aula (Aula B)', pub.indexOf('pt-pill') !== -1 && pub.indexOf('Aula B') !== -1);
 check('public: CFU dopo il codice (9 CFU)', pub.indexOf('9 CFU') !== -1);
 check('public: colonna Docenti (Rossi)', pub.indexOf('>Docenti<') !== -1 && pub.indexOf('Rossi') !== -1);
