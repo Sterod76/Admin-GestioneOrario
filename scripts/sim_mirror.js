@@ -111,6 +111,8 @@ check('public: header LUN..VEN, niente SAB', pub.indexOf('>LUN<') !== -1 && pub.
 check('public: NIENTE totale ore', pub.indexOf('Totale ore') === -1);
 check('public: FIS001 gruppo A separato (Gr A)', pub.indexOf('Gr A') !== -1);
 check('public: pillola orario+aula (Aula B)', pub.indexOf('pt-pill') !== -1 && pub.indexOf('Aula B') !== -1);
+check('public: CFU dopo il codice (9 CFU)', pub.indexOf('9 CFU') !== -1);
+check('public: colonna Docenti (Rossi)', pub.indexOf('>Docenti<') !== -1 && pub.indexOf('Rossi') !== -1);
 _isPublic = false;
 
 console.log('\nRISULTATO: ' + pass + ' pass, ' + fail + ' fail');
