@@ -5529,7 +5529,7 @@ var _editActive = !!EDIT_MODE;
       if (!grids.length) return;
       let gridW = 1, gridH = 0;
       Array.prototype.forEach.call(grids, function (g) { gridW = Math.max(gridW, g.scrollWidth); gridH += g.scrollHeight; });
-      const availH = Math.max(pageH - 60, 1);   // riserva testata (~30) + separatore (~17) + margine
+      const availH = Math.max(pageH - 46, 1);   // riserva testata (~30) + separatore (~17); C (labs a fondo pagina) quasi tight
       const s = Math.min(pageW / gridW, availH / Math.max(gridH, 1));   // UNIFORME, prima dimensione che riempie
       Array.prototype.forEach.call(grids, function (g) { _relayoutSlotBand(g, s); });
     });
@@ -5539,23 +5539,22 @@ var _editActive = !!EDIT_MODE;
   // colonne = 78·s / 48·s, header 46·s, altezza traccia/tick/blocchi · s (con --slot-h intero
   // per linee nitide), font scalati via --k (calc nel CSS di stampa).
   function _relayoutSlotBand(grid, s) {
+    // Verticale ESATTO (fattore s, niente arrotondamento di --slot-h): a 1:1 in stampa le linee
+    // restano tutte presenti, e l'altezza riempie con precisione (no quantizzazione grossolana).
     const ref = grid.querySelector('.slot-room-track') || grid.querySelector('.slot-ticks');
     const sh0 = ref ? parseFloat(ref.style.getPropertyValue('--slot-h')) : 17;
-    const shN = Math.max(Math.round(sh0 * s), 3);
-    const vk = sh0 ? (shN / sh0) : s;                       // fattore verticale effettivo (linee intere)
     const hh0 = ref ? parseFloat(ref.style.getPropertyValue('--hour-h')) : sh0 * 2;
-    const hhN = Math.round((hh0 || sh0 * 2) * vk);
     grid.querySelectorAll('.slot-room-track, .slot-ticks').forEach(function (t) {
-      const h = parseFloat(t.style.height); if (!isNaN(h)) t.style.height = Math.round(h * vk) + 'px';
-      t.style.setProperty('--slot-h', shN + 'px'); t.style.setProperty('--hour-h', hhN + 'px');
+      const h = parseFloat(t.style.height); if (!isNaN(h)) t.style.height = Math.round(h * s) + 'px';
+      t.style.setProperty('--slot-h', (sh0 * s).toFixed(2) + 'px'); t.style.setProperty('--hour-h', (hh0 * s).toFixed(2) + 'px');
     });
     grid.querySelectorAll('.slot-tick').forEach(function (t) {
-      const top = parseFloat(t.style.top); if (!isNaN(top)) t.style.top = Math.round(top * vk) + 'px';
+      const top = parseFloat(t.style.top); if (!isNaN(top)) t.style.top = Math.round(top * s) + 'px';
     });
     grid.querySelectorAll('.sblock').forEach(function (b) {
       const top = parseFloat(b.style.top), h = parseFloat(b.style.height);
-      if (!isNaN(top)) b.style.top = Math.round(top * vk) + 'px';
-      if (!isNaN(h)) b.style.height = Math.max(Math.round(h * vk), 5) + 'px';
+      if (!isNaN(top)) b.style.top = Math.round(top * s) + 'px';
+      if (!isNaN(h)) b.style.height = Math.max(Math.round(h * s), 5) + 'px';
     });
     const tw = Math.max(Math.round(48 * s), 12), rw = Math.max(Math.round(78 * s), 16), hh = Math.round(46 * s);
     let nRoom = 0;
