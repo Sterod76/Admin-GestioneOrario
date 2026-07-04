@@ -707,6 +707,7 @@
     body.printing #printArea > * { overflow: visible !important; }   /* niente clip dei container con scroll */
     /* intestazione: a sx Bozza + vista + filtri, a dx "Pds generated on ..." */
     body.printing #printArea .pr-head {
+      width: 100%;   /* testata a PIENA larghezza del foglio */
       display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
       border-bottom: 1px solid #999; padding-bottom: 4px; margin-bottom: 8px;
       font: 13px/1.3 Arial, sans-serif; color: #000;
@@ -715,8 +716,9 @@
     body.printing #printArea .pr-right { color: #444; white-space: nowrap; }
     body.printing #printArea .pr-sub { font: 700 13px/1.2 Arial, sans-serif; color: #000; margin: 8px 0 3px; }
     /* set multipagina (calendario): un calendario per pagina */
-    body.printing #printArea .pr-page { break-inside: avoid; }
+    body.printing #printArea .pr-page { width: 100%; break-inside: avoid; }   /* pagina a piena larghezza del foglio */
     body.printing #printArea .pr-page + .pr-page { break-before: page; }
+    body.printing #printArea .pr-hr { width: 100%; }   /* separatore Aule/Lab a piena larghezza (come la riga sotto la testata) */
     body.printing #printArea .slot-time-col { position: static !important; }
     /* Stampa Slot: linee tutte dello stesso grigio chiaro (orizzontali ore+mezzore e verticali).
        Spessore = 1/scala (var --pl, impostata da _fitSlotPages) → dopo lo scaling resta ~1px e
@@ -926,6 +928,7 @@
     font-size: 11px; line-height: 1.15; overflow: hidden;
     box-shadow: 0 1px 2px rgba(0,0,0,0.06); box-sizing: border-box;
     display: flex; flex-direction: column; justify-content: flex-start;
+    user-select: none; cursor: default;   /* il testo NON è editabile: niente cursore I-beam/selezione */
   }
   .sblock.hidden { display: none; }
   .sblock.editable { cursor: grab; user-select: none; touch-action: none; }
@@ -1149,10 +1152,8 @@
   body.printing table.pubtab thead th { position: static; }
   body.printing table.pubtab thead { display: table-header-group; }
   body.printing table.pubtab tr { break-inside: avoid; }
-  /* Titolo del giorno nella stampa Slot (una pagina per giorno) + separatore Aule/Labs */
-  .pr-day { font-size: 16px; font-weight: 700; margin: 0 0 4px; }
-  .pr-hr { border-top: var(--pl, 1px) solid #cccccc; margin: 6px 0; }   /* separatore Aule/Labs: grigio chiaro come le linee ora (spessore 1/scala) */
-  .pr-fit { transform-origin: top left; }
+  /* Separatore Aule/Lab nella stampa Slot: a PIENA larghezza, identico alla riga sotto la testata */
+  .pr-hr { border-top: 1px solid #999; margin: 8px 0; width: 100%; }
 </style>
 </head>
 <body>
@@ -5455,30 +5456,26 @@ var _editActive = !!EDIT_MODE;
     node.querySelectorAll('button, select, input, label, .slot-topbar, .slot-hover-info, .slot-drag-legend, .slot-template, .slot-trash, .cl-viewtoggle, .cx-pds, .slot-busy-band, .sblock-coex-ov').forEach(function (e) { e.remove(); });
     node.querySelectorAll('.selected, .sblock-teacher-src').forEach(function (e) { e.classList.remove('selected', 'sblock-teacher-src'); });
   }
-  // Slot: due bande impilate — solo Aule sopra, solo Labs sotto (ognuna con la colonna Ora).
-  function _buildSlotBands(src, body) {
-    const built = [];
-    [false, true].forEach(function (isLab) {           // prima le AULE, poi i LAB
-      const g = src.cloneNode(true); g.removeAttribute('id');
-      g.querySelectorAll('.slot-room-col').forEach(function (col) {
-        const room = col.getAttribute('data-room') || '';
-        if (/^lab\b/i.test(room) !== isLab) { col.remove(); return; }
-        col.classList.remove('collapsed', 'hidden');   // in stampa mostra tutte, anche se collassate a schermo
-      });
-      if (!g.querySelectorAll('.slot-room-col').length) return; // nessuna aula/lab di questo tipo
-      _cleanPrintClone(g);
-      g.querySelectorAll('.slot-time-col').forEach(function (c) { c.style.position = 'static'; });
-      built.push(g);
+  // Costruisce UNA banda Slot (solo Aule oppure solo Lab) come <div.pr-band> contenente il
+  // clone della griglia (colonna Ora + colonne del tipo scelto). Ritorna null se vuota.
+  function _buildSlotBand(src, isLab) {
+    const g = src.cloneNode(true); g.removeAttribute('id');
+    g.querySelectorAll('.slot-room-col').forEach(function (col) {
+      const room = col.getAttribute('data-room') || '';
+      if (/^lab\b/i.test(room) !== isLab) { col.remove(); return; }
+      col.classList.remove('collapsed', 'hidden');   // in stampa mostra tutte, anche se collassate a schermo
     });
-    // Niente etichette "Aule"/"Labs": solo una RIGA di separazione fra le due bande.
-    built.forEach(function (g, i) {
-      if (i > 0) { const hr = document.createElement('div'); hr.className = 'pr-hr'; body.appendChild(hr); }
-      body.appendChild(g);
-    });
+    if (!g.querySelectorAll('.slot-room-col').length) return null;   // nessuna aula/lab di questo tipo
+    _cleanPrintClone(g);
+    g.querySelectorAll('.slot-time-col').forEach(function (c) { c.style.position = 'static'; });
+    const band = document.createElement('div'); band.className = 'pr-band';
+    band.appendChild(g);
+    return band;
   }
-  // Slot in PDF: TUTTI i giorni della settimana (LUN..SAB), uno per PAGINA. Ogni pagina ha
-  // la testata (Bozza · Slot | PDF generated), il giorno per esteso, e le bande Aule/Labs
-  // dentro un contenitore .pr-fit (scalato da _fitSlotPages per riempire la pagina).
+  // Slot in PDF: TUTTI i giorni (LUN..SAB), uno per PAGINA. Ogni pagina: testata a piena
+  // larghezza (col giorno NEL titolo) + banda Aule + riga separatrice a piena larghezza +
+  // banda Lab. Come il Calendario: la pagina non ha larghezza fissa (segue l'A4 reale); si
+  // applica solo uno zoom alle griglie (_fitSlotPages).
   function _buildSlotAllDays(body, headDesc) {
     const grid = document.getElementById('slotGrid');
     if (!grid) return;
@@ -5488,35 +5485,41 @@ var _editActive = !!EDIT_MODE;
       currentSlotDay = d;
       renderSlotsSessions();                     // popola #slotGrid per il giorno d
       const page = document.createElement('div'); page.className = 'pr-page';
-      page.appendChild(_pdfHead(headDesc));      // testata su OGNI pagina
-      const h = document.createElement('div'); h.className = 'pr-day'; h.textContent = days[d] || ('Giorno ' + (d + 1));
-      page.appendChild(h);
-      const fit = document.createElement('div'); fit.className = 'pr-fit';
-      _buildSlotBands(grid, fit);                // Aule sopra, riga, Labs sotto (per il giorno d)
-      page.appendChild(fit);
+      page.appendChild(_pdfHead(headDesc + ' · ' + (days[d] || ('Giorno ' + (d + 1)))));   // giorno NEL titolo
+      const aule = _buildSlotBand(grid, false);
+      const labs = _buildSlotBand(grid, true);
+      if (aule) page.appendChild(aule);
+      if (aule && labs) { const hr = document.createElement('div'); hr.className = 'pr-hr'; page.appendChild(hr); }
+      if (labs) page.appendChild(labs);
       body.appendChild(page);
     }
     currentSlotDay = savedDay;
     renderSlotsSessions();                        // ripristina la vista a schermo
   }
-  // Riempimento pagina-giorno Slot: scala il contenuto (.pr-fit) con un fattore UNIFORME
-  // (stesso in X e Y → nessuna deformazione), cresciuto fino a riempire la PRIMA dimensione
-  // (larghezza o altezza). La testata e il titolo del giorno restano fissi a piena larghezza
-  // in cima; si scala solo la griglia sotto.
+  // Zoom pagina-giorno Slot: un UNICO fattore uniforme s per entrambe le bande, cresciuto fino
+  // a riempire la prima dimensione (larghezza O altezza sotto la testata). Applica zoom alle
+  // griglie (testata e separatore restano a piena larghezza). Linee a 1/s → ~1px dopo lo zoom.
   function _fitSlotPages(body, land) {
     const area = document.getElementById('printArea');
-    const pageW = land ? 1040 : 720, pageH = land ? 690 : 1010;
+    // Riquadro-contenuto A4 REALE a 96dpi (margini 8mm): landscape (297-16)×(210-16)mm ≈ 1062×733;
+    // portrait 733×1062. Uso i valori veri (con minimo margine di sicurezza in altezza) così lo
+    // zoom è calibrato sul foglio effettivo, non su un valore inventato.
+    const pageW = land ? 1058 : 728, pageH = land ? 726 : 1058;
     const prev = area.getAttribute('style') || '';
     area.style.cssText = 'display:block;position:fixed;left:-99999px;top:0;visibility:hidden;width:' + pageW + 'px;';
     Array.prototype.forEach.call(body.querySelectorAll('.pr-page'), function (pg) {
-      pg.style.width = pageW + 'px'; pg.style.height = pageH + 'px'; pg.style.overflow = 'hidden';
-      pg.style.position = 'relative';                      // così fit.offsetTop è relativo a QUESTA pagina
-      const fit = pg.querySelector('.pr-fit'); if (!fit) return;
-      fit.style.width = 'max-content'; fit.style.transformOrigin = 'top left';   // larghezza naturale della griglia
-      const availH = Math.max(pageH - fit.offsetTop, 1);   // spazio utile sotto testata + giorno
-      const s = Math.min(pageW / Math.max(fit.scrollWidth, 1), availH / Math.max(fit.scrollHeight, 1));
-      fit.style.transform = 'scale(' + s.toFixed(3) + ')'; // UNIFORME: si ferma sulla prima dimensione che riempie
-      fit.style.setProperty('--pl', (1 / Math.max(s, 0.01)).toFixed(2) + 'px');   // linee ~1px anche dopo lo scaling
+      const grids = pg.querySelectorAll('.pr-band > *');
+      if (!grids.length) return;
+      let gridW = 1, gridH = 0;
+      Array.prototype.forEach.call(grids, function (g) { gridW = Math.max(gridW, g.scrollWidth); gridH += g.scrollHeight; });
+      // Riserva fissa per testata (~30px) + separatore (~17px): sono stili @media print, non
+      // misurabili qui off-screen; le griglie invece hanno la stessa geometria a schermo e in stampa.
+      const availH = Math.max(pageH - 48, 1);
+      const s = Math.min(pageW / gridW, availH / Math.max(gridH, 1));   // UNIFORME, prima dimensione che riempie
+      Array.prototype.forEach.call(pg.querySelectorAll('.pr-band'), function (b) {
+        b.style.setProperty('--pl', (1 / Math.max(s, 0.01)).toFixed(2) + 'px');   // linee ~1px anche dopo lo zoom
+        if (b.firstElementChild) b.firstElementChild.style.zoom = s.toFixed(3);
+      });
     });
     area.setAttribute('style', prev);
   }
@@ -5592,7 +5595,7 @@ var _editActive = !!EDIT_MODE;
     if (view !== 'slots') area.appendChild(_pdfHead(headDesc));   // slots: testata ripetuta su ogni pagina
     const body = document.createElement('div'); body.id = 'printBody'; area.appendChild(body);
     if (view === 'slots') {
-      _buildSlotAllDays(body, headDesc); // TUTTI i giorni LUN..SAB, uno per pagina (testata + Aule/Labs)
+      _buildSlotAllDays(body, label || 'Slot'); // testata "… · Slot · <GIORNO>" (senza filtri), una pagina per giorno
       _fitSlotPages(body, !!cfg.land);
     } else {
       const clone = src.cloneNode(true);
