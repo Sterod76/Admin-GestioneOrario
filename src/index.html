@@ -699,6 +699,10 @@
   body.draft #savePdfBtn { display: none; }   /* in redazione non c'è nulla da stampare */
   @media print {
     body.printing { visibility: hidden !important; }
+    /* Nascondi dal LAYOUT (non solo visibility) tutta la UI dell'app durante la stampa: quei
+       contenitori scrollano in orizzontale ed essendo più larghi del foglio farebbero scattare
+       lo "shrink-to-fit" di Chrome, rimpicciolendo l'intera pagina stampata. */
+    body.printing > *:not(#printArea) { display: none !important; }
     body.printing #printArea, body.printing #printArea * {
       visibility: visible !important;
       -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
@@ -728,9 +732,21 @@
     }
     body.printing #printArea .slot-room-track {
       background:
-        repeating-linear-gradient(to bottom, transparent 0 calc(var(--slot-h) - var(--pl, 1px)), #cccccc calc(var(--slot-h) - var(--pl, 1px)), #cccccc var(--slot-h)),
-        repeating-linear-gradient(to bottom, transparent 0 calc(var(--hour-h) - var(--pl, 1px)), #cccccc calc(var(--hour-h) - var(--pl, 1px)), #cccccc var(--hour-h)) !important;
+        repeating-linear-gradient(to bottom, transparent 0 calc(var(--slot-h) - 1px), #cccccc calc(var(--slot-h) - 1px), #cccccc var(--slot-h)),
+        repeating-linear-gradient(to bottom, transparent 0 calc(var(--hour-h) - 1px), #cccccc calc(var(--hour-h) - 1px), #cccccc var(--hour-h)) !important;
     }
+    /* Font della griglia Slot scalati col fattore --k (impostato da _relayoutSlotBand) */
+    body.printing #printArea .slot-time-col .slot-room-header,
+    body.printing #printArea .slot-room-name { font-size: calc(11px * var(--k, 1)); }
+    body.printing #printArea .slot-room-sub { font-size: calc(10px * var(--k, 1)); }
+    body.printing #printArea .slot-room-caret { font-size: calc(9px * var(--k, 1)); }
+    body.printing #printArea .slot-tick { font-size: calc(9px * var(--k, 1)); }
+    body.printing #printArea .slot-tick.hour { font-size: calc(9.5px * var(--k, 1)); }
+    body.printing #printArea .sblock { font-size: calc(11px * var(--k, 1)); }
+    body.printing #printArea .sblock .sblock-name,
+    body.printing #printArea .sblock .sblock-cfu { font-size: calc(10px * var(--k, 1)); }
+    body.printing #printArea .sblock .sblock-warn { font-size: calc(17.6px * var(--k, 1)); }
+    body.printing #printArea .slot-room-header { padding: 2px 3px !important; }
     body.printing #printArea .sblock, body.printing #printArea .ablock { box-shadow: none !important; }
     /* evita di tagliare a metà blocchi, colonne, sezioni-aula, righe, item di lista */
     body.printing #printArea .sblock,
@@ -5474,8 +5490,8 @@ var _editActive = !!EDIT_MODE;
   }
   // Slot in PDF: TUTTI i giorni (LUN..SAB), uno per PAGINA. Ogni pagina: testata a piena
   // larghezza (col giorno NEL titolo) + banda Aule + riga separatrice a piena larghezza +
-  // banda Lab. Come il Calendario: la pagina non ha larghezza fissa (segue l'A4 reale); si
-  // applica solo uno zoom alle griglie (_fitSlotPages).
+  // banda Lab. La pagina segue l'A4 reale (width:100%); le griglie vengono ri-disposte a
+  // pixel reali da _fitSlotPages perché entrino nel foglio senza zoom/transform.
   function _buildSlotAllDays(body, headDesc) {
     const grid = document.getElementById('slotGrid');
     if (!grid) return;
@@ -5496,32 +5512,60 @@ var _editActive = !!EDIT_MODE;
     currentSlotDay = savedDay;
     renderSlotsSessions();                        // ripristina la vista a schermo
   }
-  // Zoom pagina-giorno Slot: un UNICO fattore uniforme s per entrambe le bande, cresciuto fino
-  // a riempire la prima dimensione (larghezza O altezza sotto la testata). Applica zoom alle
-  // griglie (testata e separatore restano a piena larghezza). Linee a 1/s → ~1px dopo lo zoom.
+  // Fattore UNIFORME s per pagina-giorno Slot: cresce finché riempie la prima dimensione
+  // (larghezza O altezza sotto la testata). NIENTE zoom/transform: quelli, se la griglia
+  // sfora la pagina, innescano lo "shrink-to-fit" di Chrome in stampa e la rimpiccioliscono
+  // ancora. Invece si RI-DISPONE la griglia a pixel reali (colonne + geometria verticale +
+  // font) così entra nella pagina e viene resa 1:1, con linee nitide.
   function _fitSlotPages(body, land) {
     const area = document.getElementById('printArea');
-    // Riquadro-contenuto A4 REALE a 96dpi (margini 8mm): landscape (297-16)×(210-16)mm ≈ 1062×733;
-    // portrait 733×1062. Uso i valori veri (con minimo margine di sicurezza in altezza) così lo
-    // zoom è calibrato sul foglio effettivo, non su un valore inventato.
-    const pageW = land ? 1058 : 728, pageH = land ? 726 : 1058;
+    // Riquadro-contenuto A4 a 96dpi (margini 8mm): landscape (297-16)×(210-16)mm ≈ 1062×733.
+    // Piccolo margine di sicurezza in larghezza per non far scattare lo shrink-to-fit.
+    const pageW = land ? 1052 : 726, pageH = land ? 733 : 1058;
     const prev = area.getAttribute('style') || '';
-    area.style.cssText = 'display:block;position:fixed;left:-99999px;top:0;visibility:hidden;width:' + pageW + 'px;';
+    area.style.cssText = 'display:block;position:fixed;left:-99999px;top:0;visibility:hidden;width:' + (pageW + 200) + 'px;';
     Array.prototype.forEach.call(body.querySelectorAll('.pr-page'), function (pg) {
       const grids = pg.querySelectorAll('.pr-band > *');
       if (!grids.length) return;
       let gridW = 1, gridH = 0;
       Array.prototype.forEach.call(grids, function (g) { gridW = Math.max(gridW, g.scrollWidth); gridH += g.scrollHeight; });
-      // Riserva fissa per testata (~30px) + separatore (~17px): sono stili @media print, non
-      // misurabili qui off-screen; le griglie invece hanno la stessa geometria a schermo e in stampa.
-      const availH = Math.max(pageH - 48, 1);
+      const availH = Math.max(pageH - 60, 1);   // riserva testata (~30) + separatore (~17) + margine
       const s = Math.min(pageW / gridW, availH / Math.max(gridH, 1));   // UNIFORME, prima dimensione che riempie
-      Array.prototype.forEach.call(pg.querySelectorAll('.pr-band'), function (b) {
-        b.style.setProperty('--pl', (1 / Math.max(s, 0.01)).toFixed(2) + 'px');   // linee ~1px anche dopo lo zoom
-        if (b.firstElementChild) b.firstElementChild.style.zoom = s.toFixed(3);
-      });
+      Array.prototype.forEach.call(grids, function (g) { _relayoutSlotBand(g, s); });
     });
     area.setAttribute('style', prev);
+  }
+  // Ri-dispone una griglia-banda a pixel reali per il fattore s (nessun transform/zoom):
+  // colonne = 78·s / 48·s, header 46·s, altezza traccia/tick/blocchi · s (con --slot-h intero
+  // per linee nitide), font scalati via --k (calc nel CSS di stampa).
+  function _relayoutSlotBand(grid, s) {
+    const ref = grid.querySelector('.slot-room-track') || grid.querySelector('.slot-ticks');
+    const sh0 = ref ? parseFloat(ref.style.getPropertyValue('--slot-h')) : 17;
+    const shN = Math.max(Math.round(sh0 * s), 3);
+    const vk = sh0 ? (shN / sh0) : s;                       // fattore verticale effettivo (linee intere)
+    const hh0 = ref ? parseFloat(ref.style.getPropertyValue('--hour-h')) : sh0 * 2;
+    const hhN = Math.round((hh0 || sh0 * 2) * vk);
+    grid.querySelectorAll('.slot-room-track, .slot-ticks').forEach(function (t) {
+      const h = parseFloat(t.style.height); if (!isNaN(h)) t.style.height = Math.round(h * vk) + 'px';
+      t.style.setProperty('--slot-h', shN + 'px'); t.style.setProperty('--hour-h', hhN + 'px');
+    });
+    grid.querySelectorAll('.slot-tick').forEach(function (t) {
+      const top = parseFloat(t.style.top); if (!isNaN(top)) t.style.top = Math.round(top * vk) + 'px';
+    });
+    grid.querySelectorAll('.sblock').forEach(function (b) {
+      const top = parseFloat(b.style.top), h = parseFloat(b.style.height);
+      if (!isNaN(top)) b.style.top = Math.round(top * vk) + 'px';
+      if (!isNaN(h)) b.style.height = Math.max(Math.round(h * vk), 5) + 'px';
+    });
+    const tw = Math.max(Math.round(48 * s), 12), rw = Math.max(Math.round(78 * s), 16), hh = Math.round(46 * s);
+    let nRoom = 0;
+    grid.querySelectorAll('.slot-time-col').forEach(function (c) { c.style.width = tw + 'px'; c.style.minWidth = tw + 'px'; c.style.flex = '0 0 ' + tw + 'px'; });
+    grid.querySelectorAll('.slot-room-col').forEach(function (c) { c.style.width = rw + 'px'; c.style.minWidth = rw + 'px'; c.style.flex = '0 0 ' + rw + 'px'; c.style.overflow = 'hidden'; nRoom++; });
+    grid.querySelectorAll('.slot-room-header').forEach(function (h) { h.style.height = hh + 'px'; });
+    // Larghezza ESATTA del grid + overflow hidden: nessun overflow residuo (blocchi/tick posizionati
+    // in assoluto) può gonfiare lo scrollWidth degli antenati e far scattare lo shrink-to-fit di Chrome.
+    grid.style.width = (tw + nRoom * rw) + 'px'; grid.style.overflow = 'hidden';
+    grid.style.setProperty('--k', s.toFixed(3));           // scala i font (calc nel CSS di stampa)
   }
   // Adatta il contenuto alla pagina con zoom (misura off-screen a larghezza pagina). Per lo
   // slot adatta anche l'ALTEZZA (deve entrare tutto). Solo riduce, mai ingrandisce.
