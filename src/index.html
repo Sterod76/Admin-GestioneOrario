@@ -718,6 +718,14 @@
     body.printing #printArea .pr-page { break-inside: avoid; }
     body.printing #printArea .pr-page + .pr-page { break-before: page; }
     body.printing #printArea .slot-time-col { position: static !important; }
+    /* Stampa Slot: linee sottili e tutte dello stesso grigio chiaro (orizzontali ore+mezzore
+       e verticali). Il riempimento in larghezza è gestito inline sui cloni (flex). */
+    body.printing #printArea .slot-time-col, body.printing #printArea .slot-room-col { border-right-color: #cccccc !important; }
+    body.printing #printArea .slot-room-track {
+      background:
+        repeating-linear-gradient(to bottom, transparent 0 calc(var(--slot-h) - 1px), #cccccc calc(var(--slot-h) - 1px), #cccccc var(--slot-h)),
+        repeating-linear-gradient(to bottom, transparent 0 calc(var(--hour-h) - 1px), #cccccc calc(var(--hour-h) - 1px), #cccccc var(--hour-h)) !important;
+    }
     body.printing #printArea .sblock, body.printing #printArea .ablock { box-shadow: none !important; }
     /* evita di tagliare a metà blocchi, colonne, sezioni-aula, righe, item di lista */
     body.printing #printArea .sblock,
@@ -1140,7 +1148,8 @@
   body.printing table.pubtab tr { break-inside: avoid; }
   /* Titolo del giorno nella stampa Slot (una pagina per giorno) + separatore Aule/Labs */
   .pr-day { font-size: 16px; font-weight: 700; margin: 0 0 4px; }
-  .pr-hr { border-top: 1.5px solid #333; margin: 8px 0; }
+  .pr-hr { border-top: 1px solid #cccccc; margin: 6px 0; }   /* separatore Aule/Labs: grigio chiaro come le linee ora */
+  .pr-fit { transform-origin: top left; }
 </style>
 </head>
 <body>
@@ -5452,9 +5461,11 @@ var _editActive = !!EDIT_MODE;
         const room = col.getAttribute('data-room') || '';
         if (/^lab\b/i.test(room) !== isLab) { col.remove(); return; }
         col.classList.remove('collapsed', 'hidden');   // in stampa mostra tutte, anche se collassate a schermo
+        col.style.flex = '1 1 0'; col.style.minWidth = '0'; col.style.width = 'auto';   // colonne che riempiono (come il calendario)
       });
       if (!g.querySelectorAll('.slot-room-col').length) return; // nessuna aula/lab di questo tipo
       _cleanPrintClone(g);
+      g.style.width = '100%';   // il grid riempie la larghezza della pagina (inline → vale anche in misura)
       g.querySelectorAll('.slot-time-col').forEach(function (c) { c.style.position = 'static'; });
       built.push(g);
     });
@@ -5464,10 +5475,10 @@ var _editActive = !!EDIT_MODE;
       body.appendChild(g);
     });
   }
-  // Slot in PDF: TUTTI i giorni della settimana (LUN..SAB), uno per PAGINA, ognuno con
-  // le bande Aule/Labs. Renderizza a turno ogni giorno nella griglia live, ne clona il
-  // contenuto, poi ripristina il giorno di partenza.
-  function _buildSlotAllDays(body) {
+  // Slot in PDF: TUTTI i giorni della settimana (LUN..SAB), uno per PAGINA. Ogni pagina ha
+  // la testata (Bozza · Slot | PDF generated), il giorno per esteso, e le bande Aule/Labs
+  // dentro un contenitore .pr-fit (scalato da _fitSlotPages per riempire la pagina).
+  function _buildSlotAllDays(body, headDesc) {
     const grid = document.getElementById('slotGrid');
     if (!grid) return;
     const days = ['LUNEDÌ', 'MARTEDÌ', 'MERCOLEDÌ', 'GIOVEDÌ', 'VENERDÌ', 'SABATO'];
@@ -5476,24 +5487,34 @@ var _editActive = !!EDIT_MODE;
       currentSlotDay = d;
       renderSlotsSessions();                     // popola #slotGrid per il giorno d
       const page = document.createElement('div'); page.className = 'pr-page';
+      page.appendChild(_pdfHead(headDesc));      // testata su OGNI pagina
       const h = document.createElement('div'); h.className = 'pr-day'; h.textContent = days[d] || ('Giorno ' + (d + 1));
       page.appendChild(h);
-      _buildSlotBands(grid, page);               // Aule sopra, Labs sotto per QUESTO giorno
+      const fit = document.createElement('div'); fit.className = 'pr-fit';
+      _buildSlotBands(grid, fit);                // Aule sopra, riga, Labs sotto (per il giorno d)
+      page.appendChild(fit);
       body.appendChild(page);
     }
     currentSlotDay = savedDay;
     renderSlotsSessions();                        // ripristina la vista a schermo
   }
-  // Adatta ogni pagina-giorno dello Slot (larghezza + altezza) alla pagina A4.
+  // Riempimento pagina-giorno Slot: stira il contenuto (.pr-fit) su TUTTA la pagina, sia in
+  // larghezza sia in altezza (scala NON uniforme → riempie come il Calendario). La testata e
+  // il titolo del giorno restano a dimensione fissa in cima; la griglia riempie il resto.
   function _fitSlotPages(body, land) {
     const area = document.getElementById('printArea');
     const pageW = land ? 1040 : 720, pageH = land ? 690 : 1010;
     const prev = area.getAttribute('style') || '';
     area.style.cssText = 'display:block;position:fixed;left:-99999px;top:0;visibility:hidden;width:' + pageW + 'px;';
     Array.prototype.forEach.call(body.querySelectorAll('.pr-page'), function (pg) {
-      // Riempie la pagina: scala fino a toccare il bordo (larghezza O altezza), anche >1×.
-      const s = Math.min(pageW / Math.max(pg.scrollWidth, 1), pageH / Math.max(pg.scrollHeight, 1));
-      if (Math.abs(s - 1) > 0.001) pg.style.zoom = String(s);
+      pg.style.width = pageW + 'px'; pg.style.height = pageH + 'px'; pg.style.overflow = 'hidden';
+      pg.style.position = 'relative';                      // così fit.offsetTop è relativo a QUESTA pagina
+      const fit = pg.querySelector('.pr-fit'); if (!fit) return;
+      fit.style.width = pageW + 'px'; fit.style.transformOrigin = 'top left';   // larghezza piena → le colonne (flex) riempiono in orizzontale
+      const availH = Math.max(pageH - fit.offsetTop, 1);   // spazio utile sotto testata + giorno
+      const sx = pageW / Math.max(fit.scrollWidth, 1);     // ≈1 (la larghezza la riempie il flex)
+      const sy = availH / Math.max(fit.scrollHeight, 1);   // riempi anche l'altezza
+      fit.style.transform = 'scale(' + sx.toFixed(3) + ',' + sy.toFixed(3) + ')';
     });
     area.setAttribute('style', prev);
   }
@@ -5565,10 +5586,11 @@ var _editActive = !!EDIT_MODE;
     _pdfPageOrient(!!cfg.land);
     area.innerHTML = '';
     const filt = _pdfFiltersSummary();
-    area.appendChild(_pdfHead((label || '') + (filt ? ' · ' + filt : '')));
+    const headDesc = (label || '') + (filt ? ' · ' + filt : '');
+    if (view !== 'slots') area.appendChild(_pdfHead(headDesc));   // slots: testata ripetuta su ogni pagina
     const body = document.createElement('div'); body.id = 'printBody'; area.appendChild(body);
     if (view === 'slots') {
-      _buildSlotAllDays(body);           // TUTTI i giorni LUN..SAB, uno per pagina (Aule/Labs)
+      _buildSlotAllDays(body, headDesc); // TUTTI i giorni LUN..SAB, uno per pagina (testata + Aule/Labs)
       _fitSlotPages(body, !!cfg.land);
     } else {
       const clone = src.cloneNode(true);
