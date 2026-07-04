@@ -718,13 +718,16 @@
     body.printing #printArea .pr-page { break-inside: avoid; }
     body.printing #printArea .pr-page + .pr-page { break-before: page; }
     body.printing #printArea .slot-time-col { position: static !important; }
-    /* Stampa Slot: linee sottili e tutte dello stesso grigio chiaro (orizzontali ore+mezzore
-       e verticali). Il riempimento in larghezza è gestito inline sui cloni (flex). */
-    body.printing #printArea .slot-time-col, body.printing #printArea .slot-room-col { border-right-color: #cccccc !important; }
+    /* Stampa Slot: linee tutte dello stesso grigio chiaro (orizzontali ore+mezzore e verticali).
+       Spessore = 1/scala (var --pl, impostata da _fitSlotPages) → dopo lo scaling resta ~1px e
+       nessuna riga sparisce. */
+    body.printing #printArea .slot-time-col, body.printing #printArea .slot-room-col {
+      border-right-color: #cccccc !important; border-right-width: var(--pl, 1px) !important;
+    }
     body.printing #printArea .slot-room-track {
       background:
-        repeating-linear-gradient(to bottom, transparent 0 calc(var(--slot-h) - 1px), #cccccc calc(var(--slot-h) - 1px), #cccccc var(--slot-h)),
-        repeating-linear-gradient(to bottom, transparent 0 calc(var(--hour-h) - 1px), #cccccc calc(var(--hour-h) - 1px), #cccccc var(--hour-h)) !important;
+        repeating-linear-gradient(to bottom, transparent 0 calc(var(--slot-h) - var(--pl, 1px)), #cccccc calc(var(--slot-h) - var(--pl, 1px)), #cccccc var(--slot-h)),
+        repeating-linear-gradient(to bottom, transparent 0 calc(var(--hour-h) - var(--pl, 1px)), #cccccc calc(var(--hour-h) - var(--pl, 1px)), #cccccc var(--hour-h)) !important;
     }
     body.printing #printArea .sblock, body.printing #printArea .ablock { box-shadow: none !important; }
     /* evita di tagliare a metà blocchi, colonne, sezioni-aula, righe, item di lista */
@@ -1148,7 +1151,7 @@
   body.printing table.pubtab tr { break-inside: avoid; }
   /* Titolo del giorno nella stampa Slot (una pagina per giorno) + separatore Aule/Labs */
   .pr-day { font-size: 16px; font-weight: 700; margin: 0 0 4px; }
-  .pr-hr { border-top: 1px solid #cccccc; margin: 6px 0; }   /* separatore Aule/Labs: grigio chiaro come le linee ora */
+  .pr-hr { border-top: var(--pl, 1px) solid #cccccc; margin: 6px 0; }   /* separatore Aule/Labs: grigio chiaro come le linee ora (spessore 1/scala) */
   .pr-fit { transform-origin: top left; }
 </style>
 </head>
@@ -5461,11 +5464,9 @@ var _editActive = !!EDIT_MODE;
         const room = col.getAttribute('data-room') || '';
         if (/^lab\b/i.test(room) !== isLab) { col.remove(); return; }
         col.classList.remove('collapsed', 'hidden');   // in stampa mostra tutte, anche se collassate a schermo
-        col.style.flex = '1 1 0'; col.style.minWidth = '0'; col.style.width = 'auto';   // colonne che riempiono (come il calendario)
       });
       if (!g.querySelectorAll('.slot-room-col').length) return; // nessuna aula/lab di questo tipo
       _cleanPrintClone(g);
-      g.style.width = '100%';   // il grid riempie la larghezza della pagina (inline → vale anche in misura)
       g.querySelectorAll('.slot-time-col').forEach(function (c) { c.style.position = 'static'; });
       built.push(g);
     });
@@ -5498,9 +5499,10 @@ var _editActive = !!EDIT_MODE;
     currentSlotDay = savedDay;
     renderSlotsSessions();                        // ripristina la vista a schermo
   }
-  // Riempimento pagina-giorno Slot: stira il contenuto (.pr-fit) su TUTTA la pagina, sia in
-  // larghezza sia in altezza (scala NON uniforme → riempie come il Calendario). La testata e
-  // il titolo del giorno restano a dimensione fissa in cima; la griglia riempie il resto.
+  // Riempimento pagina-giorno Slot: scala il contenuto (.pr-fit) con un fattore UNIFORME
+  // (stesso in X e Y → nessuna deformazione), cresciuto fino a riempire la PRIMA dimensione
+  // (larghezza o altezza). La testata e il titolo del giorno restano fissi a piena larghezza
+  // in cima; si scala solo la griglia sotto.
   function _fitSlotPages(body, land) {
     const area = document.getElementById('printArea');
     const pageW = land ? 1040 : 720, pageH = land ? 690 : 1010;
@@ -5510,11 +5512,11 @@ var _editActive = !!EDIT_MODE;
       pg.style.width = pageW + 'px'; pg.style.height = pageH + 'px'; pg.style.overflow = 'hidden';
       pg.style.position = 'relative';                      // così fit.offsetTop è relativo a QUESTA pagina
       const fit = pg.querySelector('.pr-fit'); if (!fit) return;
-      fit.style.width = pageW + 'px'; fit.style.transformOrigin = 'top left';   // larghezza piena → le colonne (flex) riempiono in orizzontale
+      fit.style.width = 'max-content'; fit.style.transformOrigin = 'top left';   // larghezza naturale della griglia
       const availH = Math.max(pageH - fit.offsetTop, 1);   // spazio utile sotto testata + giorno
-      const sx = pageW / Math.max(fit.scrollWidth, 1);     // ≈1 (la larghezza la riempie il flex)
-      const sy = availH / Math.max(fit.scrollHeight, 1);   // riempi anche l'altezza
-      fit.style.transform = 'scale(' + sx.toFixed(3) + ',' + sy.toFixed(3) + ')';
+      const s = Math.min(pageW / Math.max(fit.scrollWidth, 1), availH / Math.max(fit.scrollHeight, 1));
+      fit.style.transform = 'scale(' + s.toFixed(3) + ')'; // UNIFORME: si ferma sulla prima dimensione che riempie
+      fit.style.setProperty('--pl', (1 / Math.max(s, 0.01)).toFixed(2) + 'px');   // linee ~1px anche dopo lo scaling
     });
     area.setAttribute('style', prev);
   }
