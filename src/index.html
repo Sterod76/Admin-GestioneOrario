@@ -1138,8 +1138,9 @@
   body.printing table.pubtab thead th { position: static; }
   body.printing table.pubtab thead { display: table-header-group; }
   body.printing table.pubtab tr { break-inside: avoid; }
-  /* Titolo del giorno nella stampa Slot (una pagina per giorno) */
-  .pr-day { font-size: 15px; font-weight: 700; margin: 8px 0 3px; }
+  /* Titolo del giorno nella stampa Slot (una pagina per giorno) + separatore Aule/Labs */
+  .pr-day { font-size: 16px; font-weight: 700; margin: 0 0 4px; }
+  .pr-hr { border-top: 1.5px solid #333; margin: 8px 0; }
 </style>
 </head>
 <body>
@@ -5444,18 +5445,23 @@ var _editActive = !!EDIT_MODE;
   }
   // Slot: due bande impilate — solo Aule sopra, solo Labs sotto (ognuna con la colonna Ora).
   function _buildSlotBands(src, body) {
-    [['Aule', false], ['Labs', true]].forEach(function (b) {
+    const built = [];
+    [false, true].forEach(function (isLab) {           // prima le AULE, poi i LAB
       const g = src.cloneNode(true); g.removeAttribute('id');
       g.querySelectorAll('.slot-room-col').forEach(function (col) {
         const room = col.getAttribute('data-room') || '';
-        if (/^lab\b/i.test(room) !== b[1]) { col.remove(); return; }
+        if (/^lab\b/i.test(room) !== isLab) { col.remove(); return; }
         col.classList.remove('collapsed', 'hidden');   // in stampa mostra tutte, anche se collassate a schermo
       });
       if (!g.querySelectorAll('.slot-room-col').length) return; // nessuna aula/lab di questo tipo
       _cleanPrintClone(g);
       g.querySelectorAll('.slot-time-col').forEach(function (c) { c.style.position = 'static'; });
-      const h = document.createElement('div'); h.className = 'pr-sub'; h.textContent = b[0];
-      body.appendChild(h); body.appendChild(g);
+      built.push(g);
+    });
+    // Niente etichette "Aule"/"Labs": solo una RIGA di separazione fra le due bande.
+    built.forEach(function (g, i) {
+      if (i > 0) { const hr = document.createElement('div'); hr.className = 'pr-hr'; body.appendChild(hr); }
+      body.appendChild(g);
     });
   }
   // Slot in PDF: TUTTI i giorni della settimana (LUN..SAB), uno per PAGINA, ognuno con
@@ -5464,13 +5470,13 @@ var _editActive = !!EDIT_MODE;
   function _buildSlotAllDays(body) {
     const grid = document.getElementById('slotGrid');
     if (!grid) return;
-    const days = data.days || ['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'];
+    const days = ['LUNEDÌ', 'MARTEDÌ', 'MERCOLEDÌ', 'GIOVEDÌ', 'VENERDÌ', 'SABATO'];
     const savedDay = currentSlotDay;
     for (let d = 0; d < 6; d++) {
       currentSlotDay = d;
       renderSlotsSessions();                     // popola #slotGrid per il giorno d
       const page = document.createElement('div'); page.className = 'pr-page';
-      const h = document.createElement('div'); h.className = 'pr-sub pr-day'; h.textContent = days[d] || ('Giorno ' + (d + 1));
+      const h = document.createElement('div'); h.className = 'pr-day'; h.textContent = days[d] || ('Giorno ' + (d + 1));
       page.appendChild(h);
       _buildSlotBands(grid, page);               // Aule sopra, Labs sotto per QUESTO giorno
       body.appendChild(page);
@@ -5485,8 +5491,9 @@ var _editActive = !!EDIT_MODE;
     const prev = area.getAttribute('style') || '';
     area.style.cssText = 'display:block;position:fixed;left:-99999px;top:0;visibility:hidden;width:' + pageW + 'px;';
     Array.prototype.forEach.call(body.querySelectorAll('.pr-page'), function (pg) {
-      const s = Math.min(1, pageW / Math.max(pg.scrollWidth, 1), pageH / Math.max(pg.scrollHeight, 1));
-      if (s < 0.999) pg.style.zoom = String(s);
+      // Riempie la pagina: scala fino a toccare il bordo (larghezza O altezza), anche >1×.
+      const s = Math.min(pageW / Math.max(pg.scrollWidth, 1), pageH / Math.max(pg.scrollHeight, 1));
+      if (Math.abs(s - 1) > 0.001) pg.style.zoom = String(s);
     });
     area.setAttribute('style', prev);
   }
