@@ -89,7 +89,8 @@ fine: **+ Nuovo slot**, **Cestino**, Aule/Labs, espandi. Slot oltre **80% capien
 colonne in larghezza e tutte le righe su più pagine; gli altri tab verticali), intestazione *Bozza - <gsheet> ·
 vista · filtri* a sx e *PDF generated on GG/MM/AAAA* a dx. Stampa solo il contenuto (niente
 toolbar/Log/Parking né evidenziazioni), zoom automatico. Calendario: tutti i giorni + ore a
-sx; Slot: banda Aule + banda Labs. **Calendario con ricerca vuota** → un calendario per
+sx; Slot: **tutti i giorni LUN–SAB, uno per pagina**, ognuno con banda Aule + banda Labs.
+**Calendario con ricerca vuota** → un calendario per
 pagina (LT anni 1/2/3 + ogni PdS); con ricerca attiva → solo quella vista.
 
 **Selezione / drag.** Selezionando uno slot (anche in VIEW) il pannello in basso mostra
