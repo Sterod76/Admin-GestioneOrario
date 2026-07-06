@@ -1161,6 +1161,7 @@
   .pubtab .pt-grp { font-weight: 600; color: #5f6368; font-size: 11px; }
   .pubtab .pt-title { display: block; color: #202124; font-size: 12px; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .pubtab td.pt-doc { font-size: 12px; }
+  .pubtab th.pt-note, .pubtab td.pt-note { width: 220px; font-size: 12px; color: #444; white-space: normal; word-break: break-word; }
   .pubtab .pt-pill { display: block; text-align: center; line-height: 1.15; margin: 0 0 3px; }
   .pubtab .pt-pill:last-child { margin: 0; }
   /* Stampa PDF: niente scroll-box → tutte le righe su più pagine; header ripetuto in cima. */
@@ -3429,7 +3430,8 @@ var _editActive = !!EDIT_MODE;
     const findCol = (re, fb) => { for (let i = 0; i < hdr.length; i++) if (re.test(String(hdr[i] || ''))) return i; return fb; };
     // Indici colonna (fissi dal formato del foglio; SSD/CFU rilevati dall'header)
     const I = { code: 2, mut: 3, name: 4, tipo: 5, vinc: 6, grp: 7, tit: 9,
-      ssd: findCol(/ssd|settor/i, 10), cfu: findCol(/cfu|crediti/i, -1) };
+      ssd: findCol(/ssd|settor/i, 10), cfu: findCol(/cfu|crediti/i, -1),
+      note: findCol(/note|richiest/i, 18) };   // colonna S = "Note e Richieste"
     const dayLabel = data.days || ['LUN','MAR','MER','GIO','VEN','SAB'];
     const vcol = data.vincoloColors || {};
     const sheetColor = rs.color || '#444';
@@ -3451,6 +3453,7 @@ var _editActive = !!EDIT_MODE;
         vinc: String(row[I.vinc] == null ? '' : row[I.vinc]).trim().toUpperCase(),
         grp:  String(row[I.grp]  == null ? '' : row[I.grp]).trim(),
         tit:  String(row[I.tit]  == null ? '' : row[I.tit]).trim(),
+        note: I.note >= 0 ? String(row[I.note] == null ? '' : row[I.note]).trim() : '',
         ssd:  I.ssd >= 0 ? String(row[I.ssd] == null ? '' : row[I.ssd]).trim() : '',
         cfu:  I.cfu >= 0 ? String(row[I.cfu] == null ? '' : row[I.cfu]).trim() : ''
       };
@@ -3504,12 +3507,13 @@ var _editActive = !!EDIT_MODE;
         const byGrp = {};
         g.rowsData.forEach(rd => {
           const grp = rd.r.grp || '';
-          const e = byGrp[grp] || (byGrp[grp] = { sess: [], tits: [] });
+          const e = byGrp[grp] || (byGrp[grp] = { sess: [], tits: [], notes: [] });
           e.sess.push.apply(e.sess, rd.sess);
           if (rd.r.tit && e.tits.indexOf(rd.r.tit) === -1) e.tits.push(rd.r.tit);
+          if (rd.r.note && e.notes.indexOf(rd.r.note) === -1) e.notes.push(rd.r.note);
         });
         Object.keys(byGrp).sort((a, b) => String(a).localeCompare(String(b), 'it', { numeric: true }))
-          .forEach(grp => rows.push({ code: g.code, title: title, cfu: cfu, grp: grp, sess: byGrp[grp].sess, tits: byGrp[grp].tits }));
+          .forEach(grp => rows.push({ code: g.code, title: title, cfu: cfu, grp: grp, sess: byGrp[grp].sess, tits: byGrp[grp].tits, notes: byGrp[grp].notes }));
       });
       if (!rows.length) { host.innerHTML = '<div class="mb-none">Nessun risultato per la ricerca.</div>'; return; }
       const codeCmp = (a, b) => a.code.localeCompare(b.code, 'it', { numeric: true }) ||
@@ -3527,7 +3531,8 @@ var _editActive = !!EDIT_MODE;
       let h = '<div class="pubtab-wrap"><table class="pubtab"><thead><tr>' +
         '<th class="pt-corso pt-sort" data-key="corso">Corso' + arr('corso') + '</th>' +
         DAYS.map((d, i) => '<th class="pt-day pt-sort" data-key="day' + i + '">' + d + arr('day' + i) + '</th>').join('') +
-        '<th class="pt-doc pt-sort" data-key="doc">Docenti' + arr('doc') + '</th></tr></thead><tbody>';
+        '<th class="pt-doc pt-sort" data-key="doc">Docenti' + arr('doc') + '</th>' +
+        '<th class="pt-note">Note e Richieste</th></tr></thead><tbody>';
       rows.forEach(row => {
         h += '<tr><td class="pt-corso"><span class="pt-code" style="color:' + sheetColor + '">' + esc(row.code) + '</span>' +
           (row.cfu ? ' <span class="pt-cfu">' + esc(row.cfu) + ' CFU</span>' : '') +
@@ -3539,7 +3544,8 @@ var _editActive = !!EDIT_MODE;
           h += '<td class="pt-day">' + cell + '</td>';
         }
         const doc = row.tits.length ? row.tits.map(t => docentiHtml(t)).join('; ') : '';
-        h += '<td class="pt-doc">' + doc + '</td></tr>';
+        const note = (row.notes && row.notes.length) ? row.notes.map(n => esc(n).replace(/\n/g, '<br>')).join('<br>') : '';
+        h += '<td class="pt-doc">' + doc + '</td><td class="pt-note">' + note + '</td></tr>';
       });
       host.innerHTML = h + '</tbody></table></div>';
       return;

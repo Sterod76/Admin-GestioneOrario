@@ -32,8 +32,8 @@ let _isPublic = false;   // ramo tabella semplificata (utente standard)
 let _pubSort = {};       // ordinamento per colonna della tabella semplificata
 eval(src);
 
-const H  = ['Anno','CFU','Codice','Mutuato','Nome','Tipo','Vincolo','Gruppo','','Titolare','SSD','LUN','MAR','MER','GIO','VEN','SAB','Periodo'];
-const r2 = ['1','9','FIS001','','Fisica Generale','LEZ','OBB','','','Rossi','FIS/01','','','','','','','I'];   // 6h / 9CFU = 0.667 (= 2/3 → nero)
+const H  = ['Anno','CFU','Codice','Mutuato','Nome','Tipo','Vincolo','Gruppo','','Titolare','SSD','LUN','MAR','MER','GIO','VEN','SAB','Periodo','Note e Richieste'];
+const r2 = ['1','9','FIS001','','Fisica Generale','LEZ','OBB','','','Rossi','FIS/01','','','','','','','I','Aula grande richiesta'];   // col S(18)=note; 6h / 9CFU = 0.667 (= 2/3 → nero)
 const r3 = ['1','','FIS001','','Fisica Generale','LAB','OBB','A','','','FIS/01','','','','','','','I'];
 const r4 = ['1','6','FIS002','FIS001','Mutuato X','LEZ','OBB','','','Verdi','FIS/01','','','','','','','I']; // mutuato escluso
 const r5 = ['1','6','FIS003','','Meccanica','LEZ','FOR','','','Neri','MAT/05','','','','','','','I'];          // 2h / 6CFU = 0.333 (< 2/3 → rosso)
@@ -114,6 +114,8 @@ check('public: FIS001 gruppo A separato ([canale A])', pub.indexOf('[canale A]')
 check('public: pillola orario+aula (Aula B)', pub.indexOf('pt-pill') !== -1 && pub.indexOf('Aula B') !== -1);
 check('public: CFU dopo il codice (9 CFU)', pub.indexOf('9 CFU') !== -1);
 check('public: colonna Docenti (Rossi)', pub.indexOf('Docenti') !== -1 && pub.indexOf('Rossi') !== -1);
+check('public: colonna "Note e Richieste" dopo Docenti', pub.indexOf('Note e Richieste') !== -1 && pub.indexOf('>Docenti') < pub.indexOf('>Note e Richieste'));
+check('public: nota dalla col S (Aula grande richiesta)', pub.indexOf('Aula grande richiesta') !== -1 && pub.indexOf('pt-note') !== -1);
 check('public: header ordinabili (pt-sort) + freccia default su Corso', pub.indexOf('pt-sort') !== -1 && pub.indexOf('Corso ▲') !== -1);
 check('public: header sticky wrapper (pubtab-wrap)', pub.indexOf('pubtab-wrap') !== -1);
 check('public: titolo uppercase (CSS pt-title text-transform)', html.indexOf('.pubtab .pt-title') !== -1 && html.indexOf('text-transform: uppercase') !== -1);

@@ -31,7 +31,7 @@ Fogli `S1LT`, `S1LM`, `S2LT`, `S2LM` (semestre × LT/LM). Colonne principali:
 |---|---|
 | C | Codice · D | Codice mutuato (valorizzato → mutuazione) · E | Insegnamento · F | Tipo · G | Vincolo OBB/FOR/OPZ |
 | H | Gruppo (A, A1…) · **J** | **Docenti** (1° = titolare; separatori a capo `/ ; ,` " e ") · K | SSD |
-| L–Q | LUN…SAB (`Aula · HH:MM-HH:MM`) · R | Periodo |
+| L–Q | LUN…SAB (`Aula · HH:MM-HH:MM`) · R | Periodo · **S** | **Note e Richieste** (mostrata in Consultazione) |
 
 Menu **🛠️ Gestione tabelle → 👤 Normalizza docenti** ripulisce la col J (*Cognome N.*,
 iniziali puntate, maiuscola dopo l'apostrofo).
@@ -56,7 +56,7 @@ forzato: menu **🕒 Orario → 🔓 Sconnetti editor**.
 **Livelli (foglio CONFIG)**: `WebEditors` (tutto) · `WebAuditors`/`WebRevisori`/`WebReviewers`
 (tutti i tab, sola lettura) · chiunque altro = **Consultazione**: vede **Calendario** + due
 **tabelle semplificate** (`LT` e `LM`) — una riga per codice/gruppo, colonne Lun–Ven con
-orario e aula. Niente tab Slot né barra Aule/Labs.
+orario e aula, poi **Docenti** e **Note e Richieste** (dalla col S). Niente tab Slot né barra Aule/Labs.
 
 **Visibilità** (menu **👁️**): *Pubblicato* (default) / *In redazione* (gli utenti generici
 vedono "Calendario in fase di redazione"; editor/revisori lavorano comunque).
