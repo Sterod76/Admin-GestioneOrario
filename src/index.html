@@ -1142,9 +1142,9 @@
   .mode-toggle button.active[data-m="edit"] { background: #137333; color: #fff; }
   .mode-toggle button.active[data-m="view"] { background: #b95000; color: #fff; }
   .mode-toggle button:disabled { cursor: not-allowed; opacity: .55; }
-  /* Selettore "Vedi come" (anteprima ruolo, solo editor): in anteprima si evidenzia in arancio */
-  .viewas-sel { padding: 5px 10px; border: 1px solid var(--border); border-radius: 999px; background: #fff; font-size: 12px; font-weight: 700; color: #444; cursor: pointer; box-shadow: 0 1px 5px rgba(0,0,0,.18); }
-  .viewas-sel.previewing { border-color: #b95000; background: #fff3e6; color: #b95000; }
+  /* Combobox "Vedi come" (anteprima ruolo, SOLO editor): dropdown standard; in anteprima arancio */
+  .viewas-sel { padding: 6px 8px; border: 1px solid var(--border); border-radius: 4px; background: #fff; font-size: 13px; color: #333; cursor: pointer; }
+  .viewas-sel.previewing { border-color: #b95000; background: #fff3e6; color: #b95000; font-weight: 700; }
   /* Tabella semplificata utente standard (Consultazione): S*LT / S*LM per giorno */
   .pubtab-wrap { overflow: auto; max-height: calc(100vh - 200px); border: 1px solid var(--border); border-radius: 6px; }
   table.pubtab { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 13px; table-layout: fixed; }
