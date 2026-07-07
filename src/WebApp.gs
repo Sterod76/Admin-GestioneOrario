@@ -999,7 +999,10 @@ function getOrarioData() {
     if (!/LT$/i.test(nm) && !/LM$/i.test(nm)) return;
     const lr = sheet.getLastRow();
     if (lr < 1) return;
-    const grid = sheet.getRange(1, 1, lr, ROW_DATA_LAST_COL).getDisplayValues();
+    // Fino alla col S (COL_NOTE) inclusa, così il client vede "Note e Richieste"; cap ai
+    // limiti del foglio (se ha meno colonne, niente errore).
+    const lc = Math.min(COL_NOTE, sheet.getMaxColumns());
+    const grid = sheet.getRange(1, 1, lr, lc).getDisplayValues();
     rawSheets[nm] = {
       name: nm,
       color: readTabColor(sheet) || '#444444',

@@ -10,6 +10,7 @@ const COL_GRUPPO = 8;       // H
 const COL_TITOLARE = 10;    // J
 const COL_SSD = 11;         // K
 const COL_PERIODO = 18;     // R (dopo SAB)
+const COL_NOTE = 19;        // S — "Note e Richieste" (mostrata nelle tabelle di consultazione)
 const ROW_DATA_LAST_COL = COL_PERIODO;
 const VINCOLO_DEFAULT_COLOR = '#ffffff';
 const VINCOLO_FALLBACK_COLORS = {
