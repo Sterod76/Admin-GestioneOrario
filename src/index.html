@@ -1142,6 +1142,9 @@
   .mode-toggle button.active[data-m="edit"] { background: #137333; color: #fff; }
   .mode-toggle button.active[data-m="view"] { background: #b95000; color: #fff; }
   .mode-toggle button:disabled { cursor: not-allowed; opacity: .55; }
+  /* Selettore "Vedi come" (anteprima ruolo, solo editor): in anteprima si evidenzia in arancio */
+  .viewas-sel { padding: 5px 10px; border: 1px solid var(--border); border-radius: 999px; background: #fff; font-size: 12px; font-weight: 700; color: #444; cursor: pointer; box-shadow: 0 1px 5px rgba(0,0,0,.18); }
+  .viewas-sel.previewing { border-color: #b95000; background: #fff3e6; color: #b95000; }
   /* Tabella semplificata utente standard (Consultazione): S*LT / S*LM per giorno */
   .pubtab-wrap { overflow: auto; max-height: calc(100vh - 200px); border: 1px solid var(--border); border-radius: 6px; }
   table.pubtab { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 13px; table-layout: fixed; }
@@ -1180,6 +1183,11 @@
     <button type="button" data-m="edit">✏️ EDIT</button>
     <button type="button" data-m="view">👁 VIEW</button>
   </div>
+  <select id="viewAsSel" class="viewas-sel" style="display:none" title="Anteprima: mostra la UI come la vede un altro grado di accesso">
+    <option value="">Vista normale</option>
+    <option value="auditor">👁 Vedi come Revisore</option>
+    <option value="public">👁 Vedi come Consultazione</option>
+  </select>
 </div>
 <div class="sticky-top" id="stickyTop">
 <header>
@@ -1496,51 +1504,19 @@ var _editActive = !!EDIT_MODE;
   // e mostra un badge "EDIT" verde per indicare che drag/resize sono attivi.
   // Permessi: 'editor' (edit completo) | 'auditor' (TUTTI i tab, sola lettura:
   // niente drag/Carica/Salva) | 'public' (solo Calendario). EDIT_MODE === editor.
-  // Ruolo EFFETTIVO della UI: editor col lock → 'editor'; editor SENZA lock →
-  // 'auditor' (sola lettura, tutti i tab); altrimenti il ruolo vero.
-  const _effRole = EDIT_MODE ? 'editor' : (_isRealEditor ? 'auditor' : ((typeof ROLE !== 'undefined' && ROLE) || 'public'));
-  const _isPublic = (_effRole === 'public');   // Consultazione: vede Calendario + Slot
-  const _showTabs = !_isPublic;                // editor/revisore: tutti i tab
-  document.body.classList.add('role-' + _effRole);
+  // Ruolo EFFETTIVO della UI (DINAMICO — l'editor può fare ANTEPRIMA come Revisore/
+  // Consultazione col selettore "Vedi come"). editor col lock → 'editor'; editor SENZA lock →
+  // 'auditor' (sola lettura, tutti i tab); altrimenti il ruolo vero. La gating della UI è
+  // in applyRoleUI() (più sotto), richiamabile a runtime.
+  let _viewAs = null;   // override anteprima (solo editor reali): null = ruolo vero, 'auditor' | 'public'
+  const _realRole = function () { return EDIT_MODE ? 'editor' : (_isRealEditor ? 'auditor' : ((typeof ROLE !== 'undefined' && ROLE) || 'public')); };
+  let _effRole = _realRole();
+  let _isPublic = (_effRole === 'public');   // Consultazione: vede Calendario + tabelle LT/LM
+  let _showTabs = !_isPublic;                // editor/revisore: tutti i tab
+  function _canEdit() { return !!EDIT_MODE && _effRole === 'editor'; }   // editing solo da editor reale, MAI in anteprima
   // "In redazione" (solo utente generico): header visibile ma disattivato + messaggio
   // al posto del calendario (CSS body.draft). I dati arrivano già svuotati dal server.
   if (typeof DRAFT !== 'undefined' && DRAFT) document.body.classList.add('draft');
-
-  const auleTab = document.querySelector('.view-tab[data-view="rooms"]');
-  if (!_showTabs) {
-    if (auleTab) auleTab.style.display = 'none';
-    const auleView = document.getElementById('viewRooms');
-    if (auleView) auleView.style.display = 'none';
-    // NB: la barra tab NON si nasconde: il public vede Calendario + Slot.
-  } else if (auleTab && EDIT_MODE) {  // badge solo per gli editor
-    auleTab.classList.add('edit-on');
-    auleTab.innerHTML = '🏛 Aule <span class="edit-tag">GRAPHICAL EDIT</span>';
-    auleTab.title = 'Modalità edit attiva per ' + (USER_EMAIL || 'utente loggato');
-  }
-  // Il tab Slot è visibile a TUTTI, anche al public/Consultazione: sola lettura,
-  // ma con SELEZIONE degli slot e info dettagliate (drag/resize solo in edit).
-  // Solo l'editor in modalità edit ha il badge "GRAPHICAL EDIT".
-  const slotsTab = document.querySelector('.view-tab[data-view="slots"]');
-  if (slotsTab && EDIT_MODE) {
-    slotsTab.classList.add('edit-on-orange');
-    slotsTab.innerHTML = '🕐 Slot <span class="edit-tag orange">GRAPHICAL EDIT</span>';
-    slotsTab.title = 'Modalità edit attiva per ' + (USER_EMAIL || 'utente loggato');
-  }
-  // Collisioni / Obiquità / Co-esami LM+LT: nascosti solo al PUBLIC.
-  const collTab = document.querySelector('.view-tab[data-view="collisions"]');
-  const ubiqTab = document.querySelector('.view-tab[data-view="ubiquity"]');
-  if (!_showTabs) {
-    if (collTab) collTab.style.display = 'none';
-    const collView = document.getElementById('viewCollisions');
-    if (collView) collView.style.display = 'none';
-    if (ubiqTab) ubiqTab.style.display = 'none';
-    const ubiqView = document.getElementById('viewUbiquity');
-    if (ubiqView) ubiqView.style.display = 'none';
-    ['coexam', 'coexamlt'].forEach(v => {
-      const tb = document.querySelector('.view-tab[data-view="' + v + '"]'); if (tb) tb.style.display = 'none';
-      const vw = document.getElementById('view' + v.charAt(0).toUpperCase() + v.slice(1)); if (vw) vw.style.display = 'none';
-    });
-  }
   // Tab "mirror" in fondo: uno per ogni foglio sorgente LT/LM (riproduce il
   // gsheet). Creati PRIMA del wiring generico dei .view-tab così ereditano
   // l'handler di switch. data-view='mirror<i>' → container 'viewMirror<i>'.
@@ -1591,14 +1567,66 @@ var _editActive = !!EDIT_MODE;
       anchor = v;
     });
   })();
-  // Public/Consultazione: i tab "mirror" (S*LT/S*LM) restano VISIBILI ma renderizzati
-  // in versione SEMPLIFICATA (vedi renderSheetMirror). In compenso, per il public si
-  // nascondono il tab Slot e la barra "Aule/Labs" → restano Calendario + LT + LM.
-  if (_isPublic) {
-    if (slotsTab) slotsTab.style.display = 'none';
-    const _sv = document.getElementById('viewSlots'); if (_sv) _sv.style.display = 'none';
-    const _rc = document.getElementById('roomChecks'); if (_rc) _rc.style.display = 'none';
+  // Applica alla UI il ruolo EFFETTIVO: mostra/nasconde i tab (Aule/Slot/Collisioni/Docenti/
+  // Co-esami = solo editor+revisore; il public vede Calendario + tabelle LT/LM semplificate),
+  // la barra "Aule/Labs" e i badge "GRAPHICAL EDIT". Ri-chiamabile dal selettore "Vedi come".
+  // I tab "mirror" (S*LT/S*LM) restano sempre visibili (renderSheetMirror li semplifica per il public).
+  function applyRoleUI() {
+    _effRole = (_isRealEditor && _viewAs) ? _viewAs : _realRole();
+    _isPublic = (_effRole === 'public');
+    _showTabs = !_isPublic;
+    const editUi = (_effRole === 'editor') && !!EDIT_MODE;   // badge/chrome di edit
+    document.body.classList.remove('role-editor', 'role-auditor', 'role-public');
+    document.body.classList.add('role-' + _effRole);
+    const setTab = function (view, viewId, show) {
+      const tb = document.querySelector('.view-tab[data-view="' + view + '"]');
+      if (tb) tb.style.display = show ? '' : 'none';        // '' → la classe .active decide; 'none' → forzato nascosto
+      const vw = viewId && document.getElementById(viewId);
+      if (vw) vw.style.display = show ? '' : 'none';
+    };
+    const auleTab = document.querySelector('.view-tab[data-view="rooms"]');
+    setTab('rooms', 'viewRooms', _showTabs);
+    if (auleTab) {
+      auleTab.classList.toggle('edit-on', _showTabs && editUi);
+      auleTab.innerHTML = (_showTabs && editUi) ? '🏛 Aule <span class="edit-tag">GRAPHICAL EDIT</span>' : '🏛 Aule';
+      auleTab.title = (_showTabs && editUi) ? ('Modalità edit attiva per ' + (USER_EMAIL || 'utente loggato')) : '';
+    }
+    const slotsTab = document.querySelector('.view-tab[data-view="slots"]');
+    setTab('slots', 'viewSlots', !_isPublic);   // Slot: visibile anche al revisore, nascosto solo al public
+    if (slotsTab) {
+      slotsTab.classList.toggle('edit-on-orange', editUi);
+      slotsTab.innerHTML = editUi ? '🕐 Slot <span class="edit-tag orange">GRAPHICAL EDIT</span>' : '🕐 Slot';
+      slotsTab.title = editUi ? ('Modalità edit attiva per ' + (USER_EMAIL || 'utente loggato')) : '';
+    }
+    setTab('collisions', 'viewCollisions', _showTabs);
+    setTab('ubiquity', 'viewUbiquity', _showTabs);
+    setTab('coexam', 'viewCoexam', _showTabs);
+    setTab('coexamlt', 'viewCoexamlt', _showTabs);
+    const _rc = document.getElementById('roomChecks'); if (_rc) _rc.style.display = _isPublic ? 'none' : '';
+    const _mt = document.getElementById('modeToggle');
+    if (_mt) _mt.style.display = (_isRealEditor && !_viewAs) ? '' : 'none';   // toggle EDIT/VIEW nascosto in anteprima
   }
+  // Ri-renderizza la vista corrente col nuovo ruolo (o va al Calendario se la corrente è nascosta).
+  function _rerenderForRole() {
+    calendarDirty = true;   // il calendario si ri-crea (blocchi editabili o no)
+    const active = document.querySelector('.view-tab.active');
+    const tgt = (active && active.style.display !== 'none') ? active : document.querySelector('.view-tab[data-view="sessions"]');
+    if (tgt) tgt.click();
+  }
+  applyRoleUI();
+  // Selettore "Vedi come" (SOLO per gli editor reali): anteprima di Revisore/Consultazione.
+  (function setupViewAs() {
+    const sel = document.getElementById('viewAsSel');
+    if (!sel) return;
+    if (!_isRealEditor) { sel.style.display = 'none'; return; }
+    sel.style.display = '';
+    sel.addEventListener('change', function () {
+      _viewAs = sel.value || null;
+      sel.classList.toggle('previewing', !!_viewAs);
+      applyRoleUI();
+      _rerenderForRole();
+    });
+  })();
 
   // Popover suggerimenti sul tab Collisioni: hover sulla cella costo (.cl-cost).
   (function setupCollisionPopover() {
@@ -2115,7 +2143,7 @@ var _editActive = !!EDIT_MODE;
       (s.periodo ? '\nPeriodo: ' + s.periodo : '') +
       (s.mutuanti ? '\nMutuazione: ' + s.mutuanti : '');
 
-    if (EDIT_MODE) {
+    if (_canEdit()) {
       block.classList.add('editable');
       const th = document.createElement('div');
       th.className = 's-resize top';
@@ -3648,7 +3676,7 @@ var _editActive = !!EDIT_MODE;
       b.style.height = Math.max(height - 2, 16) + 'px';
       b.innerHTML = '<div class="sblock-code">' + esc(u.text) + '</div>';
       b.title = u.text + ' · ' + u.room + ' · ' + fmt(u.start) + '-' + fmt(u.end);
-      if (EDIT_MODE) {
+      if (_canEdit()) {
         b.classList.add('editable');
         const th = document.createElement('div'); th.className = 's-resize top'; b.appendChild(th);
         const bh = document.createElement('div'); bh.className = 's-resize bottom'; b.appendChild(bh);
@@ -4376,7 +4404,7 @@ var _editActive = !!EDIT_MODE;
       (s.periodo ? '\nPeriodo: ' + s.periodo : '') +
       (s.mutuanti ? '\nMutuazione: ' + s.mutuanti : '');
 
-    if (EDIT_MODE) {
+    if (_canEdit()) {
       block.classList.add('editable');
       const lh = document.createElement('div');
       lh.className = 'resize-handle left';

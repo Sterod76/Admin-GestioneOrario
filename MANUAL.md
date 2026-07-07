@@ -53,6 +53,10 @@ per volta, scadenza 24 h auto-rinnovata). Uscendo da EDIT con modifiche non salv
 conferma. Se il lock ti viene tolto, il Salva è rifiutato (ricarica e riapplica). Sblocco
 forzato: menu **🕒 Orario → 🔓 Sconnetti editor**.
 
+**👁 Vedi come** (solo editor, selettore in alto a destra): anteprima della UI come la
+vedono **Revisore** o **Consultazione** (tab, barra Aule/Labs e tabelle cambiano di
+conseguenza; l'editing è disattivato). **Vista normale** ripristina la vista editor.
+
 **Livelli (foglio CONFIG)**: `WebEditors` (tutto) · `WebAuditors`/`WebRevisori`/`WebReviewers`
 (tutti i tab, sola lettura) · chiunque altro = **Consultazione**: vede **Calendario** + due
 **tabelle semplificate** (`LT` e `LM`) — una riga per codice/gruppo, colonne Lun–Ven con
