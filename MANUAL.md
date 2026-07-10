@@ -30,7 +30,7 @@ Fogli `S1LT`, `S1LM`, `S2LT`, `S2LM` (semestre × LT/LM). Colonne principali:
 | Col | Campo |
 |---|---|
 | C | Codice · D | Codice mutuato (valorizzato → mutuazione) · E | Insegnamento · F | Tipo · G | Vincolo OBB/FOR/OPZ |
-| H | Gruppo (A, A1…; per la LT **`A+B`** o `AB` = comune a entrambi i canali. In LT obbligatori/forchette il vuoto/N.A. si mostra ovunque come `A+B`; gli **opzionali LT restano N.A.**) · **J** | **Docenti** (1° = titolare; separatori a capo `/ ; ,` " e ") · K | SSD |
+| H | Gruppo (A, A1…; per la LT **`A+B`** o `AB` = comune a entrambi i canali. Solo negli **obbligatori LT** il vuoto/N.A. si mostra ovunque come `A+B`; forchette e opzionali LT **restano N.A.**) · **J** | **Docenti** (1° = titolare; separatori a capo `/ ; ,` " e ") · K | SSD |
 | L–Q | LUN…SAB (`Aula · HH:MM-HH:MM`) · R | Periodo · **S** | **Note e Richieste** (mostrata in Consultazione) |
 
 Menu **🛠️ Gestione tabelle → 👤 Normalizza docenti** ripulisce la col J (*Cognome N.*,

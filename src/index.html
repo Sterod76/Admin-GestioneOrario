@@ -1898,12 +1898,12 @@ var _editActive = !!EDIT_MODE;
     const s = String(g == null ? '' : g).replace(/\s+/g, '').toUpperCase();
     return s === '' || s === 'A+B' || s === 'AB';   // accetta anche "AB" come intera coorte
   }
-  // Etichetta GRAFICA del gruppo. SOLO per la LT NON opzionale: "vuoto"/AB/A+B → sempre "A+B"
-  // (in LT gli obbligatori/forchette sono a canali A/B, il gruppo indeterminato = coorte intera).
-  // Gli OPZIONALI LT non hanno canali → restano N.A. (vuoto). LM invariata.
+  // Etichetta GRAFICA del gruppo. SOLO per gli OBBLIGATORI LT: "vuoto"/AB/A+B → sempre "A+B"
+  // (gli obbligatori sono a canali A/B, il gruppo indeterminato = coorte intera). Forchette e
+  // opzionali LT non hanno canali → restano N.A. (vuoto). LM invariata.
   function _grpLabel(group, sheet, vincolo) {
-    const isOpz = String(vincolo || '').trim().toUpperCase() === 'OPZ';
-    if (/LT$/i.test(String(sheet || '')) && !isOpz && _isFullGroup(group)) return 'A+B';
+    const isObb = String(vincolo || '').trim().toUpperCase() === 'OBB';
+    if (/LT$/i.test(String(sheet || '')) && isObb && _isFullGroup(group)) return 'A+B';
     return String(group == null ? '' : group).trim();
   }
   function groupDivisor(group) {
