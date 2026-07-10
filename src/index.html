@@ -1896,7 +1896,13 @@ var _editActive = !!EDIT_MODE;
   // come intera coorte (divisore 1). Normalizza spazi/maiuscole ("a + b" → "A+B").
   function _isFullGroup(g) {
     const s = String(g == null ? '' : g).replace(/\s+/g, '').toUpperCase();
-    return s === '' || s === 'A+B';
+    return s === '' || s === 'A+B' || s === 'AB';   // accetta anche "AB" come intera coorte
+  }
+  // Etichetta GRAFICA del gruppo. SOLO per la LT: "vuoto"/AB/A+B → sempre "A+B" (in LT il
+  // gruppo indeterminato non esiste, è la coorte intera; N.A. non si mostra). LM invariata.
+  function _grpLabel(group, sheet) {
+    if (/LT$/i.test(String(sheet || '')) && _isFullGroup(group)) return 'A+B';
+    return String(group == null ? '' : group).trim();
   }
   function groupDivisor(group) {
     const g = String(group || '').trim();
@@ -2128,7 +2134,7 @@ var _editActive = !!EDIT_MODE;
       block.style.right = 'auto';
     }
 
-    const tag = s.group ? (s.code + ' [' + s.group + ']') : s.code;
+    const _gl = _grpLabel(s.group, s.sheet); const tag = _gl ? (s.code + ' [' + _gl + ']') : s.code;
     const cinfo = capacityInfo(s);
     const warnHtml = (cinfo && cinfo.over)
       ? '<div class="sblock-warn" title="Capienza superata: ~' + Math.round(cinfo.eff) +
@@ -2145,7 +2151,7 @@ var _editActive = !!EDIT_MODE;
       fmt(s.start) + '-' + fmt(s.end) + ' ' + s.room + '\n' +
       (s.titolare ? 'Docenti: ' + s.titolare + '\n' : '') +
       (s.tipo ? 'Tipo: ' + (s.tipoLabel || s.tipo) + '\n' : '') +
-      'Gruppo: ' + (s.group || 'N/A') +
+      'Gruppo: ' + (_grpLabel(s.group, s.sheet) || 'N/A') +
       (cinfo ? '\nCapienza: ~' + Math.round(cinfo.eff) + '/' + cinfo.cap + ' (' + Math.round(cinfo.ratio * 100) + '%)' + (cinfo.over ? ' ⚠' : '') : '') +
       (s.periodo ? '\nPeriodo: ' + s.periodo : '') +
       (s.mutuanti ? '\nMutuazione: ' + s.mutuanti : '');
@@ -3571,7 +3577,7 @@ var _editActive = !!EDIT_MODE;
       rows.forEach(row => {
         h += '<tr><td class="pt-corso"><span class="pt-code" style="color:' + sheetColor + '">' + esc(row.code) + '</span>' +
           (row.cfu ? ' <span class="pt-cfu">' + esc(row.cfu) + ' CFU</span>' : '') +
-          (row.grp ? ' <span class="pt-grp">[canale ' + esc(row.grp) + ']</span>' : '') +
+          ((function (gl) { return gl ? ' <span class="pt-grp">[canale ' + esc(gl) + ']</span>' : ''; })(_grpLabel(row.grp, sheetName))) +
           (row.title ? '<span class="pt-title">' + esc(row.title) + '</span>' : '') + '</td>';
         for (let d = 0; d < 5; d++) {
           const cell = row.sess.filter(s => s.day === d).sort((a, b) => a.start - b.start)
@@ -4394,7 +4400,7 @@ var _editActive = !!EDIT_MODE;
     block.style.left = left + 'px';
     block.style.width = Math.max(width - 2, 20) + 'px';
 
-    const tag = s.group ? (s.code + ' [' + s.group + ']') : s.code;
+    const _gl = _grpLabel(s.group, s.sheet); const tag = _gl ? (s.code + ' [' + _gl + ']') : s.code;
     // Singola riga: code + name (truncato). L'orario è leggibile dalla posizione
     // del blocco sulla timeline e dal tooltip.
     block.innerHTML =
@@ -4407,7 +4413,7 @@ var _editActive = !!EDIT_MODE;
       fmt(s.start) + '-' + fmt(s.end) + ' ' + s.room + '\n' +
       (s.titolare ? 'Titolare: ' + s.titolare + '\n' : '') +
       (s.tipo ? 'Tipo: ' + (s.tipoLabel || s.tipo) + '\n' : '') +
-      'Gruppo: ' + (s.group || 'N/A') +
+      'Gruppo: ' + (_grpLabel(s.group, s.sheet) || 'N/A') +
       (s.periodo ? '\nPeriodo: ' + s.periodo : '') +
       (s.mutuanti ? '\nMutuazione: ' + s.mutuanti : '');
 
@@ -5428,8 +5434,8 @@ var _editActive = !!EDIT_MODE;
       el.dataset.room = s.room;
       el.dataset.gruppo = s.group;
       el.dataset.anno = s.anno || '';
-      const tag = s.group ? (s.code + ' [' + s.group + ']') : s.code;
-      const groupLine = 'Gruppo: ' + (s.group || 'N/A');
+      const _gl = _grpLabel(s.group, s.sheet); const tag = _gl ? (s.code + ' [' + _gl + ']') : s.code;
+      const groupLine = 'Gruppo: ' + (_grpLabel(s.group, s.sheet) || 'N/A');
       el.innerHTML =
         '<div class="code" style="color:' + (s.sheetColor || 'inherit') + '">' + esc(tag) +
           (s.periodo ? ' <span style="color:var(--muted);font-weight:400">[' + esc(s.periodo) + ']</span>' : '') +
@@ -5443,7 +5449,7 @@ var _editActive = !!EDIT_MODE;
         fmt(s.start) + '-' + fmt(s.end) + ' ' + s.room + '\n' +
         (s.titolare ? 'Titolare: ' + s.titolare + '\n' : '') +
         (s.tipo ? 'Tipo: ' + (s.tipoLabel || s.tipo) + '\n' : '') +
-        'Gruppo: ' + (s.group || 'N/A') +
+        'Gruppo: ' + (_grpLabel(s.group, s.sheet) || 'N/A') +
         (s.periodo ? '\nPeriodo: ' + s.periodo : '') +
         (s.mutuanti ? '\nMutuazione: ' + s.mutuanti : '');
       dayColEls[s.day].appendChild(el);

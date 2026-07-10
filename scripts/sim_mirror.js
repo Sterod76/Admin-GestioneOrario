@@ -14,7 +14,7 @@ function extract(name) {
   }
   return html.slice(start, end);
 }
-const src = extract('_hh') + '\n' + extract('docentiHtml') + '\n' + extract('shortTitle') + '\n' + extract('renderSheetMirror');
+const src = extract('_hh') + '\n' + extract('docentiHtml') + '\n' + extract('shortTitle') + '\n' + extract('_isFullGroup') + '\n' + extract('_grpLabel') + '\n' + extract('renderSheetMirror');
 
 const captures = {};
 let qValue = '';
@@ -111,6 +111,7 @@ check('public: rende <table class="pubtab">', pub.indexOf('class="pubtab"') !== 
 check('public: header LUN..VEN, niente SAB', pub.indexOf('>LUN<') !== -1 && pub.indexOf('>VEN<') !== -1 && pub.indexOf('>SAB<') === -1);
 check('public: NIENTE totale ore', pub.indexOf('Totale ore') === -1);
 check('public: FIS001 gruppo A separato ([canale A])', pub.indexOf('[canale A]') !== -1);
+check('public LT: gruppo vuoto → [canale A+B] (N/A non esiste in LT)', pub.indexOf('[canale A+B]') !== -1);
 check('public: pillola orario+aula (Aula B)', pub.indexOf('pt-pill') !== -1 && pub.indexOf('Aula B') !== -1);
 check('public: CFU dopo il codice (9 CFU)', pub.indexOf('9 CFU') !== -1);
 check('public: colonna Docenti (Rossi)', pub.indexOf('Docenti') !== -1 && pub.indexOf('Rossi') !== -1);
