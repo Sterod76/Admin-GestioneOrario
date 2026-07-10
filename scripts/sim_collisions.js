@@ -49,7 +49,7 @@ function extractFn(name) {
   for (let k = j; k < html.length; k++) { if (html[k] === '{') d++; else if (html[k] === '}') { d--; if (d === 0) return html.slice(s, k + 1); } }
   console.error('brace non chiusa:', name); process.exit(2);
 }
-const svcHelpers = [extractFn('_normTok'), extractFn('_teacherKey'), extractFn('_extKey')].join('\n');
+const svcHelpers = [extractFn('_isFullGroup'), extractFn('_normTok'), extractFn('_teacherKey'), extractFn('_extKey')].join('\n');
 
 // helper + renderCollisions + renderUbiquity nello STESSO scope
 eval(svcHelpers + '\n' + helperSrc + '\n' + fnSrc + '\n' + ubiqSrc);

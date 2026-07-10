@@ -21,7 +21,7 @@ let _coexRoleCtxCache = null;
 const fnSrc = [extractFn('sigOf'), extractFn('teachersOfSess'), extractFn('canon'),
   extractFn('_teacherBusySessions'), extractFn('_teacherBusyIntervals'),
   extractFn('_coexRoleCtx'), extractFn('_coexPairType'),
-  extractFn('_annoOverlap'), extractFn('_gCompatCost'), extractFn('_ltCoexHit'),
+  extractFn('_isFullGroup'), extractFn('_annoOverlap'), extractFn('_gCompatCost'), extractFn('_ltCoexHit'),
   extractFn('_normTok'), extractFn('_teacherKey'), extractFn('_extKey'),
   extractFn('_externalBusyIntervals')].join('\n');
 eval(fnSrc);
@@ -116,6 +116,8 @@ check('LT: A↔A2 → sì', _ltCoexHit(LT('OBB', '1', 'A'), LT('OBB', '1', 'A2')
 check('LT: A1↔A2 (fratelli) → no', _ltCoexHit(LT('OBB', '1', 'A1'), LT('OBB', '1', 'A2')) === false);
 check('LT: stesso gruppo A↔A → sì', _ltCoexHit(LT('OBB', '1', 'A'), LT('OBB', '1', 'A')) === true);
 check('LT: gruppo vuoto ↔ A (stesso anno) → sì', _ltCoexHit(LT('OBB', '1', ''), LT('OBB', '1', 'A')) === true);
+check('LT: A+B ↔ B (intera coorte) → sì', _ltCoexHit(LT('OBB', '1', 'A+B'), LT('OBB', '1', 'B')) === true);
+check('LT: A+B ↔ A1 → sì', _ltCoexHit(LT('OBB', '1', 'A+B'), LT('OBB', '1', 'A1')) === true);
 check('LT: anni diversi → no', _ltCoexHit(LT('OBB', '1', 'A'), LT('OBB', '2', 'A')) === false);
 check('LT: uno non-OBB (FOR×OBB) → no', _ltCoexHit(LT('FOR', '1', 'A'), LT('OBB', '1', 'A')) === false);
 check('LT: entrambi FOR → no', _ltCoexHit(LT('FOR', '1', 'A'), LT('FOR', '1', 'A')) === false);

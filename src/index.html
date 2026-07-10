@@ -1891,9 +1891,16 @@ var _editActive = !!EDIT_MODE;
     const m = String(sub).match(/\d+/);
     return m ? parseInt(m[0], 10) : null;
   }
+  // Gruppo "comune a tutti i canali" (convenzione LT): "A+B" (o vuoto) → compatibile con
+  // QUALSIASI gruppo (A/A1/A2/B/…, così scegliendo un canale si vede anche l'A+B) e conta
+  // come intera coorte (divisore 1). Normalizza spazi/maiuscole ("a + b" → "A+B").
+  function _isFullGroup(g) {
+    const s = String(g == null ? '' : g).replace(/\s+/g, '').toUpperCase();
+    return s === '' || s === 'A+B';
+  }
   function groupDivisor(group) {
     const g = String(group || '').trim();
-    if (!g) return 1;
+    if (_isFullGroup(g)) return 1;
     if (/^[A-Za-z]$/.test(g)) return 2;
     if (/^[A-Za-z]+[0-9]+$/.test(g)) return 4;
     return 1;
@@ -1914,7 +1921,7 @@ var _editActive = !!EDIT_MODE;
   // un PdS dove entrambi sono OBB/FOR. Δcosto = costo marginale a nuova pos − attuale.
   function _gCompatCost(x, y) {
     x = String(x || '').trim(); y = String(y || '').trim();
-    if (!x || !y) return true;
+    if (_isFullGroup(x) || _isFullGroup(y)) return true;   // "A+B"/vuoto = intera coorte
     return x.indexOf(y) === 0 || y.indexOf(x) === 0;
   }
   let _pdsSetsCache = { ref: null, sets: [] };
@@ -2457,7 +2464,7 @@ var _editActive = !!EDIT_MODE;
     // (A1 vs A → sì; A1 vs A2 → no; A vs B → no).
     const gCompat = (x, y) => {
       x = String(x || '').trim(); y = String(y || '').trim();
-      if (!x || !y) return true;
+      if (_isFullGroup(x) || _isFullGroup(y)) return true;   // "A+B"/vuoto = intera coorte
       return x.indexOf(y) === 0 || y.indexOf(x) === 0;
     };
     function pairsWithin(list, pred) {
@@ -5909,8 +5916,8 @@ var _editActive = !!EDIT_MODE;
       if (roomOverride && !checkedRooms[el.dataset.room]) ok = false;
       if (fGruppo && el.dataset.gruppo) {
         const g = el.dataset.gruppo;
-        const isCompat = g.indexOf(fGruppo) === 0 || fGruppo.indexOf(g) === 0;
-        if (!isCompat) ok = false;
+        const isCompat = _isFullGroup(g) || g.indexOf(fGruppo) === 0 || fGruppo.indexOf(g) === 0;
+        if (!isCompat) ok = false;   // "A+B" (intera coorte LT) sempre mostrato per ogni canale
       }
       if (fAnno && el.dataset.anno.indexOf(fAnno) === -1) ok = false;
       if (qTerms.length) {
@@ -5942,8 +5949,8 @@ var _editActive = !!EDIT_MODE;
       if (roomOverride && !checkedRooms[el.dataset.room]) ok = false;
       if (fGruppo && el.dataset.gruppo) {
         const g = el.dataset.gruppo;
-        const isCompat = g.indexOf(fGruppo) === 0 || fGruppo.indexOf(g) === 0;
-        if (!isCompat) ok = false;
+        const isCompat = _isFullGroup(g) || g.indexOf(fGruppo) === 0 || fGruppo.indexOf(g) === 0;
+        if (!isCompat) ok = false;   // "A+B" (intera coorte LT) sempre mostrato per ogni canale
       }
       if (fAnno && el.dataset.anno.indexOf(fAnno) === -1) ok = false;
       if (qTerms.length) {

@@ -12,7 +12,7 @@ function extract(name) {
   for (let k = i; k < html.length; k++) { if (html[k] === '{') d++; else if (html[k] === '}') { d--; if (d === 0) { e = k + 1; break; } } }
   return html.slice(s, e);
 }
-const FNS = ['slotLevelOf', 'canon', '_coexSync', 'coexamN', 'effN', 'coexamE', 'roomCapacity', 'groupDivisor',
+const FNS = ['slotLevelOf', 'canon', '_coexSync', 'coexamN', 'effN', 'coexamE', 'roomCapacity', '_isFullGroup', 'groupDivisor',
   'capacityInfo', '_annoOverlap', '_gCompatCost', '_pdsVincSets', '_sharePdsVinc', 'pairCountsForCost', 'teachersOfSess',
   '_marginalCost', '_roomFreeAt', '_rowFreeOnDay', '_teacherFreeAt', 'suggestMoves',
   'fmtCost', 'sessBySig', 'collisionSuggHtml'];

@@ -14,7 +14,7 @@ function extract(name) {
 let data = {};
 // coexamE mock (legge data.coexam.perCode) — la logica sotto test è capacityInfo
 function coexamE(code) { const pc = (data.coexam || {}).perCode || {}; const C = String(code || '').toUpperCase(); return Object.prototype.hasOwnProperty.call(pc, C) ? pc[C] : null; }
-eval(extract('roomCapacity') + '\n' + extract('groupDivisor') + '\n' + extract('capacityInfo'));
+eval(extract('_isFullGroup') + '\n' + extract('roomCapacity') + '\n' + extract('groupDivisor') + '\n' + extract('capacityInfo'));
 
 data = {
   roomSubtitles: { 'Aula F1': '68', 'Lab M': '16 posti', 'Aula X': 'aula grande' },
@@ -35,6 +35,8 @@ check('groupDivisor "" = 1', groupDivisor('') === 1);
 check('groupDivisor "A" = 2 (lettera)', groupDivisor('A') === 2);
 check('groupDivisor "A1" = 4 (lettera+numero)', groupDivisor('A1') === 4);
 check('groupDivisor "B2" = 4', groupDivisor('B2') === 4);
+check('groupDivisor "A+B" = 1 (intera coorte)', groupDivisor('A+B') === 1);
+check('groupDivisor "a + b" = 1 (normalizzato)', groupDivisor('a + b') === 1);
 
 // capacityInfo: FIS E=120, Aula F1 cap=68 (80% = 54.4)
 let ci = capacityInfo({ room: 'Aula F1', code: 'FIS', group: '' });
