@@ -132,6 +132,15 @@ const pubF = render(null);
 check('public: esclude codici *T (0000T assente)', pubF.indexOf('0000T') === -1);
 check('public: esclude codici *RI (099RI assente)', pubF.indexOf('099RI') === -1);
 check('public: tiene i codici normali (FIS009 presente)', pubF.indexOf('FIS009') !== -1);
+
+// OPZ LT con gruppo vuoto → resta N.A. (niente [canale A+B]); OBB vuoto → [canale A+B]
+data.rawSheets.S1LT.grid = [H,
+  ['1', '6', 'OPZ01', '', 'Opzionale X', 'LEZ', 'OPZ', '', '', 'Tizio', '', '', '', '', '', '', '', 'I'],
+  ['1', '6', 'OBB01', '', 'Obbligatorio Y', 'LEZ', 'OBB', '', '', 'Caio', '', '', '', '', '', '', '', 'I']];
+qValue = '';
+const pubO = render(null);
+const nAB = (pubO.match(/\[canale A\+B\]/g) || []).length;
+check('public LT: OPZ vuoto NON diventa A+B (solo OBB lo è)', nAB === 1 && pubO.indexOf('OPZ01') !== -1 && pubO.indexOf('OBB01') !== -1);
 data.rawSheets.S1LT.grid = _gridBak;
 _isPublic = false;
 

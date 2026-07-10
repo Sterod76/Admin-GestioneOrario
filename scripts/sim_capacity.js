@@ -45,6 +45,9 @@ check('_grpLabel("AB", S1LT) = "A+B"', _grpLabel('AB', 'S1LT') === 'A+B');
 check('_grpLabel("a+b", S1LT) = "A+B"', _grpLabel('a+b', 'S1LT') === 'A+B');
 check('_grpLabel("A", S1LT) = "A" (gruppo specifico invariato)', _grpLabel('A', 'S1LT') === 'A');
 check('_grpLabel("", S1LM) = "" (LM: N/A resta)', _grpLabel('', 'S1LM') === '');
+check('_grpLabel("", S1LT, OPZ) = "" (opzionali LT restano N.A.)', _grpLabel('', 'S1LT', 'OPZ') === '');
+check('_grpLabel("", S1LT, OBB) = "A+B" (obbligatori LT)', _grpLabel('', 'S1LT', 'OBB') === 'A+B');
+check('_grpLabel("", S1LT, FOR) = "A+B" (forchette LT: canali)', _grpLabel('', 'S1LT', 'FOR') === 'A+B');
 
 // capacityInfo: FIS E=120, Aula F1 cap=68 (80% = 54.4)
 let ci = capacityInfo({ room: 'Aula F1', code: 'FIS', group: '' });
