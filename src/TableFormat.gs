@@ -1,4 +1,7 @@
+// Voci di menu: getUi() per primo, così dalla web app (google.script.run) lanciano
+// un errore prima di scrivere.
 function saveTableFormat() {
+  SpreadsheetApp.getUi();
   const sheet = SpreadsheetApp.getActiveSheet();
   const lastCol = sheet.getLastColumn();
   if (lastCol < 1) {
@@ -17,7 +20,7 @@ function saveTableFormat() {
       orientation: rotation ? rotation.getDegrees() : 0
     });
   }
-  setTableFormat(arr);
+  setTableFormat_(arr);
   SpreadsheetApp.getActiveSpreadsheet().toast(
     `Salvate ${arr.length} colonne dal foglio "${sheet.getName()}".`,
     'Formato tabella',
@@ -26,6 +29,7 @@ function saveTableFormat() {
 }
 
 function reloadTableFormat() {
+  SpreadsheetApp.getUi();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getActiveSheet();
   const fmt = getTableFormat();

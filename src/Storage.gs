@@ -47,7 +47,7 @@ function exportToJson() {
   // Non-disponibilità aule: vivono su SxAULE come celle unite e NON sono nei fogli
   // sopra → le salvo a parte come lista {room, day, start, end, text}.
   let nUnavail = 0;
-  try { const un = getOrarioData().unavail || []; out._unavail = un; nUnavail = un.length; } catch (e) { out._unavail = []; }
+  try { const un = getOrarioData_().unavail || []; out._unavail = un; nUnavail = un.length; } catch (e) { out._unavail = []; }
   // PdS (settings dei piani) e MATRICE (co-esami): salvati per backup. La MATRICE è
   // alimentata via IMPORTRANGE → in import NON viene reimportata; il PdS sì.
   let hasPds = false, hasCoex = false;
@@ -200,15 +200,15 @@ function importFromJson() {
       ui.ButtonSet.OK_CANCEL);
     if (confirm !== ui.Button.OK) return;
 
-    const msg = applyImportFromJson(JSON.stringify(data));
+    const msg = applyImportFromJson_(JSON.stringify(data));
     // Dopo l'import: rigenera SxAULE dalle sessioni appena importate (+ ripristina le
     // non-disponibilità) e RISCRIVE lo snapshot della web app — altrimenti il sito,
     // che legge lo snapshot, continuerebbe a mostrare i dati vecchi.
     let extraMsg = '';
     const un = Array.isArray(data._unavail) ? data._unavail : [];
     try {
-      tabellaAule({ ss: ss, interactive: false, extraUnavail: un, removedUnavail: [] });
-      const d = getOrarioData(); d.pendingEdits = []; _writeSnapshot_(d);
+      tabellaAule_({ ss: ss, interactive: false, extraUnavail: un, removedUnavail: [] });
+      const d = getOrarioData_(); d.pendingEdits = []; _writeSnapshot_(d);
       extraMsg = '\nSxAULE rigenerato e snapshot Web App aggiornato' +
         (un.length ? ' (non-disponibilità ripristinate: ' + un.length + ')' : '') + '.' +
         '\n→ Ricarica la web app (o premi 📥 Carica) per vedere i dati.';
@@ -222,10 +222,11 @@ function importFromJson() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// IMPORT — core logic (chiamato da importFromJson)
+// IMPORT — core logic (chiamato da importFromJson). Privata (_): una funzione
+// globale senza _ è chiamabile con google.script.run da chiunque apra la web app.
 // ─────────────────────────────────────────────────────────────────────────────
 
-function applyImportFromJson(jsonText) {
+function applyImportFromJson_(jsonText) {
   let data;
   try { data = JSON.parse(jsonText); }
   catch (e) { throw new Error('JSON malformato: ' + e.message); }

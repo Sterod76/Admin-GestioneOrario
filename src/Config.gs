@@ -143,6 +143,6 @@ function getTableFormat() {
   }
 }
 
-function setTableFormat(arr) {
+function setTableFormat_(arr) {
   PropertiesService.getScriptProperties().setProperty(TABLE_FORMAT_PROP, JSON.stringify(arr));
 }

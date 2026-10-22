@@ -22,7 +22,10 @@ function titleCaseItEn(s) {
   });
 }
 
+// Voce di menu: getUi() per primo, così dalla web app (google.script.run) lancia un
+// errore prima di riscrivere le celle.
 function fixCalendarEntries() {
+  SpreadsheetApp.getUi();
   const sheet = SpreadsheetApp.getActiveSheet();
   const lastRow = sheet.getLastRow();
   const firstRow = HEADER_ROWS + 1;

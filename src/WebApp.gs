@@ -112,8 +112,9 @@ function getVisibility_() {
 function _isDraftBlocked_(role, visibility) {
   return role === 'public' && visibility === 'draft';
 }
-function setVisibilityPublished() { _setVisibility_('published'); }
-function setVisibilityDraft() { _setVisibility_('draft'); }
+// Voci di menu: getUi() per primo, così dalla web app (google.script.run) lanciano un errore.
+function setVisibilityPublished() { SpreadsheetApp.getUi(); _setVisibility_('published'); }
+function setVisibilityDraft() { SpreadsheetApp.getUi(); _setVisibility_('draft'); }
 function _setVisibility_(v) {
   try { PropertiesService.getScriptProperties().setProperty(VISIBILITY_PROP, v); } catch (e) {}
   try { onOpen(); } catch (e) {} // rinfresca le spunte nel menu
@@ -136,8 +137,9 @@ function getFeedbackEnabled_() {
   try { return PropertiesService.getScriptProperties().getProperty(FEEDBACK_PROP) === 'on' ? 'on' : 'off'; }
   catch (e) { return 'off'; }
 }
-function setFeedbackOn() { _setFeedback_('on'); }
-function setFeedbackOff() { _setFeedback_('off'); }
+// Voci di menu: getUi() per primo, così dalla web app (google.script.run) lanciano un errore.
+function setFeedbackOn() { SpreadsheetApp.getUi(); _setFeedback_('on'); }
+function setFeedbackOff() { SpreadsheetApp.getUi(); _setFeedback_('off'); }
 function _setFeedback_(v) {
   try { PropertiesService.getScriptProperties().setProperty(FEEDBACK_PROP, v); } catch (e) {}
   try { onOpen(); } catch (e) {} // rinfresca le spunte nel menu
@@ -181,6 +183,11 @@ function _feedbackForEmail_(email) {
   rows.forEach(r => { r.timestamp = _fmtTs_(r.timestamp); });
   return rows;
 }
+/** Testo da input esterno scritto in una cella: se comincia con = + - @ Sheets lo tratterebbe come
+ *  formula (=IMAGE/=HYPERLINK per esfiltrare dati o fare phishing). L'apostrofo lo forza a testo. */
+function comeTesto_(v) {
+  return (typeof v === 'string' && /^[=+\-@\t\r]/.test(v) && !/^[+-]?\d+([.,]\d+)?$/.test(v)) ? "'" + v : v;
+}
 function rpcFeedbackList() {
   return JSON.stringify(_feedbackForEmail_(currentEmail_()));
 }
@@ -197,7 +204,7 @@ function rpcFeedbackSubmit(text) {
   try {
     const row = Math.max(sh.getLastRow() + 1, 2);
     // A Timestamp · B email · C Feedback · D Risposta(vuoto) · E Stato=Aperta · F Commenti(vuoto)
-    sh.getRange(row, 1, 1, 5).setValues([[new Date(), email, t, '', 'Aperta']]);
+    sh.getRange(row, 1, 1, 5).setValues([[new Date(), email, comeTesto_(t), '', 'Aperta']]);
   } finally { try { lock.releaseLock(); } catch (e) {} }
   return rpcFeedbackList();
 }
@@ -218,7 +225,7 @@ function rpcFeedbackUpdate(row, text) {
     const owner = String(sh.getRange(r, 2).getValue() || '').trim().toLowerCase();
     if (owner !== email) throw new Error('Non puoi modificare questo feedback.');
     sh.getRange(r, 1).setValue(new Date()); // A Timestamp aggiornato
-    sh.getRange(r, 3).setValue(t);          // C Feedback
+    sh.getRange(r, 3).setValue(comeTesto_(t)); // C Feedback
     sh.getRange(r, 5).setValue('Aperta');   // E Stato
   } finally { try { lock.releaseLock(); } catch (e) {} }
   return rpcFeedbackList();
@@ -322,7 +329,7 @@ function doGet(e) {
   let data = _readSnapshot_();
   if (!data) {
     // Primo accesso o snapshot corrotto: bootstrap dal foglio.
-    data = getOrarioData();
+    data = getOrarioData_();
     data.pendingEdits = [];
     _writeSnapshot_(data);
   } else {
@@ -337,7 +344,9 @@ function doGet(e) {
     return ContentService.createTextOutput(draft ? '{}' : json).setMimeType(ContentService.MimeType.JSON);
   }
   const tpl = HtmlService.createTemplateFromFile('index');
-  tpl.bootstrap = json;
+  // JSON dentro <script> (<?!= ?> non escapa): niente "<", che con "</script>" in una
+  // cella del foglio chiuderebbe il tag e inietterebbe HTML/JS (XSS memorizzato).
+  tpl.bootstrap = json.replace(/</g, '\\u003c');
   const semester = data.semester || 'S1';
   // Transizione EDIT/VIEW via ?m=edit|view (navigazione SINCRONA dal toggle): il
   // lock si acquisisce/rilascia QUI, così il reload non dipende da una callback
@@ -376,7 +385,7 @@ function doGet(e) {
     editEmails: getEditorEmails_(),
     isEditorResult: tpl.editMode,
     ts: new Date().toISOString()
-  });
+  }).replace(/</g, '\\u003c'); // come bootstrap: JSON dentro <script>
   return tpl.evaluate()
     .setTitle(data.spreadsheetName || ('Orario ' + semester)) // scheda Chrome = nome del gsheet
     .setFaviconUrl('https://www.df.unipi.it/wp-content/uploads/2025/03/cropped-favf-192x192.png')
@@ -389,7 +398,7 @@ function doGet(e) {
 
 function rpcLoadFromSheet() {
   if (!isEditor_(currentEmail_())) throw new Error('Non autorizzato.');
-  const data = getOrarioData();
+  const data = getOrarioData_();
   data.pendingEdits = [];
   _writeSnapshot_(data);
   return JSON.stringify(data);
@@ -416,7 +425,7 @@ function rpcSaveToSheet(payload) {
     const unavailEdits = all.filter(e => e.unavail);
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     if (courseEdits.length) applyEditsBatch_(ss, courseEdits);
-    // Edit NON DISPONIBILE → passati a tabellaAule che li scrive su SxAULE.
+    // Edit NON DISPONIBILE → passati a tabellaAule_ che li scrive su SxAULE.
     // op: 'create' (add), 'delete' (remove orig), 'move' (remove orig + add new).
     const extraUnavail = [];
     const removedUnavail = [];
@@ -432,9 +441,9 @@ function rpcSaveToSheet(payload) {
       }
     });
     // Rigenera SxAULE (non-interactive: throw su conflitti, auto-accept new rooms)
-    tabellaAule({ ss: ss, interactive: false, extraUnavail: extraUnavail, removedUnavail: removedUnavail });
+    tabellaAule_({ ss: ss, interactive: false, extraUnavail: extraUnavail, removedUnavail: removedUnavail });
     // Re-read foglio + scrivi 3 bucket
-    const data = getOrarioData();
+    const data = getOrarioData_();
     data.pendingEdits = [];
     _writeSnapshot_(data);
     return JSON.stringify(data);
@@ -474,8 +483,8 @@ function vaiAlWebCalendar() {
   // 2. Memorizza l'URL VERO (da C2) per iniettarlo nel client a ogni doGet.
   try { PropertiesService.getScriptProperties().setProperty('webappUrl', url); } catch (e) {}
   // Pubblica: rigenera SxAULE + riscrive lo snapshot (3 bucket).
-  tabellaAule({ ss: ss, interactive: true });
-  const data = getOrarioData();
+  tabellaAule_({ ss: ss, interactive: true });
+  const data = getOrarioData_();
   data.pendingEdits = [];
   _writeSnapshot_(data);
 
@@ -503,6 +512,12 @@ function applyEditsBatch_(ss, edits) {
     return sheetCache[name];
   }
   function ensure(sheet, row, col) {
+    // Foglio/riga/colonna arrivano dal client: si scrivono SOLO le celle calendario
+    // (LUN..SAB) delle righe dati dei fogli SxLT/SxLM.
+    if (!/^S[12]L[TM]$/i.test(String(sheet)) || !(row >= HEADER_ROWS + 1) ||
+        !(col >= CALENDAR_COLS_START && col <= CALENDAR_COLS_END)) {
+      throw new Error('Cella non modificabile: ' + sheet + ' riga ' + row + ' col ' + col);
+    }
     const k = sheet + '|' + row + '|' + col;
     if (!cellOps[k]) cellOps[k] = { sheet, row, col, replacements: {}, removals: [], additions: [] };
     return cellOps[k];
@@ -746,6 +761,12 @@ function _readSnapshot_() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function cleanupLegacyProperties() {
+  // Solo dall'editor: dalla web app gira come chi l'ha pubblicata, e lì l'utente attivo
+  // (chi chiama con google.script.run) non coincide con quello effettivo.
+  const me = String(currentEmail_() || '').trim().toLowerCase();
+  if (!me || me !== String(Session.getEffectiveUser().getEmail() || '').trim().toLowerCase()) {
+    throw new Error('Non autorizzato: esegui dall\'editor Apps Script.');
+  }
   const props = PropertiesService.getScriptProperties();
   const all = props.getProperties();
   const legacyPrefixes = ['snap:', 'orarioSnap:'];
@@ -766,9 +787,11 @@ function cleanupLegacyProperties() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// getOrarioData: legge il foglio e costruisce l'oggetto data completo.
+// getOrarioData_: legge il foglio e costruisce l'oggetto data completo.
 // Chiamato da doGet (bootstrap), rpcLoadFromSheet, rpcSaveToSheet,
 // vaiAlWebCalendar. È l'unica funzione che apre lo Spreadsheet.
+// Privata (_): non applica la regola «in redazione» di doGet, quindi non deve
+// essere chiamabile con google.script.run.
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Legge la tabella "SERVIZIO" (impegni di docenza FUORI dal dipartimento, da
@@ -816,7 +839,7 @@ function readImpegniEsterni_(ss) {
   return out;
 }
 
-function getOrarioData() {
+function getOrarioData_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const { prefix: AULE_PREFIX, output: AULE_OUTPUT } = detectAuleConfigFor_(ss);
   const semester = AULE_PREFIX;

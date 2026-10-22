@@ -35,14 +35,22 @@ const UNAVAIL_MARKER_REGEX = /^\s*non\s*disp/i;
 
 /**
  * Helper: ritorna SpreadsheetApp.getUi() oppure null se chiamati da contesto
- * non-bound (es. webapp RPC). Permette di chiamare tabellaAule sia dal menu
+ * non-bound (es. webapp RPC). Permette di chiamare tabellaAule_ sia dal menu
  * Sheet (interattivo) sia da rpcSaveToSheet (silenzioso).
  */
 function _maybeUi_() {
   try { return SpreadsheetApp.getUi(); } catch (e) { return null; }
 }
 
-function tabellaAule(opts) {
+// Voce di menu 🕒 Orario → 🏛️ Genera tabella aule. getUi() per primo: nel contesto
+// web app lancia un errore, così google.script.run non può rigenerare SxAULE (né
+// iniettarvi non-disponibilità). Il codice interno chiama direttamente tabellaAule_.
+function tabellaAule() {
+  SpreadsheetApp.getUi();
+  return tabellaAule_();
+}
+
+function tabellaAule_(opts) {
   const interactive = !opts || opts.interactive !== false;
   const passedSs = opts && opts.ss ? opts.ss : null;
   const ss = passedSs || SpreadsheetApp.getActiveSpreadsheet();
